@@ -1,0 +1,73 @@
+# ─── Python ───────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ─── Distribution / Packaging ─────────────────────────
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+sdist/
+wheels/
+
+# ─── Virtual Environments ─────────────────────────────
+.venv/
+venv/
+ENV/
+env/
+
+# ─── IDE & Editors ────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# ─── Testing & Coverage ──────────────────────────────
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# ─── Type Checking & Linting ─────────────────────────
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# ─── ML Models (large binaries) ──────────────────────
+models/*.joblib
+models/*.zip
+models/*.pt
+models/*.pth
+models/*.onnx
+!models/.gitkeep
+
+# ─── Output & Results ────────────────────────────────
+output/
+results/
+*.png
+*.svg
+*.pdf
+!docs/**/*.png
+!docs/**/*.svg
+
+# ─── OS Files ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ─── Jupyter ──────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ─── Misc ─────────────────────────────────────────────
+*.log
+*.bak
+*.tmp
