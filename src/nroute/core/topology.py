@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import networkx as nx
 
@@ -14,6 +14,9 @@ from nroute.utils.validators import (
     validate_positive_float,
     validate_probability,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # Type aliases for nodes and edges
 NodeDict = dict[str, Any]
@@ -487,3 +490,81 @@ class Topology:
                 f"Unknown topology type '{type}'. Must be one of: "
                 "random, scale-free, small-world, fat-tree."
             )
+
+    @classmethod
+    def from_csv(cls, path: str | Path) -> Topology:
+        """Load topology from a CSV edge-list file."""
+        from nroute.ingestion import ingest
+        result = ingest(path, format="csv-topology")
+        if not isinstance(result, Topology):
+            raise TopologyError("Ingested data is not a Topology.")
+        return result
+
+    @classmethod
+    def from_json(cls, path: str | Path) -> Topology:
+        """Load topology from a JSON file."""
+        from nroute.ingestion import ingest
+        result = ingest(path, format="json-topology")
+        if not isinstance(result, Topology):
+            raise TopologyError("Ingested data is not a Topology.")
+        return result
+
+    @classmethod
+    def from_netflow(cls, path: str | Path) -> Topology:
+        """
+        Build topology dynamically from NetFlow flow records.
+        Discovers nodes and edges from flow source/destination endpoints.
+        """
+        from nroute.core.traffic import TrafficMatrix
+        from nroute.ingestion import ingest
+
+        result = ingest(path, format="netflow")
+        if not isinstance(result, TrafficMatrix):
+            raise TopologyError("Ingested data is not a TrafficMatrix.")
+
+        # Build topology from traffic matrix endpoints
+        topo = cls()
+        for flow in result.flows:
+            if flow.source not in topo.nodes:
+                topo.add_node(flow.source)
+            if flow.destination not in topo.nodes:
+                topo.add_node(flow.destination)
+            if (flow.source, flow.destination) not in topo.edges:
+                topo.add_edge(flow.source, flow.destination)
+        return topo
+
+    def compute_routes(
+        self,
+        traffic_matrix: Any,
+        router: str | Any = "dijkstra",
+        weight: str | Callable[[dict[str, Any]], float] | None = None,
+    ) -> dict[tuple[str, str], list[str]]:
+        """
+        Compute paths for all flow records in a traffic matrix.
+
+        Args:
+            traffic_matrix: The traffic matrix containing flow demands.
+            router: A BaseRouter instance or router name ("dijkstra" | "bellman-ford" | "ecmp").
+            weight: Edge attribute name or weight function to use as routing metric.
+
+        Returns:
+            A dictionary mapping (source, destination) to the computed path.
+        """
+        from nroute.routing import BaseRouter, BellmanFordRouter, DijkstraRouter, ECMPRouter
+
+        if isinstance(router, str):
+            r_type = router.lower().strip()
+            if r_type == "dijkstra":
+                r_inst: BaseRouter = DijkstraRouter()
+            elif r_type in {"bellman-ford", "bellmanford"}:
+                r_inst = BellmanFordRouter()
+            elif r_type == "ecmp":
+                r_inst = ECMPRouter()
+            else:
+                raise ValueError(
+                    f"Unknown router name '{router}'. Supported: dijkstra, bellman-ford, ecmp"
+                )
+        else:
+            r_inst = router
+
+        return r_inst.compute_routes(self, traffic_matrix, weight=weight)
