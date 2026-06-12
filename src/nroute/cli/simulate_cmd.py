@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any
 
 import click
-from rich.console import Console  # type: ignore[import-not-found]
-from rich.table import Table  # type: ignore[import-not-found]
+from rich.console import Console
+from rich.table import Table
 
 from nroute.core.topology import Topology
 from nroute.exceptions import SimulationError
@@ -74,6 +74,18 @@ def simulate_cmd() -> None:
     default=None,
     help="Output path for metrics JSON.",
 )
+@click.option(
+    "--visualize",
+    is_flag=True,
+    default=False,
+    help="Enable interactive real-time console visualization.",
+)
+@click.option(
+    "--visualize-delay",
+    type=float,
+    default=0.2,
+    help="Delay in seconds between ticks during visualization.",
+)
 @click.pass_context
 def run_sim(
     ctx: click.Context,
@@ -84,6 +96,8 @@ def run_sim(
     flows_per_tick: int,
     seed: int | None,
     output: str | None,
+    visualize: bool,
+    visualize_delay: float,
 ) -> None:
     """Run a network simulation."""
     seed = seed or ctx.obj.get("seed")
@@ -99,13 +113,23 @@ def run_sim(
         traffic_gen = TrafficGenerator(model=traffic_model, n_flows_per_tick=flows_per_tick)
         engine = SimulationEngine(topo, router, traffic_gen)
 
-        console.print(
-            f"\n[cyan]Running simulation:[/cyan] {algorithm.upper()} on "
-            f"{topo.node_count} nodes, {duration} ticks, "
-            f"{traffic_model} traffic ({flows_per_tick} flows/tick)\n"
-        )
-
-        result = engine.run(duration_ticks=duration, seed=seed)
+        if visualize:
+            from nroute.visualization import LiveSimulationConsole
+            console.print("[cyan]Initializing real-time console visualization...[/cyan]")
+            visualizer = LiveSimulationConsole(
+                engine=engine,
+                duration_ticks=duration,
+                seed=seed,
+                delay=visualize_delay,
+            )
+            result = visualizer.run()
+        else:
+            console.print(
+                f"\n[cyan]Running simulation:[/cyan] {algorithm.upper()} on "
+                f"{topo.node_count} nodes, {duration} ticks, "
+                f"{traffic_model} traffic ({flows_per_tick} flows/tick)\n"
+            )
+            result = engine.run(duration_ticks=duration, seed=seed)
 
     except SimulationError as e:
         console.print(f"[red]✗ Simulation error:[/red] {e}")

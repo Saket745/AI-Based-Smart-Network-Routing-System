@@ -123,7 +123,6 @@ module = [
     "sklearn.*",
     "xgboost.*",
     "scapy.*",
-    "plotext.*",
     "joblib.*",
     "pandas.*",
     "yaml.*",

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
-from rich.progress import Progress  # type: ignore
+from rich.progress import Progress
 
 from nroute.simulation.collector import MetricsCollector
 from nroute.utils.logging import get_logger
@@ -63,13 +63,21 @@ class SimulationEngine:
         # - "accumulated_latency": float
         self.active_flows: list[dict[str, Any]] = []
 
-    def run(self, duration_ticks: int, seed: int | None = None) -> MetricsCollectionResult:
+    def run(
+        self,
+        duration_ticks: int,
+        seed: int | None = None,
+        callback: Callable[[int, SimulationEngine], None] | None = None,
+        show_progress: bool = True,
+    ) -> MetricsCollectionResult:
         """
         Run the simulation for a specified number of ticks.
 
         Args:
             duration_ticks: Total number of ticks to simulate.
             seed: Optional random seed for reproducibility.
+            callback: Optional callback invoked after each tick.
+            show_progress: Whether to show the default Rich progress bar.
 
         Returns:
             A MetricsCollectionResult containing chronological performance metrics.
@@ -94,10 +102,16 @@ class SimulationEngine:
         if self.config is not None and hasattr(self.config, "simulation"):
             tick_duration = getattr(self.config.simulation, "tick_duration", 1.0)
 
-        # Use rich progress bar for visibility
-        with Progress(transient=True) as progress:
+        # Use rich progress bar for visibility if requested
+        if show_progress:
+            progress = Progress(transient=True)
+            progress.start()
             task = progress.add_task("[cyan]Running Simulation...", total=duration_ticks)
+        else:
+            progress = None
+            task = None
 
+        try:
             for tick in range(duration_ticks):
                 timestamp = tick * tick_duration
 
@@ -221,7 +235,19 @@ class SimulationEngine:
                     reroute_count=reroute_count,
                 )
 
-                progress.update(task, advance=1)
+                # Store temporary attributes for dynamic event logging in callbacks
+                self.last_tick_completed_flows = completed_flows
+                self.last_tick_dropped_flows = dropped_flows
+                self.last_tick_reroute_count = reroute_count
+
+                if callback is not None:
+                    callback(tick, self)
+
+                if progress is not None and task is not None:
+                    progress.update(task, advance=1)
+        finally:
+            if progress is not None:
+                progress.stop()
 
         logger.info(
             "Simulation completed successfully",

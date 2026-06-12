@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import inspect
 import os
-from typing import Any
+from typing import Any, cast
 
 import joblib
 import numpy as np
@@ -18,7 +19,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from nroute.exceptions import ModelError
 
 
-class PyTorchLSTM(nn.Module):  # type: ignore[misc]
+class PyTorchLSTM(nn.Module):
     """PyTorch LSTM model for link congestion time-series forecasting."""
 
     def __init__(self, input_dim: int = 1, hidden_dim: int = 32, num_layers: int = 2) -> None:
@@ -38,7 +39,7 @@ class PyTorchLSTM(nn.Module):  # type: ignore[misc]
         # Take the output from the last time step
         last_out = out[:, -1, :]
         logits = self.fc(last_out)
-        return logits
+        return cast(torch.Tensor, logits)
 
 
 class CongestionPredictor:
@@ -46,12 +47,13 @@ class CongestionPredictor:
     Predicts link congestion probabilities using XGBoost or LSTM models.
     """
 
-    def __init__(self, model_type: str = "xgboost") -> None:
+    def __init__(self, model_type: str = "xgboost", custom_model: Any = None) -> None:
         """
         Initialize the CongestionPredictor.
 
         Args:
-            model_type: "xgboost" | "lstm".
+            model_type: "xgboost" | "lstm" | "custom".
+            custom_model: Optional custom model instance for "custom" type.
         """
         self.model_type = model_type.lower().strip()
         self.model: Any = None
@@ -67,8 +69,14 @@ class CongestionPredictor:
             )
         elif self.model_type == "lstm":
             self.model = PyTorchLSTM(input_dim=1, hidden_dim=32, num_layers=2)
+        elif self.model_type == "custom":
+            if custom_model is None:
+                raise ValueError("custom_model must be provided if model_type is 'custom'.")
+            self.model = custom_model
+            # If the custom model is pre-trained, mark it as trained
+            self.is_trained = getattr(custom_model, "is_trained", False)
         else:
-            raise ValueError(f"Unknown model_type '{model_type}'. Supported: xgboost, lstm.")
+            raise ValueError(f"Unknown model_type '{model_type}'. Supported: xgboost, lstm, custom.")
 
     def _prepare_lstm_data(self, features: pd.DataFrame) -> torch.Tensor:
         """Extract lag utilization features and shape into (batch, seq_len, 1)."""
@@ -149,6 +157,28 @@ class CongestionPredictor:
                 probs = torch.sigmoid(logits).numpy().flatten()
                 preds = (probs >= 0.5).astype(int)
 
+        elif self.model_type == "custom":
+            if hasattr(self.model, "train"):
+                sig = inspect.signature(self.model.train)
+                kwargs = {}
+                if "epochs" in sig.parameters:
+                    kwargs["epochs"] = epochs
+                if "batch_size" in sig.parameters:
+                    kwargs["batch_size"] = batch_size
+                metrics = self.model.train(features, labels, **kwargs)
+                self.is_trained = True
+                if isinstance(metrics, dict):
+                    return metrics  # type: ignore[return-value]
+            elif hasattr(self.model, "fit"):
+                train_features = features.select_dtypes(include=[np.number])
+                self.model.fit(train_features, labels)
+                self.is_trained = True
+            else:
+                raise ModelError("Custom model must implement 'train()' or 'fit()' method.")
+
+            # Evaluate custom model
+            preds = self.predict(features)["congested"].values.astype(int)
+
         # Compute classification metrics
         metrics = {
             "accuracy": float(accuracy_score(labels, preds)),
@@ -190,6 +220,24 @@ class CongestionPredictor:
                 probs = torch.sigmoid(logits).numpy().flatten()
                 congested = probs >= 0.5
 
+        elif self.model_type == "custom":
+            train_features = features.select_dtypes(include=[np.number])
+            if hasattr(self.model, "predict_proba"):
+                probs = self.model.predict_proba(train_features)
+                if len(probs.shape) > 1 and probs.shape[1] > 1:
+                    probs = probs[:, 1]
+                congested = probs >= 0.5
+            elif hasattr(self.model, "predict"):
+                preds = self.model.predict(train_features)
+                if np.max(preds) <= 1.0 and np.min(preds) >= 0.0 and len(np.unique(preds)) > 2:
+                    probs = preds
+                    congested = probs >= 0.5
+                else:
+                    congested = preds.astype(bool)
+                    probs = congested.astype(float)
+            else:
+                raise ModelError("Custom model must implement 'predict()' or 'predict_proba()'.")
+
         return pd.DataFrame({"congested": congested, "probability": probs}, index=link_ids)
 
     def save(self, path: str) -> None:
@@ -211,6 +259,12 @@ class CongestionPredictor:
         elif self.model_type == "lstm":
             save_dict["state_dict"] = self.model.state_dict()
             torch.save(save_dict, path)
+        elif self.model_type == "custom":
+            if hasattr(self.model, "save"):
+                self.model.save(path)
+            else:
+                save_dict["model"] = self.model
+                joblib.dump(save_dict, path)
 
     def load(self, path: str) -> None:
         """Load model weights and type information from file."""
@@ -235,3 +289,9 @@ class CongestionPredictor:
             self.model = PyTorchLSTM(input_dim=1, hidden_dim=32, num_layers=2)
             self.model.load_state_dict(load_dict["state_dict"])
             self.model.eval()
+        elif self.model_type == "custom":
+            if "model" in load_dict:
+                self.model = load_dict["model"]
+            else:
+                # Expecting custom model object loading to be handled by user if not serialized
+                pass

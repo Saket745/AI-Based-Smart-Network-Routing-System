@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any
 
 import gymnasium as gym
 import numpy as np
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from nroute.core.topology import Topology
 
 
-class NetworkRoutingEnv(gym.Env):  # type: ignore[misc]
+class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
     """
     Gymnasium environment that models a network topology for routing.
 
@@ -23,7 +23,7 @@ class NetworkRoutingEnv(gym.Env):  # type: ignore[misc]
     The action space selects which outgoing neighbor to forward to next.
     """
 
-    metadata: ClassVar[dict[str, Any]] = {"render_modes": []}
+    metadata: dict[str, Any] = {"render_modes": []}
 
     def __init__(
         self,

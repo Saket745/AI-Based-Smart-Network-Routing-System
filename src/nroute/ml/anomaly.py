@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, cast
 
 import joblib
 import numpy as np
@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from nroute.exceptions import ModelError
 
 
-class AutoencoderNet(nn.Module):  # type: ignore[misc]
+class AutoencoderNet(nn.Module):
     """PyTorch Autoencoder network for anomaly detection."""
 
     def __init__(self, input_dim: int) -> None:
@@ -39,7 +39,7 @@ class AutoencoderNet(nn.Module):  # type: ignore[misc]
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         latent = self.encoder(x)
         reconstructed = self.decoder(latent)
-        return reconstructed
+        return cast(torch.Tensor, reconstructed)
 
 
 class AnomalyDetector:
@@ -48,13 +48,19 @@ class AnomalyDetector:
     using Isolation Forest or Autoencoder models.
     """
 
-    def __init__(self, model_type: str = "isolation_forest", contamination: float = 0.05) -> None:
+    def __init__(
+        self,
+        model_type: str = "isolation_forest",
+        contamination: float = 0.05,
+        custom_model: Any = None,
+    ) -> None:
         """
         Initialize the AnomalyDetector.
 
         Args:
-            model_type: "isolation_forest" | "autoencoder".
+            model_type: "isolation_forest" | "autoencoder" | "custom".
             contamination: Fraction of outliers expected in training data (default 5%).
+            custom_model: Optional custom model instance for "custom" type.
         """
         self.model_type = model_type.lower().strip()
         self.contamination = contamination
@@ -76,9 +82,14 @@ class AnomalyDetector:
         elif self.model_type == "autoencoder":
             # Actual network is initialized during fit() when input dimension is known
             self.model = None
+        elif self.model_type == "custom":
+            if custom_model is None:
+                raise ValueError("custom_model must be provided if model_type is 'custom'.")
+            self.model = custom_model
+            self.is_trained = getattr(custom_model, "is_trained", False)
         else:
             raise ValueError(
-                f"Unknown model_type '{model_type}'. Supported: isolation_forest, autoencoder."
+                f"Unknown model_type '{model_type}'. Supported: isolation_forest, autoencoder, custom."
             )
 
     def _normalize(self, x: np.ndarray, train: bool = False) -> np.ndarray:
@@ -152,6 +163,17 @@ class AnomalyDetector:
             self.reconstruction_threshold = float(np.percentile(errors, pct))
             self.is_trained = True
 
+        elif self.model_type == "custom":
+            if hasattr(self.model, "fit"):
+                x_norm = self._normalize(x_data, train=True)
+                self.model.fit(x_norm)
+                self.is_trained = True
+            elif hasattr(self.model, "train"):
+                self.model.train(features)
+                self.is_trained = True
+            else:
+                raise ModelError("Custom model must implement 'fit()' or 'train()' method.")
+
     def detect(self, features: pd.DataFrame) -> pd.DataFrame:
         """
         Detect anomalies in traffic features.
@@ -201,6 +223,30 @@ class AnomalyDetector:
                 (mse_errors / (self.reconstruction_threshold + 1e-6)) * 0.5, 0.0, 1.0
             )
             is_anomaly = mse_errors > self.reconstruction_threshold
+
+        elif self.model_type == "custom":
+            x_norm = self._normalize(x_data, train=False)
+            if hasattr(self.model, "detect"):
+                # If custom model implements full detect interface
+                return self.model.detect(features)  # type: ignore[no-any-return]
+
+            # Fallback score logic
+            if hasattr(self.model, "decision_function"):
+                raw_scores = self.model.decision_function(x_norm)
+                anomaly_scores = np.clip(0.5 - raw_scores, 0.0, 1.0)
+            elif hasattr(self.model, "predict_proba"):
+                probs = self.model.predict_proba(x_norm)
+                if len(probs.shape) > 1 and probs.shape[1] > 1:
+                    probs = probs[:, 1]
+                anomaly_scores = probs
+            else:
+                anomaly_scores = np.zeros(len(features))
+
+            if hasattr(self.model, "predict"):
+                preds = self.model.predict(x_norm)
+                is_anomaly = (preds == -1) | ((preds == 1) & (anomaly_scores >= 0.5))
+            else:
+                is_anomaly = anomaly_scores >= 0.5
 
         # Classify anomaly types using heuristics
         anomaly_types = []
@@ -260,6 +306,12 @@ class AnomalyDetector:
                 self.feature_means.shape[0] if self.feature_means is not None else 8
             )
             torch.save(save_dict, path)
+        elif self.model_type == "custom":
+            if hasattr(self.model, "save"):
+                self.model.save(path)
+            else:
+                save_dict["model"] = self.model
+                joblib.dump(save_dict, path)
 
     def load(self, path: str) -> None:
         """Load model configuration and weights."""
@@ -276,9 +328,9 @@ class AnomalyDetector:
 
         self.model_type = load_dict["model_type"]
         self.is_trained = load_dict["is_trained"]
-        self.contamination = load_dict["contamination"]
-        self.feature_means = load_dict["feature_means"]
-        self.feature_stds = load_dict["feature_stds"]
+        self.contamination = load_dict.get("contamination", 0.05)
+        self.feature_means = load_dict.get("feature_means")
+        self.feature_stds = load_dict.get("feature_stds")
 
         if self.model_type == "isolation_forest":
             self.model = load_dict["model"]
@@ -288,3 +340,8 @@ class AnomalyDetector:
             self.model.load_state_dict(load_dict["state_dict"])
             self.reconstruction_threshold = load_dict["reconstruction_threshold"]
             self.model.eval()
+        elif self.model_type == "custom":
+            if "model" in load_dict:
+                self.model = load_dict["model"]
+            else:
+                pass

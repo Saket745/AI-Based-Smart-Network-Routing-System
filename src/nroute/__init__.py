@@ -45,8 +45,7 @@ from nroute.exceptions import (
     ValidationError,
 )
 from nroute.ml.rl_env import NetworkRoutingEnv
-from nroute.routing.ai import AIRouter
-from nroute.routing.rl_router import RLRouter
+from nroute.routing import AIRouter, RLRouter, ROUTER_REGISTRY, register_router
 
 
 class Simulator:
@@ -83,6 +82,7 @@ __all__ = [
     "NRouteError",
     "NetworkRoutingEnv",
     "RLRouter",
+    "ROUTER_REGISTRY",
     "RouteMetrics",
     "RoutingError",
     "SimulationError",
@@ -94,4 +94,5 @@ __all__ = [
     "ValidationError",
     "__version__",
     "load_config",
+    "register_router",
 ]

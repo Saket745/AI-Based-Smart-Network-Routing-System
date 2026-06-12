@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import click
-from rich.console import Console  # type: ignore[import-not-found]
+from rich.console import Console
 
 from nroute.core.topology import Topology
 from nroute.exceptions import ModelError

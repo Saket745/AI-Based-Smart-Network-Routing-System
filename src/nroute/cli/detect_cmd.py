@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import click
-from rich.console import Console  # type: ignore[import-not-found]
-from rich.table import Table  # type: ignore[import-not-found]
+from rich.console import Console
+from rich.table import Table
 
 from nroute.exceptions import ModelError
 

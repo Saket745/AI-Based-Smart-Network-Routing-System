@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import Any
 
 from nroute.routing.ai import AIRouter
@@ -9,6 +10,7 @@ from nroute.routing.base import BaseRouter, FallbackRouter
 from nroute.routing.bellman_ford import BellmanFordRouter
 from nroute.routing.dijkstra import DijkstraRouter
 from nroute.routing.ecmp import ECMPRouter
+from nroute.routing.registry import ROUTER_REGISTRY, register_router
 from nroute.routing.rl_router import RLRouter
 
 
@@ -17,10 +19,19 @@ def get_router(algorithm: str, topology: Any = None) -> BaseRouter:
     Factory function to get a router instance by name.
 
     Args:
-        algorithm: "dijkstra" | "bellman-ford" | "ecmp" | "ai" | "rl" | "ppo" | "dqn".
+        algorithm: "dijkstra" | "bellman-ford" | "ecmp" | "ai" | "rl" | "ppo" | "dqn" or custom registered name.
         topology: Optional topology context.
     """
     alg = algorithm.lower().strip()
+
+    # Check custom registry first
+    if alg in ROUTER_REGISTRY:
+        router_cls = ROUTER_REGISTRY[alg]
+        sig = inspect.signature(router_cls.__init__)
+        if "topology" in sig.parameters:
+            return router_cls(topology=topology)  # type: ignore[call-arg]
+        return router_cls()
+
     if alg == "dijkstra":
         return DijkstraRouter()
     elif alg in {"bellman-ford", "bellmanford"}:
@@ -44,5 +55,7 @@ __all__ = [
     "ECMPRouter",
     "FallbackRouter",
     "RLRouter",
+    "ROUTER_REGISTRY",
     "get_router",
+    "register_router",
 ]
