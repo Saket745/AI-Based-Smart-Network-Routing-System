@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  nroute-simulation:
+    build: .
+    volumes:
+      - ./data:/app/data
+      - ./output:/app/output
+    command: ["simulate", "run", "-t", "data/sample_topology.json", "-a", "dijkstra", "-d", "50", "-o", "output/sim_results.json"]
+
+  nroute-train:
+    build: .
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    command: ["train", "--model", "congestion", "-t", "data/sample_topology.json", "-o", "models/congestion_xgb_v1.joblib"]

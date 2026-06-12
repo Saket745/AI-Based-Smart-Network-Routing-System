@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from rich.progress import Progress
@@ -13,6 +12,8 @@ from nroute.utils.logging import get_logger
 from nroute.utils.random import get_rng
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from nroute.core.metrics import MetricsCollectionResult
     from nroute.core.topology import Topology
     from nroute.core.traffic import FlowRecord

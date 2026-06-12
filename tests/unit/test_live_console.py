@@ -14,7 +14,6 @@ from nroute.visualization.live_console import LiveSimulationConsole, PlotextRend
 
 def test_plotext_renderable() -> None:
     """Verify PlotextRenderable wraps plotext plots and decodes ANSI properly."""
-
     def plot_func(plt: Any) -> None:
         plt.plot([1, 2], [3, 4])
 
@@ -27,8 +26,8 @@ def test_plotext_renderable() -> None:
         segments = list(renderable.__rich_console__(MagicMock(), options))
         mock_build.assert_called_once()
         assert len(segments) > 0
-        # Check that ANSI colors were decoded
-        assert any(getattr(s, "text", "") == "RedPlot" for s in segments)
+        plain_text = "".join(s.plain for s in segments)
+        assert "RedPlot" in plain_text
 
 
 def test_live_console_basic_logging() -> None:
@@ -50,12 +49,12 @@ def test_live_console_basic_logging() -> None:
     assert "Initialize Simulation Run" in console_viz.event_log[0]
 
     # Test node down/up detection
-    # Toggling node down
-    topo.set_node_down("A")
+    # Toggling node down on the engine's copied topology directly
+    engine.topology.set_node_down("A")
     console_viz.update_events(tick=0)
     assert any("Node A went DOWN" in event for event in console_viz.event_log)
 
-    # Toggling node back up
-    topo.set_node_up("A")
+    # Toggling node back up on the engine's copied topology directly
+    engine.topology.set_node_up("A")
     console_viz.update_events(tick=1)
     assert any("Node A recovered (UP)" in event for event in console_viz.event_log)

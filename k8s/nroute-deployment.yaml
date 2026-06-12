@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nroute-batch-simulation
+  labels:
+    app: nroute
+spec:
+  template:
+    metadata:
+      labels:
+        app: nroute
+    spec:
+      containers:
+      - name: nroute-cli
+        image: nroute:latest
+        imagePullPolicy: IfNotPresent
+        command: ["nroute"]
+        args: [
+          "simulate", "run",
+          "-t", "/data/sample_topology.json",
+          "-a", "dijkstra",
+          "-d", "100",
+          "-o", "/output/simulation_metrics.json"
+        ]
+        volumeMounts:
+        - name: data-volume
+          mountPath: /data
+        - name: output-volume
+          mountPath: /output
+        resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests:
+            cpu: "1"
+            memory: 2Gi
+      restartPolicy: Never
+      volumes:
+      - name: data-volume
+        hostPath:
+          path: /mnt/data
+      - name: output-volume
+        hostPath:
+          path: /mnt/output
+  backoffLimit: 2

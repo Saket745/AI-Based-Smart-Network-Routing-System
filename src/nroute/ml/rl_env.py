@@ -23,7 +23,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
     The action space selects which outgoing neighbor to forward to next.
     """
 
-    metadata: dict[str, Any] = {"render_modes": []}
+    metadata: dict[str, Any] = {"render_modes": []}  # noqa: RUF012
 
     def __init__(
         self,

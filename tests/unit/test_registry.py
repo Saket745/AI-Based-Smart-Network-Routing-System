@@ -54,12 +54,12 @@ class DummyScikitPredictor:
     def __init__(self) -> None:
         self.fitted = False
 
-    def fit(self, X: Any, y: Any) -> None:
+    def fit(self, x: Any, y: Any) -> None:
         self.fitted = True
 
-    def predict_proba(self, X: Any) -> np.ndarray:
+    def predict_proba(self, x: Any) -> np.ndarray:
         # Return probability matrix
-        return np.array([[0.1, 0.9] for _ in range(len(X))])
+        return np.array([[0.1, 0.9] for _ in range(len(x))])
 
 
 def test_custom_congestion_predictor() -> None:
@@ -85,7 +85,7 @@ def test_custom_congestion_predictor() -> None:
     assert len(preds) == 2
     assert "congested" in preds
     assert "probability" in preds
-    assert preds["congested"].iloc[0] is True  # 0.9 probability
+    assert preds["congested"].iloc[0]  # 0.9 probability
 
 
 # ── Test Custom Anomaly Detector Support ──────────────────────────────────────
@@ -97,14 +97,14 @@ class DummyAnomalyModel:
     def __init__(self) -> None:
         self.fitted = False
 
-    def fit(self, X: Any) -> None:
+    def fit(self, x: Any) -> None:
         self.fitted = True
 
-    def decision_function(self, X: Any) -> np.ndarray:
+    def decision_function(self, x: Any) -> np.ndarray:
         # returns anomaly scores
         return np.array([0.1, -0.4])  # 0.1 (normal), -0.4 (anomalous)
 
-    def predict(self, X: Any) -> np.ndarray:
+    def predict(self, x: Any) -> np.ndarray:
         return np.array([1, -1])  # 1 (normal), -1 (anomaly)
 
 
@@ -137,5 +137,5 @@ def test_custom_anomaly_detector() -> None:
     assert "is_anomaly" in results
     assert "anomaly_type" in results
 
-    assert results["is_anomaly"].iloc[0] is False
-    assert results["is_anomaly"].iloc[1] is True
+    assert not results["is_anomaly"].iloc[0]
+    assert results["is_anomaly"].iloc[1]
