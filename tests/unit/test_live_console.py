@@ -14,6 +14,7 @@ from nroute.visualization.live_console import LiveSimulationConsole, PlotextRend
 
 def test_plotext_renderable() -> None:
     """Verify PlotextRenderable wraps plotext plots and decodes ANSI properly."""
+
     def plot_func(plt: Any) -> None:
         plt.plot([1, 2], [3, 4])
 

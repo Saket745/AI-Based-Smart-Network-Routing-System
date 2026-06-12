@@ -238,7 +238,7 @@ class LiveSimulationConsole:
                 Panel(PlotextRenderable(self.plot_throughput), style="cyan")
             )
             layout["right"]["latency_plot"].update(
-                Panel(PlotextRenderable(self.plot_latency), style="gold")
+                Panel(PlotextRenderable(self.plot_latency), style="yellow")
             )
 
             # Footer: Event Log
