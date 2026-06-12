@@ -124,6 +124,7 @@ module = [
     "xgboost.*",
     "scapy.*",
     "joblib.*",
+    "plotext",
     "pandas.*",
     "yaml.*",
 ]

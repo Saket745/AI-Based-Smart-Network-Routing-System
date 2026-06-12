@@ -95,17 +95,17 @@ class LiveSimulationConsole:
                 pass
 
         # Links going down
-        for u, v in (current_down_links - self.prev_down_links):
+        for u, v in current_down_links - self.prev_down_links:
             self.log_event(f"[bold red]⚠ Link {u} ➔ {v} went DOWN![/bold red]")
         # Links recovering
-        for u, v in (self.prev_down_links - current_down_links):
+        for u, v in self.prev_down_links - current_down_links:
             self.log_event(f"[bold green]✓ Link {u} ➔ {v} recovered (UP)[/bold green]")
 
         # Nodes going down
-        for node in (current_down_nodes - self.prev_down_nodes):
+        for node in current_down_nodes - self.prev_down_nodes:
             self.log_event(f"[bold red]⚠ Node {node} went DOWN![/bold red]")
         # Nodes recovering
-        for node in (self.prev_down_nodes - current_down_nodes):
+        for node in self.prev_down_nodes - current_down_nodes:
             self.log_event(f"[bold green]✓ Node {node} recovered (UP)[/bold green]")
 
         self.prev_down_links = current_down_links
@@ -124,8 +124,7 @@ class LiveSimulationConsole:
 
         for flow, reason in dropped:
             self.log_event(
-                f"[red]❌ Flow {flow.source} ➔ {flow.destination} DROPPED[/red] "
-                f"(Reason: {reason})"
+                f"[red]❌ Flow {flow.source} ➔ {flow.destination} DROPPED[/red] (Reason: {reason})"
             )
 
         if reroutes > 0:

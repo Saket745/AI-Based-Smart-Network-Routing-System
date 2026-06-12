@@ -115,6 +115,7 @@ def run_sim(
 
         if visualize:
             from nroute.visualization import LiveSimulationConsole
+
             console.print("[cyan]Initializing real-time console visualization...[/cyan]")
             visualizer = LiveSimulationConsole(
                 engine=engine,

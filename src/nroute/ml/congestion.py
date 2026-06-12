@@ -39,7 +39,7 @@ class PyTorchLSTM(nn.Module):
         # Take the output from the last time step
         last_out = out[:, -1, :]
         logits = self.fc(last_out)
-        return cast(torch.Tensor, logits)
+        return cast("torch.Tensor", logits)
 
 
 class CongestionPredictor:
@@ -76,7 +76,9 @@ class CongestionPredictor:
             # If the custom model is pre-trained, mark it as trained
             self.is_trained = getattr(custom_model, "is_trained", False)
         else:
-            raise ValueError(f"Unknown model_type '{model_type}'. Supported: xgboost, lstm, custom.")
+            raise ValueError(
+                f"Unknown model_type '{model_type}'. Supported: xgboost, lstm, custom."
+            )
 
     def _prepare_lstm_data(self, features: pd.DataFrame) -> torch.Tensor:
         """Extract lag utilization features and shape into (batch, seq_len, 1)."""
@@ -168,7 +170,7 @@ class CongestionPredictor:
                 metrics = self.model.train(features, labels, **kwargs)
                 self.is_trained = True
                 if isinstance(metrics, dict):
-                    return metrics  # type: ignore[return-value]
+                    return metrics
             elif hasattr(self.model, "fit"):
                 train_features = features.select_dtypes(include=[np.number])
                 self.model.fit(train_features, labels)

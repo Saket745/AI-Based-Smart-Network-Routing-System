@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from nroute.routing.base import BaseRouter
 
 # Dictionary mapping algorithm string names to Router classes
@@ -18,7 +20,9 @@ def register_router(name: str) -> Callable[[type[BaseRouter]], type[BaseRouter]]
     Args:
         name: String identifier for the router (e.g. 'my-custom-router').
     """
+
     def decorator(cls: type[BaseRouter]) -> type[BaseRouter]:
         ROUTER_REGISTRY[name.lower().strip()] = cls
         return cls
+
     return decorator

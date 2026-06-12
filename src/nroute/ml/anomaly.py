@@ -39,7 +39,7 @@ class AutoencoderNet(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         latent = self.encoder(x)
         reconstructed = self.decoder(latent)
-        return cast(torch.Tensor, reconstructed)
+        return cast("torch.Tensor", reconstructed)
 
 
 class AnomalyDetector:
@@ -228,7 +228,7 @@ class AnomalyDetector:
             x_norm = self._normalize(x_data, train=False)
             if hasattr(self.model, "detect"):
                 # If custom model implements full detect interface
-                return self.model.detect(features)  # type: ignore[no-any-return]
+                return self.model.detect(features)
 
             # Fallback score logic
             if hasattr(self.model, "decision_function"):
