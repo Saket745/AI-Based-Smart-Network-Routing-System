@@ -284,7 +284,15 @@ class Topology:
 
         # Merge other attributes
         for k, v in attrs.items():
-            if k not in {"bandwidth", "latency", "jitter", "packet_loss", "utilization", "weight", "status"}:
+            if k not in {
+                "bandwidth",
+                "latency",
+                "jitter",
+                "packet_loss",
+                "utilization",
+                "weight",
+                "status",
+            }:
                 updated_data[k] = v
 
         # Apply update
@@ -430,9 +438,19 @@ class Topology:
             return "Empty Topology (0 nodes, 0 edges)"
 
         # Calculate attribute ranges
-        latencies = [attrs["latency"] for _, _, attrs in self._graph.edges(data=True) if "latency" in attrs]
-        bandwidths = [attrs["bandwidth"] for _, _, attrs in self._graph.edges(data=True) if "bandwidth" in attrs]
-        utilizations = [attrs["utilization"] for _, _, attrs in self._graph.edges(data=True) if "utilization" in attrs]
+        latencies = [
+            attrs["latency"] for _, _, attrs in self._graph.edges(data=True) if "latency" in attrs
+        ]
+        bandwidths = [
+            attrs["bandwidth"]
+            for _, _, attrs in self._graph.edges(data=True)
+            if "bandwidth" in attrs
+        ]
+        utilizations = [
+            attrs["utilization"]
+            for _, _, attrs in self._graph.edges(data=True)
+            if "utilization" in attrs
+        ]
 
         min_lat = min(latencies) if latencies else 0.0
         max_lat = max(latencies) if latencies else 0.0
@@ -441,8 +459,12 @@ class Topology:
         min_util = min(utilizations) if utilizations else 0.0
         max_util = max(utilizations) if utilizations else 0.0
 
-        down_nodes = sum(1 for _, attrs in self._graph.nodes(data=True) if attrs.get("status") == "down")
-        down_links = sum(1 for _, _, attrs in self._graph.edges(data=True) if attrs.get("status") == "down")
+        down_nodes = sum(
+            1 for _, attrs in self._graph.nodes(data=True) if attrs.get("status") == "down"
+        )
+        down_links = sum(
+            1 for _, _, attrs in self._graph.edges(data=True) if attrs.get("status") == "down"
+        )
 
         return (
             f"Topology Summary:\n"
@@ -480,7 +502,9 @@ class Topology:
             k_neighbors = kwargs.pop("k_neighbors", 4)
             rewire_prob = kwargs.pop("rewire_prob", 0.1)
             seed = kwargs.pop("seed", None)
-            return TopologyGenerator.small_world(n_nodes, k_neighbors, rewire_prob, seed=seed, **kwargs)
+            return TopologyGenerator.small_world(
+                n_nodes, k_neighbors, rewire_prob, seed=seed, **kwargs
+            )
         elif t == "fat-tree":
             k = kwargs.pop("k", 4)
             seed = kwargs.pop("seed", None)
@@ -495,6 +519,7 @@ class Topology:
     def from_csv(cls, path: str | Path) -> Topology:
         """Load topology from a CSV edge-list file."""
         from nroute.ingestion import ingest
+
         result = ingest(path, format="csv-topology")
         if not isinstance(result, Topology):
             raise TopologyError("Ingested data is not a Topology.")
@@ -504,6 +529,7 @@ class Topology:
     def from_json(cls, path: str | Path) -> Topology:
         """Load topology from a JSON file."""
         from nroute.ingestion import ingest
+
         result = ingest(path, format="json-topology")
         if not isinstance(result, Topology):
             raise TopologyError("Ingested data is not a Topology.")
@@ -550,21 +576,8 @@ class Topology:
         Returns:
             A dictionary mapping (source, destination) to the computed path.
         """
-        from nroute.routing import BaseRouter, BellmanFordRouter, DijkstraRouter, ECMPRouter
+        from nroute.routing import BaseRouter, get_router
 
-        if isinstance(router, str):
-            r_type = router.lower().strip()
-            if r_type == "dijkstra":
-                r_inst: BaseRouter = DijkstraRouter()
-            elif r_type in {"bellman-ford", "bellmanford"}:
-                r_inst = BellmanFordRouter()
-            elif r_type == "ecmp":
-                r_inst = ECMPRouter()
-            else:
-                raise ValueError(
-                    f"Unknown router name '{router}'. Supported: dijkstra, bellman-ford, ecmp"
-                )
-        else:
-            r_inst = router
+        r_inst: BaseRouter = get_router(router, self) if isinstance(router, str) else router
 
         return r_inst.compute_routes(self, traffic_matrix, weight=weight)

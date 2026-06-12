@@ -68,7 +68,9 @@ def test_ecmp_deterministic_selection() -> None:
     assert p_flow2 in [["A", "B", "D"], ["A", "C", "D"]]
 
     # Confirm same flow key returns identical path (determinism)
-    assert router.compute_path(topo, "A", "D", weight="weight", flow_key="TCP_10.0.0.1_80") == p_flow1
+    assert (
+        router.compute_path(topo, "A", "D", weight="weight", flow_key="TCP_10.0.0.1_80") == p_flow1
+    )
 
 
 def test_k_shortest_paths() -> None:
@@ -97,9 +99,9 @@ def test_k_shortest_paths() -> None:
 
     paths = router.compute_k_shortest_paths(topo, "A", "D", weight="weight")
     assert len(paths) == 3
-    assert paths[0] == ["A", "B", "D"]       # cost: 2
-    assert paths[1] == ["A", "C", "D"]       # cost: 4
-    assert paths[2] == ["A", "E", "D"]       # cost: 6
+    assert paths[0] == ["A", "B", "D"]  # cost: 2
+    assert paths[1] == ["A", "C", "D"]  # cost: 4
+    assert paths[2] == ["A", "E", "D"]  # cost: 6
 
 
 def test_fallback_router() -> None:
@@ -121,7 +123,9 @@ def test_fallback_router() -> None:
 
     # Let's mock a router that fails
     class FailingRouter(DijkstraRouter):
-        def compute_path(self, topology: Topology, source: str, destination: str, weight: Any | None = None) -> list[str]:
+        def compute_path(
+            self, topology: Topology, source: str, destination: str, weight: Any | None = None
+        ) -> list[str]:
             raise RoutingError("Simulated algorithm failure")
 
     router1 = FailingRouter()

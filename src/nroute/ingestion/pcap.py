@@ -98,14 +98,16 @@ class PcapParser:
             last = metrics["last_time"] or 0.0
             duration = max(0.0, last - first)
 
-            raw_records.append({
-                "source": src,
-                "destination": dst,
-                "bytes": metrics["bytes"],
-                "packets": metrics["packets"],
-                "duration": duration,
-                "protocol": proto,
-                "timestamp": first,
-            })
+            raw_records.append(
+                {
+                    "source": src,
+                    "destination": dst,
+                    "bytes": metrics["bytes"],
+                    "packets": metrics["packets"],
+                    "duration": duration,
+                    "protocol": proto,
+                    "timestamp": first,
+                }
+            )
 
         return Normalizer.normalize_traffic(raw_records)

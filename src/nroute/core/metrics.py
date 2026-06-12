@@ -17,10 +17,16 @@ class RouteMetrics(BaseModel):
     """
 
     path: list[str] = Field(..., description="Ordered list of node IDs forming the route path")
-    total_latency: float = Field(..., ge=0.0, description="Sum of propagation and queuing delays in ms")
+    total_latency: float = Field(
+        ..., ge=0.0, description="Sum of propagation and queuing delays in ms"
+    )
     total_hops: int = Field(..., ge=0, description="Total number of edge hops (len(path) - 1)")
-    bottleneck_bandwidth: float = Field(..., ge=0.0, description="Minimum link capacity along the path in Mbps")
-    bottleneck_utilization: float = Field(..., ge=0.0, le=1.0, description="Maximum link utilization along the path")
+    bottleneck_bandwidth: float = Field(
+        ..., ge=0.0, description="Minimum link capacity along the path in Mbps"
+    )
+    bottleneck_utilization: float = Field(
+        ..., ge=0.0, le=1.0, description="Maximum link utilization along the path"
+    )
 
 
 class SimulationMetrics(BaseModel):
@@ -33,8 +39,12 @@ class SimulationMetrics(BaseModel):
     throughput: float = Field(..., ge=0.0, description="Aggregated network throughput in Mbps")
     avg_latency: float = Field(..., ge=0.0, description="Network-wide average flow latency in ms")
     packet_loss_rate: float = Field(..., ge=0.0, le=1.0, description="Fraction of packets dropped")
-    avg_utilization: float = Field(..., ge=0.0, le=1.0, description="Average utilization across active links")
-    reroute_count: int = Field(..., ge=0, description="Number of flow rerouting events in this tick")
+    avg_utilization: float = Field(
+        ..., ge=0.0, le=1.0, description="Average utilization across active links"
+    )
+    reroute_count: int = Field(
+        ..., ge=0, description="Number of flow rerouting events in this tick"
+    )
     active_flows: int = Field(..., ge=0, description="Number of active flows in this tick")
 
 
@@ -43,7 +53,9 @@ class MetricsCollectionResult(BaseModel):
     Collection of per-tick simulation metrics with analysis helpers.
     """
 
-    results: list[SimulationMetrics] = Field(default_factory=list, description="Chronological simulation metrics")
+    results: list[SimulationMetrics] = Field(
+        default_factory=list, description="Chronological simulation metrics"
+    )
 
     def mean_latency(self) -> float:
         """
@@ -82,8 +94,14 @@ class MetricsCollectionResult(BaseModel):
         if not self.results:
             return pd.DataFrame(
                 columns=[
-                    "tick", "timestamp", "throughput", "avg_latency",
-                    "packet_loss_rate", "avg_utilization", "reroute_count", "active_flows"
+                    "tick",
+                    "timestamp",
+                    "throughput",
+                    "avg_latency",
+                    "packet_loss_rate",
+                    "avg_utilization",
+                    "reroute_count",
+                    "active_flows",
                 ]
             )
         return pd.DataFrame([m.model_dump() for m in self.results])

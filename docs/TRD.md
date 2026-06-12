@@ -1,10 +1,10 @@
 # Technical Requirements Document (TRD)
 # AI-Based Smart Network Routing System
 
-**Version:** 1.0  
-**Date:** June 10, 2026  
-**Author:** Saket  
-**Repository:** https://github.com/Saket745/AI-Based-Smart-Network-Routing-System  
+**Version:** 1.0
+**Date:** June 10, 2026
+**Author:** Saket
+**Repository:** https://github.com/Saket745/AI-Based-Smart-Network-Routing-System
 **Companion:** [PRD.md](file:///c:/Users/mssak/OneDrive/Desktop/Network%20Route%20Optimizer/PRD.md)
 
 ---

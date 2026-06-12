@@ -46,7 +46,9 @@ class SNMPParser:
                     elif isinstance(loaded, dict) and "interfaces" in loaded:
                         raw_data = loaded["interfaces"]
                     else:
-                        raise IngestionError("JSON SNMP data must be a list or contain 'interfaces' key.")
+                        raise IngestionError(
+                            "JSON SNMP data must be a list or contain 'interfaces' key."
+                        )
             else:
                 # Default to CSV
                 df = pd.read_csv(p)
@@ -133,10 +135,12 @@ class SNMPParser:
             for node in (src, dst):
                 if node not in seen_nodes:
                     seen_nodes.add(node)
-                    raw_nodes.append({
-                        "id": node,
-                        "type": "router",
-                        "status": "up",
-                    })
+                    raw_nodes.append(
+                        {
+                            "id": node,
+                            "type": "router",
+                            "status": "up",
+                        }
+                    )
 
         return Normalizer.normalize_topology(raw_nodes, raw_edges)

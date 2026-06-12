@@ -127,6 +127,7 @@ class BaseRouter(ABC):
         """
         Get a read-only filtered view of the topology containing only active nodes and edges.
         """
+
         def filter_node(node: str) -> bool:
             return str(topology.get_node(node).get("status", "up")).lower() != "down"
 

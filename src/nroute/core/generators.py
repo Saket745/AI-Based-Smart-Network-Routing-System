@@ -20,11 +20,7 @@ class TopologyGenerator:
     """
 
     @staticmethod
-    def _assign_random_edge_attrs(
-        graph: nx.DiGraph,
-        rng: Any,
-        **default_attrs: Any
-    ) -> None:
+    def _assign_random_edge_attrs(graph: nx.DiGraph, rng: Any, **default_attrs: Any) -> None:
         """Helper to assign randomized link attributes to a Graph's edges."""
         for src, dst in graph.edges:
             bandwidth = default_attrs.get("bandwidth")
@@ -69,10 +65,7 @@ class TopologyGenerator:
 
     @staticmethod
     def _assign_default_node_attrs(
-        graph: nx.DiGraph,
-        node_type: str,
-        rng: Any,
-        **default_attrs: Any
+        graph: nx.DiGraph, node_type: str, rng: Any, **default_attrs: Any
     ) -> None:
         """Helper to assign node attributes to all nodes in the Graph."""
         for node in graph.nodes:
@@ -106,11 +99,7 @@ class TopologyGenerator:
 
     @classmethod
     def random(
-        cls,
-        n_nodes: int,
-        edge_prob: float,
-        seed: int | None = None,
-        **default_attrs: Any
+        cls, n_nodes: int, edge_prob: float, seed: int | None = None, **default_attrs: Any
     ) -> Topology:
         """
         Generate a random network topology using Erdős-Rényi model.
@@ -142,12 +131,7 @@ class TopologyGenerator:
         return Topology(directed)
 
     @classmethod
-    def scale_free(
-        cls,
-        n_nodes: int,
-        seed: int | None = None,
-        **default_attrs: Any
-    ) -> Topology:
+    def scale_free(cls, n_nodes: int, seed: int | None = None, **default_attrs: Any) -> Topology:
         """
         Generate a scale-free network topology using Barabási-Albert model.
 
@@ -181,7 +165,7 @@ class TopologyGenerator:
         k_neighbors: int = 4,
         rewire_prob: float = 0.1,
         seed: int | None = None,
-        **default_attrs: Any
+        **default_attrs: Any,
     ) -> Topology:
         """
         Generate a small-world network topology using Watts-Strogatz model.
@@ -213,12 +197,7 @@ class TopologyGenerator:
         return Topology(directed)
 
     @classmethod
-    def fat_tree(
-        cls,
-        k: int,
-        seed: int | None = None,
-        **default_attrs: Any
-    ) -> Topology:
+    def fat_tree(cls, k: int, seed: int | None = None, **default_attrs: Any) -> Topology:
         """
         Generate a k-ary Fat-Tree data center topology.
 
@@ -262,27 +241,53 @@ class TopologyGenerator:
             # Add Aggregation Switches
             for agg in range(num_agg_per_pod):
                 agg_id = f"pod_{pod}_agg_{agg}"
-                graph.add_node(agg_id, type="switch", capacity=10000.0, status="up", location=f"pod_{pod}")
+                graph.add_node(
+                    agg_id, type="switch", capacity=10000.0, status="up", location=f"pod_{pod}"
+                )
                 agg_nodes.append(agg_id)
 
             # Add Edge Switches
             for edge in range(num_edge_per_pod):
                 edge_id = f"pod_{pod}_edge_{edge}"
-                graph.add_node(edge_id, type="switch", capacity=10000.0, status="up", location=f"pod_{pod}")
+                graph.add_node(
+                    edge_id, type="switch", capacity=10000.0, status="up", location=f"pod_{pod}"
+                )
                 edge_nodes.append(edge_id)
 
                 # Add Hosts and connect to Edge Switch
                 for host in range(num_hosts_per_edge):
                     host_id = f"pod_{pod}_host_{edge}_{host}"
-                    graph.add_node(host_id, type="host", capacity=1000.0, status="up", location=f"pod_{pod}")
+                    graph.add_node(
+                        host_id, type="host", capacity=1000.0, status="up", location=f"pod_{pod}"
+                    )
 
                     # Connect Host <--> Edge Switch (bidirectional)
                     # Host link attributes: 1000 Mbps, 0.5ms latency, minimal loss
                     host_bw = default_attrs.get("host_bandwidth", 1000.0)
                     host_lat = default_attrs.get("host_latency", 0.5)
 
-                    graph.add_edge(host_id, edge_id, bandwidth=host_bw, latency=host_lat, jitter=0.01, packet_loss=0.0, utilization=0.0, status="up", weight=host_lat)
-                    graph.add_edge(edge_id, host_id, bandwidth=host_bw, latency=host_lat, jitter=0.01, packet_loss=0.0, utilization=0.0, status="up", weight=host_lat)
+                    graph.add_edge(
+                        host_id,
+                        edge_id,
+                        bandwidth=host_bw,
+                        latency=host_lat,
+                        jitter=0.01,
+                        packet_loss=0.0,
+                        utilization=0.0,
+                        status="up",
+                        weight=host_lat,
+                    )
+                    graph.add_edge(
+                        edge_id,
+                        host_id,
+                        bandwidth=host_bw,
+                        latency=host_lat,
+                        jitter=0.01,
+                        packet_loss=0.0,
+                        utilization=0.0,
+                        status="up",
+                        weight=host_lat,
+                    )
 
             # Connect Edge <--> Aggregation Switches inside Pod (complete bipartite between edge and agg)
             # Pod link attributes: 10 Gbps (10000 Mbps), 1.0ms latency
@@ -290,8 +295,28 @@ class TopologyGenerator:
             pod_lat = default_attrs.get("pod_latency", 1.0)
             for edge_id in edge_nodes:
                 for agg_id in agg_nodes:
-                    graph.add_edge(edge_id, agg_id, bandwidth=pod_bw, latency=pod_lat, jitter=0.05, packet_loss=0.0, utilization=0.0, status="up", weight=pod_lat)
-                    graph.add_edge(agg_id, edge_id, bandwidth=pod_bw, latency=pod_lat, jitter=0.05, packet_loss=0.0, utilization=0.0, status="up", weight=pod_lat)
+                    graph.add_edge(
+                        edge_id,
+                        agg_id,
+                        bandwidth=pod_bw,
+                        latency=pod_lat,
+                        jitter=0.05,
+                        packet_loss=0.0,
+                        utilization=0.0,
+                        status="up",
+                        weight=pod_lat,
+                    )
+                    graph.add_edge(
+                        agg_id,
+                        edge_id,
+                        bandwidth=pod_bw,
+                        latency=pod_lat,
+                        jitter=0.05,
+                        packet_loss=0.0,
+                        utilization=0.0,
+                        status="up",
+                        weight=pod_lat,
+                    )
 
             # Connect Aggregation <--> Core Switches
             # Core link attributes: 40 Gbps (40000 Mbps), 2.0ms latency
@@ -304,8 +329,28 @@ class TopologyGenerator:
                 start_core_idx = j * stride
                 for offset in range(stride):
                     core_id = core_nodes[start_core_idx + offset]
-                    graph.add_edge(agg_id, core_id, bandwidth=core_bw, latency=core_lat, jitter=0.1, packet_loss=0.001, utilization=0.0, status="up", weight=core_lat)
-                    graph.add_edge(core_id, agg_id, bandwidth=core_bw, latency=core_lat, jitter=0.1, packet_loss=0.001, utilization=0.0, status="up", weight=core_lat)
+                    graph.add_edge(
+                        agg_id,
+                        core_id,
+                        bandwidth=core_bw,
+                        latency=core_lat,
+                        jitter=0.1,
+                        packet_loss=0.001,
+                        utilization=0.0,
+                        status="up",
+                        weight=core_lat,
+                    )
+                    graph.add_edge(
+                        core_id,
+                        agg_id,
+                        bandwidth=core_bw,
+                        latency=core_lat,
+                        jitter=0.1,
+                        packet_loss=0.001,
+                        utilization=0.0,
+                        status="up",
+                        weight=core_lat,
+                    )
 
         # 4. Fill in any missing or customized attributes
         for src, dst in graph.edges:
@@ -322,7 +367,7 @@ class TopologyGenerator:
         matrix: np.ndarray,
         node_labels: list[str] | None = None,
         seed: int | None = None,
-        **default_attrs: Any
+        **default_attrs: Any,
     ) -> Topology:
         """
         Generate a topology from a NumPy adjacency matrix.

@@ -55,12 +55,9 @@ def test_csv_topology_importer_valid(tmp_path: Path) -> None:
     csv_file = tmp_path / "topo.csv"
 
     # 1. Standard headers (src, dst, bandwidth, latency)
-    df = pd.DataFrame({
-        "src": ["A", "B"],
-        "dst": ["B", "C"],
-        "bandwidth": [1000.0, 500.0],
-        "latency": [5.0, 10.0]
-    })
+    df = pd.DataFrame(
+        {"src": ["A", "B"], "dst": ["B", "C"], "bandwidth": [1000.0, 500.0], "latency": [5.0, 10.0]}
+    )
     df.to_csv(csv_file, index=False)
 
     topo = CSVTopologyImporter.load(csv_file)
@@ -71,12 +68,9 @@ def test_csv_topology_importer_valid(tmp_path: Path) -> None:
     assert topo.get_edge("A", "B")["latency"] == 5.0
 
     # 2. Alternative headers (from, to, speed)
-    df_alt = pd.DataFrame({
-        "from": ["X", "Y"],
-        "to": ["Y", "Z"],
-        "speed": [100.0, 200.0],
-        "status": ["up", "down"]
-    })
+    df_alt = pd.DataFrame(
+        {"from": ["X", "Y"], "to": ["Y", "Z"], "speed": [100.0, 200.0], "status": ["up", "down"]}
+    )
     df_alt.to_csv(csv_file, index=False)
 
     topo_alt = CSVTopologyImporter.load(csv_file)
@@ -90,10 +84,7 @@ def test_csv_topology_importer_invalid(tmp_path: Path) -> None:
     csv_file = tmp_path / "invalid_topo.csv"
 
     # Missing columns
-    df = pd.DataFrame({
-        "something": ["A", "B"],
-        "other": ["B", "C"]
-    })
+    df = pd.DataFrame({"something": ["A", "B"], "other": ["B", "C"]})
     df.to_csv(csv_file, index=False)
 
     with pytest.raises(IngestionError, match="must contain source/src/from"):
@@ -111,11 +102,9 @@ def test_json_topology_importer_valid(tmp_path: Path) -> None:
     data = {
         "nodes": [
             {"id": "A", "type": "router", "capacity": 1000.0},
-            {"name": "B", "type": "switch"}
+            {"name": "B", "type": "switch"},
         ],
-        "edges": [
-            {"source": "A", "destination": "B", "bandwidth": 100.0}
-        ]
+        "edges": [{"source": "A", "destination": "B", "bandwidth": 100.0}],
     }
     with open(json_file, "w", encoding="utf-8") as f:
         json.dump(data, f)
@@ -155,15 +144,17 @@ def test_csv_traffic_importer(tmp_path: Path) -> None:
     """Test importing traffic from CSV."""
     csv_file = tmp_path / "traffic.csv"
 
-    df = pd.DataFrame({
-        "source": ["A", "B"],
-        "destination": ["B", "C"],
-        "bytes": [1000, 2000],
-        "packets": [10, 20],
-        "duration": [1.5, 2.0],
-        "protocol": ["TCP", "UDP"],
-        "timestamp": [100.0, 101.5]
-    })
+    df = pd.DataFrame(
+        {
+            "source": ["A", "B"],
+            "destination": ["B", "C"],
+            "bytes": [1000, 2000],
+            "packets": [10, 20],
+            "duration": [1.5, 2.0],
+            "protocol": ["TCP", "UDP"],
+            "timestamp": [100.0, 101.5],
+        }
+    )
     df.to_csv(csv_file, index=False)
 
     tm = CSVTrafficImporter.load(csv_file)
@@ -177,15 +168,17 @@ def test_netflow_parser_valid(tmp_path: Path) -> None:
     """Test NetFlow CSV parser with duration calculation and column renaming."""
     csv_file = tmp_path / "netflow.csv"
 
-    df = pd.DataFrame({
-        "srcaddr": ["10.0.0.1", "10.0.0.2"],
-        "dstaddr": ["10.0.0.2", "10.0.0.3"],
-        "octets": [5000, 3000],
-        "pkts": [10, 6],
-        "first_switched": [1000.1, 1002.5],
-        "last_switched": [1002.3, 1002.0],  # Second record has negative duration
-        "protocol": ["TCP", "UDP"]
-    })
+    df = pd.DataFrame(
+        {
+            "srcaddr": ["10.0.0.1", "10.0.0.2"],
+            "dstaddr": ["10.0.0.2", "10.0.0.3"],
+            "octets": [5000, 3000],
+            "pkts": [10, 6],
+            "first_switched": [1000.1, 1002.5],
+            "last_switched": [1002.3, 1002.0],  # Second record has negative duration
+            "protocol": ["TCP", "UDP"],
+        }
+    )
     df.to_csv(csv_file, index=False)
 
     tm = NetFlowParser.parse(csv_file)
@@ -203,10 +196,7 @@ def test_netflow_parser_valid(tmp_path: Path) -> None:
 def test_netflow_parser_missing_fields(tmp_path: Path) -> None:
     """Test NetFlow CSV parser errors for missing fields."""
     csv_file = tmp_path / "bad_netflow.csv"
-    df = pd.DataFrame({
-        "srcaddr": ["10.0.0.1"],
-        "dstaddr": ["10.0.0.2"]
-    })
+    df = pd.DataFrame({"srcaddr": ["10.0.0.1"], "dstaddr": ["10.0.0.2"]})
     df.to_csv(csv_file, index=False)
 
     with pytest.raises(IngestionError, match="missing required columns"):
@@ -223,8 +213,8 @@ def test_pcap_parser(mock_pcap_reader_cls: MagicMock, tmp_path: Path) -> None:
     p1 = MockPacket("10.0.0.1", "10.0.0.2", 6, 100, 1000.0)  # TCP
     p2 = MockPacket("10.0.0.1", "10.0.0.2", 6, 150, 1001.5)  # TCP
     p3 = MockPacket("10.0.0.2", "10.0.0.3", 17, 80, 1002.0)  # UDP
-    p4 = MockPacket("10.0.0.3", "10.0.0.1", 1, 64, 1003.0)   # ICMP
-    p5 = MockPacket("10.0.0.1", "10.0.0.3", 99, 1000, 1004.0) # PROTO_99
+    p4 = MockPacket("10.0.0.3", "10.0.0.1", 1, 64, 1003.0)  # ICMP
+    p5 = MockPacket("10.0.0.1", "10.0.0.3", 99, 1000, 1004.0)  # PROTO_99
 
     # Mock context manager behavior
     mock_pcap_reader = MagicMock()
@@ -253,13 +243,15 @@ def test_snmp_parser_csv(tmp_path: Path) -> None:
     """Test SNMP counter CSV ingestion."""
     csv_file = tmp_path / "snmp.csv"
 
-    df = pd.DataFrame({
-        "interface_id": ["A->B", "B-to-C", "C:D"],
-        "speed": [10000000, 100000, 100],  #bps
-        "in_octets": [125000, 5000, 0],
-        "out_octets": [125000, 5000, 0],
-        "oper_status": ["up", "testing", "2"]  # 2 means down in SNMP status
-    })
+    df = pd.DataFrame(
+        {
+            "interface_id": ["A->B", "B-to-C", "C:D"],
+            "speed": [10000000, 100000, 100],  # bps
+            "in_octets": [125000, 5000, 0],
+            "out_octets": [125000, 5000, 0],
+            "oper_status": ["up", "testing", "2"],  # 2 means down in SNMP status
+        }
+    )
     df.to_csv(csv_file, index=False)
 
     topo = SNMPParser.parse(csv_file)
@@ -286,7 +278,7 @@ def test_snmp_parser_json(tmp_path: Path) -> None:
                 "speed": 10.0,
                 "in_octets": 1000,
                 "out_octets": 2000,
-                "oper_status": "up"
+                "oper_status": "up",
             }
         ]
     }
@@ -304,18 +296,13 @@ def test_snmp_parser_invalid(tmp_path: Path) -> None:
     csv_file = tmp_path / "bad_snmp.csv"
 
     # Missing interface_id
-    df = pd.DataFrame({
-        "speed": [10]
-    })
+    df = pd.DataFrame({"speed": [10]})
     df.to_csv(csv_file, index=False)
     with pytest.raises(IngestionError, match="missing 'interface_id'"):
         SNMPParser.parse(csv_file)
 
     # Invalid interface_id (no separator)
-    df = pd.DataFrame({
-        "interface_id": ["A"],
-        "speed": [10]
-    })
+    df = pd.DataFrame({"interface_id": ["A"], "speed": [10]})
     df.to_csv(csv_file, index=False)
     with pytest.raises(IngestionError, match="interface_id 'A' at index 0 is invalid"):
         SNMPParser.parse(csv_file)
@@ -356,57 +343,46 @@ def test_unified_ingest_explicit_and_auto_detect(tmp_path: Path) -> None:
 
     # 6. Auto-detect CSV NetFlow
     csv_nf = tmp_path / "test_nf.csv"
-    df_nf = pd.DataFrame({
-        "first_switched": [10],
-        "src_addr": ["10.0.0.1"],
-        "dst_addr": ["10.0.0.2"],
-        "bytes": [100],
-        "packets": [1],
-        "protocol": ["TCP"]
-    })
+    df_nf = pd.DataFrame(
+        {
+            "first_switched": [10],
+            "src_addr": ["10.0.0.1"],
+            "dst_addr": ["10.0.0.2"],
+            "bytes": [100],
+            "packets": [1],
+            "protocol": ["TCP"],
+        }
+    )
     df_nf.to_csv(csv_nf, index=False)
     result = ingest(csv_nf)
     assert isinstance(result, TrafficMatrix)
 
     # 7. Auto-detect CSV SNMP
     csv_snmp = tmp_path / "test_snmp.csv"
-    df_snmp = pd.DataFrame({
-        "interface_id": ["A->B"],
-        "oper_status": ["up"]
-    })
+    df_snmp = pd.DataFrame({"interface_id": ["A->B"], "oper_status": ["up"]})
     df_snmp.to_csv(csv_snmp, index=False)
     result = ingest(csv_snmp)
     assert isinstance(result, Topology)
 
     # 8. Auto-detect CSV Traffic Matrix
     csv_tm = tmp_path / "test_tm.csv"
-    df_tm = pd.DataFrame({
-        "source": ["A"],
-        "destination": ["B"],
-        "bytes": [100],
-        "packets": [1],
-        "protocol": ["TCP"]
-    })
+    df_tm = pd.DataFrame(
+        {"source": ["A"], "destination": ["B"], "bytes": [100], "packets": [1], "protocol": ["TCP"]}
+    )
     df_tm.to_csv(csv_tm, index=False)
     result = ingest(csv_tm)
     assert isinstance(result, TrafficMatrix)
 
     # 9. Auto-detect CSV Topology
     csv_topo = tmp_path / "test_topo.csv"
-    df_topo = pd.DataFrame({
-        "from": ["A"],
-        "to": ["B"]
-    })
+    df_topo = pd.DataFrame({"from": ["A"], "to": ["B"]})
     df_topo.to_csv(csv_topo, index=False)
     result = ingest(csv_topo)
     assert isinstance(result, Topology)
 
     # 10. Auto-detect unrecognized CSV
     csv_unrec = tmp_path / "test_unrec.csv"
-    df_unrec = pd.DataFrame({
-        "col1": ["A"],
-        "col2": ["B"]
-    })
+    df_unrec = pd.DataFrame({"col1": ["A"], "col2": ["B"]})
     df_unrec.to_csv(csv_unrec, index=False)
     with pytest.raises(IngestionError, match="Unable to auto-detect CSV structure"):
         ingest(csv_unrec)
@@ -429,22 +405,31 @@ def test_topology_and_traffic_classmethods(tmp_path: Path) -> None:
 
     # TrafficMatrix.from_csv
     traffic_csv = tmp_path / "traffic.csv"
-    pd.DataFrame({
-        "source": ["X"], "destination": ["Y"], "bytes": [1000], "packets": [5],
-        "duration": [1.0], "protocol": ["TCP"], "timestamp": [100.0]
-    }).to_csv(traffic_csv, index=False)
+    pd.DataFrame(
+        {
+            "source": ["X"],
+            "destination": ["Y"],
+            "bytes": [1000],
+            "packets": [5],
+            "duration": [1.0],
+            "protocol": ["TCP"],
+            "timestamp": [100.0],
+        }
+    ).to_csv(traffic_csv, index=False)
     tm = TrafficMatrix.from_csv(traffic_csv)
     assert len(tm.flows) == 1
 
     # Topology.from_netflow
     netflow_csv = tmp_path / "netflow.csv"
-    pd.DataFrame({
-        "src_addr": ["N1", "N2"],
-        "dst_addr": ["N2", "N3"],
-        "bytes": [1000, 2000],
-        "packets": [5, 10],
-        "protocol": ["TCP", "TCP"]
-    }).to_csv(netflow_csv, index=False)
+    pd.DataFrame(
+        {
+            "src_addr": ["N1", "N2"],
+            "dst_addr": ["N2", "N3"],
+            "bytes": [1000, 2000],
+            "packets": [5, 10],
+            "protocol": ["TCP", "TCP"],
+        }
+    ).to_csv(netflow_csv, index=False)
     topo3 = Topology.from_netflow(netflow_csv)
     assert topo3.node_count == 3
     assert ("N1", "N2") in topo3.edges

@@ -108,16 +108,10 @@ def test_from_adjacency_matrix() -> None:
     """Test generating a topology from a NumPy adjacency matrix."""
     from nroute.core.generators import TopologyGenerator
 
-    matrix = np.array([
-        [0, 1, 0],
-        [0, 0, 1],
-        [1, 0, 0]
-    ])
+    matrix = np.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
 
     topo = TopologyGenerator.from_adjacency_matrix(
-        matrix,
-        node_labels=["Node0", "Node1", "Node2"],
-        seed=100
+        matrix, node_labels=["Node0", "Node1", "Node2"], seed=100
     )
 
     assert topo.node_count == 3

@@ -21,13 +21,11 @@ def validate_node_id(node_id: Any) -> str:
     Raises:
         ValidationError: If the node ID is invalid.
     """
-    if isinstance(node_id, (int, float)):
+    if isinstance(node_id, int | float):
         node_id = str(node_id)
 
     if not isinstance(node_id, str):
-        raise ValidationError(
-            f"Node ID must be a string, got {type(node_id).__name__}."
-        )
+        raise ValidationError(f"Node ID must be a string, got {type(node_id).__name__}.")
 
     cleaned = node_id.strip()
     if not cleaned:

@@ -15,20 +15,19 @@ def _get_topo(small_graph_data: dict[str, Any]) -> Topology:
     """Helper to convert test fixture graph data schema to Topology.from_dict structure."""
     edges = []
     for edge in small_graph_data.get("edges", []):
-        edges.append({
-            "source": edge.get("src"),
-            "target": edge.get("dst"),
-            "bandwidth": edge.get("bandwidth"),
-            "latency": edge.get("latency"),
-            "jitter": edge.get("jitter"),
-            "packet_loss": edge.get("packet_loss"),
-            "utilization": edge.get("utilization"),
-            "status": edge.get("status"),
-        })
-    data = {
-        "nodes": small_graph_data.get("nodes", []),
-        "edges": edges
-    }
+        edges.append(
+            {
+                "source": edge.get("src"),
+                "target": edge.get("dst"),
+                "bandwidth": edge.get("bandwidth"),
+                "latency": edge.get("latency"),
+                "jitter": edge.get("jitter"),
+                "packet_loss": edge.get("packet_loss"),
+                "utilization": edge.get("utilization"),
+                "status": edge.get("status"),
+            }
+        )
+    data = {"nodes": small_graph_data.get("nodes", []), "edges": edges}
     return Topology.from_dict(data)
 
 

@@ -1,9 +1,9 @@
 # Product Requirements Document (PRD)
 # AI-Based Smart Network Routing System
 
-**Version:** 1.0  
-**Date:** June 10, 2026  
-**Author:** Saket  
+**Version:** 1.0
+**Date:** June 10, 2026
+**Author:** Saket
 **Repository:** https://github.com/Saket745/AI-Based-Smart-Network-Routing-System
 
 ---

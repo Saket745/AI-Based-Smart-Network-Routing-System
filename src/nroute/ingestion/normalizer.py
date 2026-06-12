@@ -16,8 +16,7 @@ class Normalizer:
 
     @staticmethod
     def normalize_topology(
-        raw_nodes: list[dict[str, Any]],
-        raw_edges: list[dict[str, Any]]
+        raw_nodes: list[dict[str, Any]], raw_edges: list[dict[str, Any]]
     ) -> Topology:
         """
         Normalize raw nodes and edges and load them into a Topology.
@@ -73,7 +72,11 @@ class Normalizer:
                 topo.add_node(dst_str)
 
             # Clean and map edge attributes to standard keys
-            attrs = {k.lower(): v for k, v in edge.items() if k.lower() not in {"source", "src", "from", "destination", "dst", "to"}}
+            attrs = {
+                k.lower(): v
+                for k, v in edge.items()
+                if k.lower() not in {"source", "src", "from", "destination", "dst", "to"}
+            }
 
             # Common overrides
             if "bandwidth" not in attrs and "speed" in attrs:
@@ -82,7 +85,9 @@ class Normalizer:
             try:
                 topo.add_edge(src_str, dst_str, **attrs)
             except Exception as e:
-                raise IngestionError(f"Failed to normalize edge from '{src_str}' to '{dst_str}': {e}") from e
+                raise IngestionError(
+                    f"Failed to normalize edge from '{src_str}' to '{dst_str}': {e}"
+                ) from e
 
         return topo
 
@@ -103,13 +108,28 @@ class Normalizer:
         flows = []
         for idx, record in enumerate(raw_records):
             # Map common alternate field names
-            source = record.get("source") or record.get("src") or record.get("src_ip") or record.get("src_addr")
-            destination = record.get("destination") or record.get("dst") or record.get("dst_ip") or record.get("dst_addr")
+            source = (
+                record.get("source")
+                or record.get("src")
+                or record.get("src_ip")
+                or record.get("src_addr")
+            )
+            destination = (
+                record.get("destination")
+                or record.get("dst")
+                or record.get("dst_ip")
+                or record.get("dst_addr")
+            )
             num_bytes = record.get("bytes") or record.get("octets") or record.get("dOctets")
             packets = record.get("packets") or record.get("pkts") or record.get("dPkts")
             duration = record.get("duration")
             protocol = record.get("protocol") or record.get("proto")
-            timestamp = record.get("timestamp") or record.get("time") or record.get("first_switched") or record.get("last_switched")
+            timestamp = (
+                record.get("timestamp")
+                or record.get("time")
+                or record.get("first_switched")
+                or record.get("last_switched")
+            )
 
             if (
                 source is None
@@ -119,8 +139,7 @@ class Normalizer:
                 or protocol is None
             ):
                 raise IngestionError(
-                    f"Flow record at index {idx} is missing required fields. "
-                    f"Record: {record}"
+                    f"Flow record at index {idx} is missing required fields. " f"Record: {record}"
                 )
 
             # Clean duration and timestamp defaults

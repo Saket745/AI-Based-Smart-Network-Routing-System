@@ -22,10 +22,7 @@ if TYPE_CHECKING:
     from nroute.core.traffic import TrafficMatrix
 
 
-def ingest(
-    path: str | Path,
-    format: str | None = None
-) -> Topology | TrafficMatrix:
+def ingest(path: str | Path, format: str | None = None) -> Topology | TrafficMatrix:
     """
     Ingest network data (topology or traffic) from a file.
     If format is None, auto-detects the format from extension and file contents.
@@ -87,6 +84,7 @@ def ingest(
         # Check if it contains nodes/edges or SNMP interface arrays
         try:
             import json
+
             with open(p, encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict):
@@ -113,7 +111,9 @@ def ingest(
             return SNMPParser.parse(p)
         if all(h in cols for h in {"source", "destination", "bytes", "packets"}):
             return CSVTrafficImporter.load(p)
-        if any(h in cols for h in {"src", "source", "from"}) and any(h in cols for h in {"dst", "destination", "to"}):
+        if any(h in cols for h in {"src", "source", "from"}) and any(
+            h in cols for h in {"dst", "destination", "to"}
+        ):
             return CSVTopologyImporter.load(p)
 
         raise IngestionError(

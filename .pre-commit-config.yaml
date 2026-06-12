@@ -13,6 +13,9 @@ repos:
         additional_dependencies:
           - types-PyYAML
           - pydantic>=2.5
+          - numpy
+          - click
+          - structlog
         args: [--config-file=pyproject.toml]
         pass_filenames: false
         entry: mypy src/nroute
@@ -27,3 +30,19 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=5000]
       - id: check-merge-conflict
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      - id: validate-repository
+        name: Validate Repository File Placement
+        entry: python scripts/validate_repository.py
+        language: python
+        pass_filenames: true
+        always_run: true
+
+      - id: validate-commit-msg
+        name: Validate Commit Message (Conventional Commits)
+        entry: python scripts/validate_commit_msg.py
+        language: python
+        stages: [commit-msg]

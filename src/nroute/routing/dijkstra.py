@@ -29,9 +29,7 @@ class DijkstraRouter(BaseRouter):
         subgraph = self._get_active_subgraph(topology)
 
         if source not in subgraph:
-            raise RoutingError(
-                f"Source node '{source}' is down or does not exist in topology."
-            )
+            raise RoutingError(f"Source node '{source}' is down or does not exist in topology.")
         if destination not in subgraph:
             raise RoutingError(
                 f"Destination node '{destination}' is down or does not exist in topology."
@@ -39,14 +37,17 @@ class DijkstraRouter(BaseRouter):
 
         # Adapt weight to NetworkX signature (u, v, data_dict) -> weight_value
         if weight is None:
+
             def weight_func(u: str, v: str, d: dict[str, Any]) -> float:
                 return float(d.get("weight", 1.0))
         elif isinstance(weight, str):
             weight_attr = weight
+
             def weight_func(u: str, v: str, d: dict[str, Any]) -> float:
                 return float(d.get(weight_attr, 1.0))
         else:
             wt_callable = weight
+
             def weight_func(u: str, v: str, d: dict[str, Any]) -> float:
                 return float(wt_callable(d))
 

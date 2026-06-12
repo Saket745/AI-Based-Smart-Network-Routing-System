@@ -1,0 +1,240 @@
+"""Congestion predictor model implementing XGBoost and LSTM classifiers."""
+
+from __future__ import annotations
+
+from typing import Any
+import os
+import joblib
+import numpy as np
+import pandas as pd
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+import xgboost as xgb
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
+
+from nroute.exceptions import ModelError
+
+
+class PyTorchLSTM(nn.Module):  # type: ignore[misc]
+    """PyTorch LSTM model for link congestion time-series forecasting."""
+
+    def __init__(self, input_dim: int = 1, hidden_dim: int = 32, num_layers: int = 2) -> None:
+        super().__init__()
+        self.lstm = nn.LSTM(
+            input_size=input_dim,
+            hidden_size=hidden_dim,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=0.2 if num_layers > 1 else 0.0,
+        )
+        self.fc = nn.Linear(hidden_dim, 1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # x shape: (batch, seq_len, input_dim)
+        out, _ = self.lstm(x)
+        # Take the output from the last time step
+        last_out = out[:, -1, :]
+        logits = self.fc(last_out)
+        return logits
+
+
+class CongestionPredictor:
+    """
+    Predicts link congestion probabilities using XGBoost or LSTM models.
+    """
+
+    def __init__(self, model_type: str = "xgboost") -> None:
+        """
+        Initialize the CongestionPredictor.
+
+        Args:
+            model_type: "xgboost" | "lstm".
+        """
+        self.model_type = model_type.lower().strip()
+        self.model: Any = None
+        self.is_trained = False
+
+        if self.model_type == "xgboost":
+            self.model = xgb.XGBClassifier(
+                n_estimators=100,
+                max_depth=3,
+                learning_rate=0.05,
+                random_state=42,
+                eval_metric="logloss",
+            )
+        elif self.model_type == "lstm":
+            self.model = PyTorchLSTM(input_dim=1, hidden_dim=32, num_layers=2)
+        else:
+            raise ValueError(f"Unknown model_type '{model_type}'. Supported: xgboost, lstm.")
+
+    def _prepare_lstm_data(self, features: pd.DataFrame) -> torch.Tensor:
+        """Extract lag utilization features and shape into (batch, seq_len, 1)."""
+        # Look for utilization columns: utilization_t, utilization_t_1, etc.
+        util_cols = ["utilization_t"]
+        for col in features.columns:
+            if col.startswith("utilization_t_"):
+                util_cols.append(col)
+
+        # Sort columns to ensure chronological order: oldest to newest
+        # e.g., utilization_t_5, utilization_t_4, ..., utilization_t
+        def get_lag_idx(name: str) -> int:
+            if name == "utilization_t":
+                return 0
+            return int(name.split("_")[-1])
+
+        sorted_cols = sorted(util_cols, key=get_lag_idx, reverse=True)
+        
+        # Extract values
+        seq_data = features[sorted_cols].values
+        # Shape: (samples, seq_len, 1)
+        seq_data = np.expand_dims(seq_data, axis=2).copy()
+        return torch.tensor(seq_data, dtype=torch.float32)
+
+    def train(
+        self, features: pd.DataFrame, labels: np.ndarray, epochs: int = 100, batch_size: int = 64
+    ) -> dict[str, float]:
+        """
+        Train the congestion prediction model.
+
+        Args:
+            features: Features DataFrame.
+            labels: Binary labels array matching the features.
+            epochs: Number of training epochs (applicable to LSTM).
+            batch_size: Batch size (applicable to LSTM).
+
+        Returns:
+            A dictionary containing evaluation metrics (accuracy, precision, recall, f1).
+        """
+        if len(features) != len(labels):
+            raise ModelError("Features and labels count must match.")
+
+        if self.model_type == "xgboost":
+            # Select numerical columns for training (exclude link identifier metadata)
+            train_features = features.select_dtypes(include=[np.number])
+            self.model.fit(train_features, labels)
+            self.is_trained = True
+
+            # Evaluate on training data
+            preds = self.model.predict(train_features)
+            probs = self.model.predict_proba(train_features)[:, 1]
+
+        elif self.model_type == "lstm":
+            x_tensor = self._prepare_lstm_data(features)
+            y_tensor = torch.tensor(labels, dtype=torch.float32).unsqueeze(1)
+
+            dataset = TensorDataset(x_tensor, y_tensor)
+            dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+            optimizer = optim.Adam(self.model.parameters(), lr=0.001)
+            criterion = nn.BCEWithLogitsLoss()
+
+            self.model.train()
+            for epoch in range(epochs):
+                for batch_x, batch_y in dataloader:
+                    optimizer.zero_grad()
+                    logits = self.model(batch_x)
+                    loss = criterion(logits, batch_y)
+                    loss.backward()
+                    optimizer.step()
+
+            self.is_trained = True
+
+            # Evaluate
+            self.model.eval()
+            with torch.no_grad():
+                logits = self.model(x_tensor)
+                probs = torch.sigmoid(logits).numpy().flatten()
+                preds = (probs >= 0.5).astype(int)
+
+        # Compute classification metrics
+        metrics = {
+            "accuracy": float(accuracy_score(labels, preds)),
+            "precision": float(precision_score(labels, preds, zero_division=0)),
+            "recall": float(recall_score(labels, preds, zero_division=0)),
+            "f1": float(f1_score(labels, preds, zero_division=0)),
+        }
+        return metrics
+
+    def predict(self, features: pd.DataFrame) -> pd.DataFrame:
+        """
+        Predict congestion probabilities for links.
+
+        Args:
+            features: Features DataFrame where each row represents a link.
+
+        Returns:
+            DataFrame with index matching input, and columns: congested (bool), probability (float).
+        """
+        if not self.is_trained:
+            raise ModelError("Model must be trained before calling predict().")
+
+        if features.empty:
+            return pd.DataFrame(columns=["congested", "probability"])
+
+        # Retain index (link IDs)
+        link_ids = features.index
+
+        if self.model_type == "xgboost":
+            train_features = features.select_dtypes(include=[np.number])
+            probs = self.model.predict_proba(train_features)[:, 1]
+            congested = self.model.predict(train_features).astype(bool)
+
+        elif self.model_type == "lstm":
+            self.model.eval()
+            x_tensor = self._prepare_lstm_data(features)
+            with torch.no_grad():
+                logits = self.model(x_tensor)
+                probs = torch.sigmoid(logits).numpy().flatten()
+                congested = (probs >= 0.5)
+
+        return pd.DataFrame(
+            {"congested": congested, "probability": probs},
+            index=link_ids
+        )
+
+    def save(self, path: str) -> None:
+        """Save the trained model weights and type information."""
+        if not self.is_trained:
+            raise ModelError("Cannot save an untrained model.")
+            
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        
+        # Pack model weights and type info
+        save_dict = {
+            "model_type": self.model_type,
+            "is_trained": self.is_trained,
+        }
+
+        if self.model_type == "xgboost":
+            save_dict["model"] = self.model
+            joblib.dump(save_dict, path)
+        elif self.model_type == "lstm":
+            save_dict["state_dict"] = self.model.state_dict()
+            torch.save(save_dict, path)
+
+    def load(self, path: str) -> None:
+        """Load model weights and type information from file."""
+        if not os.path.exists(path):
+            raise ModelError(f"Model file not found: {path}")
+
+        try:
+            # Try loading via torch first if file is PyTorch model, otherwise joblib
+            if path.endswith(".pt") or path.endswith(".pth"):
+                load_dict = torch.load(path, map_location=torch.device("cpu"), weights_only=False)
+            else:
+                load_dict = joblib.load(path)
+        except Exception as e:
+            raise ModelError(f"Failed to load model from {path}: {e}") from e
+
+        self.model_type = load_dict["model_type"]
+        self.is_trained = load_dict["is_trained"]
+
+        if self.model_type == "xgboost":
+            self.model = load_dict["model"]
+        elif self.model_type == "lstm":
+            self.model = PyTorchLSTM(input_dim=1, hidden_dim=32, num_layers=2)
+            self.model.load_state_dict(load_dict["state_dict"])
+            self.model.eval()

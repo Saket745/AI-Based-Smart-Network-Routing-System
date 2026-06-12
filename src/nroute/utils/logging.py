@@ -66,4 +66,5 @@ def get_logger(name: str) -> FilteringBoundLogger:
         name: The name of the logger (typically __name__).
     """
     import typing
+
     return typing.cast("FilteringBoundLogger", structlog.get_logger(name))

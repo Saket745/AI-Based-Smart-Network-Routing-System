@@ -14,7 +14,8 @@ import nroute
 )
 @click.version_option(version=nroute.__version__, prog_name="nroute")
 @click.option(
-    "--verbose", "-v",
+    "--verbose",
+    "-v",
     is_flag=True,
     default=False,
     help="Enable verbose (DEBUG) logging.",

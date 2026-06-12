@@ -12,10 +12,12 @@ concurrency:
 
 jobs:
   lint-and-type-check:
-    name: Lint & Type Check
+    name: Lint, Type Check & Governance
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -32,6 +34,22 @@ jobs:
 
       - name: MyPy type check
         run: mypy src/nroute --strict
+
+      - name: Validate Repository Structure
+        run: python scripts/validate_repository.py
+
+      - name: Validate Commit Messages (Conventional Commits)
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin ${{ github.base_ref }} --depth=50
+            for commit in $(git log --format=%H origin/${{ github.base_ref }}..HEAD); do
+              commit_msg=$(git log --format=%B -n 1 $commit)
+              python scripts/validate_commit_msg.py "$commit_msg"
+            done
+          else
+            commit_msg=$(git log --format=%B -n 1 HEAD)
+            python scripts/validate_commit_msg.py "$commit_msg"
+          fi
 
   test:
     name: Test (Python ${{ matrix.python-version }}, ${{ matrix.os }})

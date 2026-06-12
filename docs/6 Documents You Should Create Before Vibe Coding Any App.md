@@ -24,15 +24,15 @@ It gives your AI agent complete clarity about your app idea, target users, core 
 
 ### **Your PRD should include:**
 
-* App name  
-* One-line app idea  
-* Target users  
-* Problem you are solving  
-* Main features  
-* User roles  
-* User stories  
-* Success metrics  
-* MVP scope  
+* App name
+* One-line app idea
+* Target users
+* Problem you are solving
+* Main features
+* User roles
+* User stories
+* Success metrics
+* MVP scope
 * Features not included in version 1
 
 ### **Simple prompt to create PRD:**
@@ -51,15 +51,15 @@ This helps AI avoid guessing your tech stack, architecture, APIs, authentication
 
 ### **Your TRD should include:**
 
-* Frontend stack  
-* Backend stack  
-* Database  
-* Authentication method  
-* APIs needed  
-* AI models or tools  
-* Cloud/deployment setup  
-* Security requirements  
-* Performance requirements  
+* Frontend stack
+* Backend stack
+* Database
+* Authentication method
+* APIs needed
+* AI models or tools
+* Cloud/deployment setup
+* Security requirements
+* Performance requirements
 * Third-party integrations
 
 ### **Simple prompt to create TRD:**
@@ -76,14 +76,14 @@ It tells the AI what pages/screens to create, what happens when users click butt
 
 ### **Your App Flow should include:**
 
-* All pages/screens  
-* User journey  
-* Navigation flow  
-* Button actions  
-* Empty states  
-* Error states  
-* Success states  
-* Login/signup flow  
+* All pages/screens
+* User journey
+* Navigation flow
+* Button actions
+* Empty states
+* Error states
+* Success states
+* Login/signup flow
 * Payment or upgrade flow, if needed
 
 ### **Simple prompt to create App Flow:**
@@ -100,15 +100,15 @@ Without this, AI may build something random, generic, or ugly.
 
 ### **Your UI/UX Brief should include:**
 
-* Design style  
-* Color palette  
-* Typography  
-* Component style  
-* Layout rules  
-* Mobile/desktop behavior  
-* Inspiration references  
-* Dashboard design direction  
-* Button and card style  
+* Design style
+* Color palette
+* Typography
+* Component style
+* Layout rules
+* Mobile/desktop behavior
+* Inspiration references
+* Dashboard design direction
+* Button and card style
 * Overall user experience
 
 ### **Simple prompt to create UI/UX Brief:**
@@ -125,16 +125,16 @@ This is important because most apps fail when the database is unclear.
 
 ### **Your Backend Schema should include:**
 
-* User table  
-* Authentication/session table  
-* Main app tables  
-* Columns for each table  
-* Data types  
-* Relationships  
-* Primary keys  
-* Foreign keys  
-* Indexes  
-* Permissions  
+* User table
+* Authentication/session table
+* Main app tables
+* Columns for each table
+* Data types
+* Relationships
+* Primary keys
+* Foreign keys
+* Indexes
+* Permissions
 * Data ownership rules
 
 ### **Simple prompt to create Backend Schema:**
@@ -151,15 +151,15 @@ This is extremely important for AI coding agents because if the order is unclear
 
 ### **Your Implementation Plan should include:**
 
-* Step-by-step build sequence  
-* What to build first  
-* What to build second  
-* Setup steps  
-* Authentication steps  
-* Database steps  
-* UI steps  
-* Feature steps  
-* Testing steps  
+* Step-by-step build sequence
+* What to build first
+* What to build second
+* Setup steps
+* Authentication steps
+* Database steps
+* UI steps
+* Feature steps
+* Testing steps
 * Deployment steps
 
 ### **Simple prompt to create Implementation Plan:**
@@ -172,13 +172,13 @@ This is extremely important for AI coding agents because if the order is unclear
 
 Use this order:
 
-1. Create PRD  
-2. Create TRD  
-3. Create App Flow  
-4. Create UI/UX Brief  
-5. Create Backend Schema  
-6. Create Implementation Plan  
-7. Give all documents to your AI coding tool  
+1. Create PRD
+2. Create TRD
+3. Create App Flow
+4. Create UI/UX Brief
+5. Create Backend Schema
+6. Create Implementation Plan
+7. Give all documents to your AI coding tool
 8. Ask it to build phase by phase
 
 Do not ask AI to build the full app in one shot.
@@ -197,11 +197,11 @@ Use this prompt:
 
 Before generating code, help me create the 6 essential documents needed to build this app properly:
 
-1. Product Requirements Document  
-2. Technical Requirements Document  
-3. App Flow Document  
-4. UI/UX Design Brief  
-5. Backend Schema Document  
+1. Product Requirements Document
+2. Technical Requirements Document
+3. App Flow Document
+4. UI/UX Design Brief
+5. Backend Schema Document
 6. Implementation Plan
 
 For each document, make it detailed, structured, practical, and clear enough that an AI coding agent can build the app without guessing.
@@ -223,4 +223,3 @@ Bad input creates random output.
 Clear documents create better apps.
 
 Before vibe coding your next app, prepare the docs first.
-

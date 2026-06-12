@@ -283,14 +283,25 @@ def test_summary_and_neighbors() -> None:
 def test_topology_compute_routes() -> None:
     """Test the Topology.compute_routes convenience wrapper."""
     from nroute.core.traffic import FlowRecord, TrafficMatrix
+
     topo = Topology()
     topo.add_node("A")
     topo.add_node("B")
     topo.add_edge("A", "B", latency=5.0)
 
-    tm = TrafficMatrix(flows=[
-        FlowRecord(source="A", destination="B", bytes=100, packets=1, duration=1.0, protocol="TCP", timestamp=0.0)
-    ])
+    tm = TrafficMatrix(
+        flows=[
+            FlowRecord(
+                source="A",
+                destination="B",
+                bytes=100,
+                packets=1,
+                duration=1.0,
+                protocol="TCP",
+                timestamp=0.0,
+            )
+        ]
+    )
 
     routes = topo.compute_routes(tm, router="dijkstra", weight="latency")
     assert routes[("A", "B")] == ["A", "B"]
@@ -298,4 +309,3 @@ def test_topology_compute_routes() -> None:
     # Invalid router name should raise ValueError
     with pytest.raises(ValueError, match="Unknown router name"):
         topo.compute_routes(tm, router="invalid-router")
-

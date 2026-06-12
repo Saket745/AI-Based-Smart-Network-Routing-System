@@ -40,7 +40,15 @@ class TrafficMatrix(BaseModel):
         """
         if not self.flows:
             return pd.DataFrame(
-                columns=["source", "destination", "bytes", "packets", "duration", "protocol", "timestamp"]
+                columns=[
+                    "source",
+                    "destination",
+                    "bytes",
+                    "packets",
+                    "duration",
+                    "protocol",
+                    "timestamp",
+                ]
             )
         data = [flow.model_dump() for flow in self.flows]
         return pd.DataFrame(data)
@@ -59,12 +67,18 @@ class TrafficMatrix(BaseModel):
         Raises:
             IngestionError: If the DataFrame contains invalid/missing columns.
         """
-        required_cols = {"source", "destination", "bytes", "packets", "duration", "protocol", "timestamp"}
+        required_cols = {
+            "source",
+            "destination",
+            "bytes",
+            "packets",
+            "duration",
+            "protocol",
+            "timestamp",
+        }
         missing_cols = required_cols - set(df.columns)
         if missing_cols:
-            raise IngestionError(
-                f"DataFrame is missing required flow columns: {missing_cols}."
-            )
+            raise IngestionError(f"DataFrame is missing required flow columns: {missing_cols}.")
 
         flows = []
         for idx, row in df.iterrows():
@@ -81,9 +95,7 @@ class TrafficMatrix(BaseModel):
                     )
                 )
             except Exception as e:
-                raise IngestionError(
-                    f"Failed to parse flow record at row {idx}: {e}"
-                ) from e
+                raise IngestionError(f"Failed to parse flow record at row {idx}: {e}") from e
 
         return cls(flows=flows)
 
