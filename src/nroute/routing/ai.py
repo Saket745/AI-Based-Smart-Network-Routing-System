@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import networkx as nx
@@ -16,6 +15,8 @@ from nroute.routing.base import BaseRouter
 from nroute.utils.logging import get_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from nroute.core.topology import Topology
     from nroute.core.traffic import TrafficMatrix
 

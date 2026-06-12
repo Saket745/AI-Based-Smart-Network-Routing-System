@@ -9,6 +9,7 @@ from nroute.routing.base import BaseRouter, FallbackRouter
 from nroute.routing.bellman_ford import BellmanFordRouter
 from nroute.routing.dijkstra import DijkstraRouter
 from nroute.routing.ecmp import ECMPRouter
+from nroute.routing.rl_router import RLRouter
 
 
 def get_router(algorithm: str, topology: Any = None) -> BaseRouter:
@@ -16,8 +17,8 @@ def get_router(algorithm: str, topology: Any = None) -> BaseRouter:
     Factory function to get a router instance by name.
 
     Args:
-        algorithm: "dijkstra" | "bellman-ford" | "ecmp" | "ai" | "rl".
-        topology: Optional topology context (needed for AIRouter).
+        algorithm: "dijkstra" | "bellman-ford" | "ecmp" | "ai" | "rl" | "ppo" | "dqn".
+        topology: Optional topology context.
     """
     alg = algorithm.lower().strip()
     if alg == "dijkstra":
@@ -26,8 +27,11 @@ def get_router(algorithm: str, topology: Any = None) -> BaseRouter:
         return BellmanFordRouter()
     elif alg == "ecmp":
         return ECMPRouter()
-    elif alg in {"ai", "rl"}:
+    elif alg == "ai":
         return AIRouter(topology=topology)
+    elif alg in {"rl", "ppo", "dqn"}:
+        rl_algo = "ppo" if alg == "rl" else alg
+        return RLRouter(topology=topology, algorithm=rl_algo)
     else:
         raise ValueError(f"Unknown router name '{algorithm}'.")
 
@@ -39,5 +43,6 @@ __all__ = [
     "ECMPRouter",
     "FallbackRouter",
     "AIRouter",
+    "RLRouter",
     "get_router",
 ]

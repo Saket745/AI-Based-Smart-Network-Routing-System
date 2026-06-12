@@ -44,7 +44,9 @@ from nroute.exceptions import (
     TopologyError,
     ValidationError,
 )
+from nroute.ml.rl_env import NetworkRoutingEnv
 from nroute.routing.ai import AIRouter
+from nroute.routing.rl_router import RLRouter
 
 
 class Simulator:
@@ -89,5 +91,7 @@ __all__ = [
     "__version__",
     "load_config",
     "AIRouter",
+    "RLRouter",
+    "NetworkRoutingEnv",
     "Simulator",
 ]

@@ -7,15 +7,15 @@ from typing import TYPE_CHECKING, Any
 
 from rich.progress import Progress  # type: ignore
 
-from nroute.core.metrics import MetricsCollectionResult
-from nroute.routing.base import BaseRouter
 from nroute.simulation.collector import MetricsCollector
 from nroute.utils.logging import get_logger
 from nroute.utils.random import get_rng
 
 if TYPE_CHECKING:
+    from nroute.core.metrics import MetricsCollectionResult
     from nroute.core.topology import Topology
     from nroute.core.traffic import FlowRecord
+    from nroute.routing.base import BaseRouter
     from nroute.simulation.failure_injector import FailureInjector
     from nroute.simulation.traffic_gen import TrafficGenerator
 

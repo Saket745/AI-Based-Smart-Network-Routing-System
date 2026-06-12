@@ -66,10 +66,7 @@ class MetricsCollector:
         dropped_packets = sum(flow.packets for flow, _ in dropped_flows)
         total_packets = completed_packets + dropped_packets
 
-        if total_packets > 0:
-            packet_loss_rate = dropped_packets / total_packets
-        else:
-            packet_loss_rate = 0.0
+        packet_loss_rate = dropped_packets / total_packets if total_packets > 0 else 0.0
 
         # 4. Calculate average link utilization (0.0 to 1.0)
         # Average utilization across all links that are up.

@@ -117,48 +117,48 @@ def validate_file(file_path: Path, repo_root: Path) -> list[str]:
     ext = file_path.suffix.lower()
     filename = file_path.name
 
-    if category in ALLOWED_EXTENSIONS:
-        # 1. Allowed file types
-        is_gitkeep = filename == ".gitkeep"
-        if ext not in ALLOWED_EXTENSIONS[category] and not is_gitkeep:
+    if category not in ALLOWED_EXTENSIONS:
+        if category not in IGNORE_DIRS and not category.startswith("."):
             errors.append(
-                f"[{rel_path}] File extension '{ext}' is not allowed in '{category}/'. "
-                f"Allowed extensions: {', '.join(sorted(list(ALLOWED_EXTENSIONS[category])))}"
+                f"[{rel_path}] File resides in an unrecognized top-level directory '{category}'. "
+                "Please organize files within src/, tests/, docs/, configs/, scripts/, experiments/, models/, or data/."
             )
+        return errors
 
-        # 2. Dataset warning in source code/test directories
-        if category in {"src", "tests"} and ext in {".csv", ".json"}:
-            if file_path.exists() and file_path.stat().st_size > WARN_DATA_SIZE_BYTES:
-                errors.append(
-                    f"[{rel_path}] Large dataset ({file_path.stat().st_size / 1024:.1f}KB) detected in source/test directory. "
-                    "Move dataset files to 'data/' or 'datasets/' directory."
-                )
-
-        # 3. Naming convention validations
-        if category == "src" and ext == ".py":
-            # Exclude package level init files and cli files which might have other patterns
-            if not PYTHON_FILE_PATTERN.match(filename):
-                errors.append(
-                    f"[{rel_path}] Python file '{filename}' does not follow snake_case naming convention."
-                )
-
-        elif category == "tests" and ext == ".py":
-            if not TEST_FILE_PATTERN.match(filename):
-                errors.append(
-                    f"[{rel_path}] Test file '{filename}' must follow snake_case and be prefixed/suffixed with 'test_' or '_test' (e.g., 'test_routing.py')."
-                )
-
-        elif category == "docs" and ext == ".md":
-            if not DOCS_FILE_PATTERN.match(filename):
-                errors.append(
-                    f"[{rel_path}] Documentation markdown name '{filename}' has invalid characters."
-                )
-
-    # Flag files in unknown top-level directories
-    elif category not in IGNORE_DIRS and not category.startswith("."):
+    # 1. Allowed file types
+    is_gitkeep = filename == ".gitkeep"
+    if ext not in ALLOWED_EXTENSIONS[category] and not is_gitkeep:
         errors.append(
-            f"[{rel_path}] File resides in an unrecognized top-level directory '{category}'. "
-            "Please organize files within src/, tests/, docs/, configs/, scripts/, experiments/, models/, or data/."
+            f"[{rel_path}] File extension '{ext}' is not allowed in '{category}/'. "
+            f"Allowed extensions: {', '.join(sorted(list(ALLOWED_EXTENSIONS[category])))}"
+        )
+
+    # 2. Dataset warning in source code/test directories
+    if (
+        category in {"src", "tests"}
+        and ext in {".csv", ".json"}
+        and file_path.exists()
+        and file_path.stat().st_size > WARN_DATA_SIZE_BYTES
+    ):
+        errors.append(
+            f"[{rel_path}] Large dataset ({file_path.stat().st_size / 1024:.1f}KB) detected in source/test directory. "
+            "Move dataset files to 'data/' or 'datasets/' directory."
+        )
+
+    # 3. Naming convention validations
+    if category == "src" and ext == ".py" and not PYTHON_FILE_PATTERN.match(filename):
+        errors.append(
+            f"[{rel_path}] Python file '{filename}' does not follow snake_case naming convention."
+        )
+
+    elif category == "tests" and ext == ".py" and not TEST_FILE_PATTERN.match(filename):
+        errors.append(
+            f"[{rel_path}] Test file '{filename}' must follow snake_case and be prefixed/suffixed with 'test_' or '_test' (e.g., 'test_routing.py')."
+        )
+
+    elif category == "docs" and ext == ".md" and not DOCS_FILE_PATTERN.match(filename):
+        errors.append(
+            f"[{rel_path}] Documentation markdown name '{filename}' has invalid characters."
         )
 
     return errors

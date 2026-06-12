@@ -19,16 +19,16 @@ To provide a production-grade, highly extensible framework that bridges classica
 * [x] Achieve >80% code coverage on unit tests.
 
 ### Phase 2: Anomaly Detection & Congestion Prediction (Q3 2026)
-* [ ] Integrate data ingestion engines (PCAP parsing, SNMP simulation, NetFlow CSV records).
-* [ ] Develop an anomaly detection module (Isolation Forest, Autoencoders) to identify link failure anomalies, black holes, and DDoS patterns.
-* [ ] Implement a congestion prediction module using time-series forecasting (XGBoost, LSTM) to predict link traffic saturation 5-15 minutes in advance.
-* [ ] Create dynamic edge weight calculators that adjust graph link weights reactively based on predicted congestion.
+* [x] Integrate data ingestion engines (PCAP parsing, SNMP simulation, NetFlow CSV records).
+* [x] Develop an anomaly detection module (Isolation Forest, Autoencoders) to identify link failure anomalies, black holes, and DDoS patterns.
+* [x] Implement a congestion prediction module using time-series forecasting (XGBoost, LSTM) to predict link traffic saturation 5-15 minutes in advance.
+* [x] Create dynamic edge weight calculators that adjust graph link weights reactively based on predicted congestion.
 
 ### Phase 3: Reinforcement Learning & AI-Driven Routing (Q4 2026)
-* [ ] Develop a Gym/Gymnasium-compatible environment for routing optimization.
-* [ ] Implement Reinforcement Learning (RL) routing agents utilizing Proximal Policy Optimization (PPO) and Deep Q-Networks (DQN).
+* [x] Develop a Gym/Gymnasium-compatible environment for routing optimization.
+* [x] Implement Reinforcement Learning (RL) routing agents utilizing Proximal Policy Optimization (PPO) and Deep Q-Networks (DQN).
 * [ ] Build multi-agent routing simulations where individual nodes negotiate traffic patterns.
-* [ ] Compare RL-based routing efficiency against classical OSPF/ECMP under dynamic link failure scenarios.
+* [x] Compare RL-based routing efficiency against classical OSPF/ECMP under dynamic link failure scenarios.
 
 ### Phase 4: Productionization & Extensibility (Q1 2027)
 * [ ] Add real-time interactive visualization console (Plotext/Dash) to watch packets flow through the network graph.
