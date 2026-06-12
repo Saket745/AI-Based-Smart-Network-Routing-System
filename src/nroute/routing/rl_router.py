@@ -160,7 +160,7 @@ class RLRouter(BaseRouter):
 
             while not (terminated or truncated):
                 action, _ = self.model.predict(obs, deterministic=True)
-                obs, reward, terminated, truncated, info = env.step(int(action))
+                obs, _reward, terminated, truncated, info = env.step(int(action))
 
             if info.get("status") == "success" and env.current_node == destination:
                 path = list(env.path)

@@ -47,11 +47,8 @@ class ModelStore:
         # Determine file extension based on model class/type
         # PyTorch models should save as .pt
         ext = ".joblib"
-        if (
-            hasattr(model, "model_type")
-            and model.model_type == "lstm"
-            or hasattr(model, "model_type")
-            and model.model_type == "autoencoder"
+        if (hasattr(model, "model_type") and model.model_type == "lstm") or (
+            hasattr(model, "model_type") and model.model_type == "autoencoder"
         ):
             ext = ".pt"
 

@@ -37,12 +37,12 @@ def get_router(algorithm: str, topology: Any = None) -> BaseRouter:
 
 
 __all__ = [
+    "AIRouter",
     "BaseRouter",
     "BellmanFordRouter",
     "DijkstraRouter",
     "ECMPRouter",
     "FallbackRouter",
-    "AIRouter",
     "RLRouter",
     "get_router",
 ]

@@ -5,6 +5,12 @@ from __future__ import annotations
 import click
 
 import nroute
+from nroute.cli.detect_cmd import detect_cmd
+from nroute.cli.predict_cmd import predict_cmd
+from nroute.cli.route_cmd import route_cmd
+from nroute.cli.simulate_cmd import simulate_cmd
+from nroute.cli.topology_cmd import topology_cmd
+from nroute.cli.train_cmd import train_cmd
 
 
 @click.group(
@@ -49,11 +55,10 @@ def cli(ctx: click.Context, verbose: bool, config: str | None, seed: int | None)
         click.echo(ctx.get_help())
 
 
-# ── Subcommand groups (registered as phases are built) ──────
-# Phase 3: cli.add_command(topology_cmd)
-# Phase 5: cli.add_command(route_cmd)
-# Phase 6: cli.add_command(simulate_cmd)
-# Phase 7: cli.add_command(train_cmd)
-# Phase 7: cli.add_command(predict_cmd)
-# Phase 7: cli.add_command(detect_cmd)
-# Phase 9: cli.add_command(export_cmd)
+# ── Register Subcommand Groups ──────────────────────────────
+cli.add_command(topology_cmd, "topology")
+cli.add_command(route_cmd, "route")
+cli.add_command(simulate_cmd, "simulate")
+cli.add_command(train_cmd, "train")
+cli.add_command(predict_cmd, "predict")
+cli.add_command(detect_cmd, "detect")

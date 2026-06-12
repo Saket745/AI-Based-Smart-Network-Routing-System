@@ -73,6 +73,7 @@ class Simulator:
 
 
 __all__ = [
+    "AIRouter",
     "ConfigError",
     "FlowRecord",
     "IngestionError",
@@ -80,18 +81,17 @@ __all__ = [
     "ModelError",
     "NRouteConfig",
     "NRouteError",
+    "NetworkRoutingEnv",
+    "RLRouter",
     "RouteMetrics",
     "RoutingError",
     "SimulationError",
     "SimulationMetrics",
+    "Simulator",
     "Topology",
     "TopologyError",
     "TrafficMatrix",
     "ValidationError",
     "__version__",
     "load_config",
-    "AIRouter",
-    "RLRouter",
-    "NetworkRoutingEnv",
-    "Simulator",
 ]

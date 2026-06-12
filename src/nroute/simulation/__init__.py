@@ -7,7 +7,7 @@ from nroute.simulation.failure_injector import FailureInjector
 from nroute.simulation.traffic_gen import TrafficGenerator
 
 __all__ = [
-    "SimulationEngine",
     "FailureInjector",
+    "SimulationEngine",
     "TrafficGenerator",
 ]
