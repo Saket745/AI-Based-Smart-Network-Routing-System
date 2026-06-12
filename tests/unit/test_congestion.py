@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -28,8 +29,8 @@ def dummy_dataset() -> tuple[pd.DataFrame, np.ndarray]:
         "latency": np.random.uniform(1.0, 50.0, 20),
     }
     df = pd.DataFrame(data)
-    df.index = [f"node_{i}->node_{i+1}" for i in range(20)]
-    
+    df.index = [f"node_{i}->node_{i + 1}" for i in range(20)]
+
     # Label is 1 if current utilization is high
     labels = (df["utilization_t"] > 0.75).astype(int).values
     return df, labels
@@ -63,13 +64,13 @@ def test_congestion_predictor_xgboost(dummy_dataset: tuple[pd.DataFrame, np.ndar
     with tempfile.TemporaryDirectory() as tmpdir:
         model_path = os.path.join(tmpdir, "xgb_model.joblib")
         predictor.save(model_path)
-        
+
         new_predictor = CongestionPredictor()
         new_predictor.load(model_path)
-        
+
         assert new_predictor.model_type == "xgboost"
         assert new_predictor.is_trained
-        
+
         new_preds = new_predictor.predict(df)
         pd.testing.assert_frame_equal(preds, new_preds)
 
@@ -94,21 +95,23 @@ def test_congestion_predictor_lstm(dummy_dataset: tuple[pd.DataFrame, np.ndarray
     with tempfile.TemporaryDirectory() as tmpdir:
         model_path = os.path.join(tmpdir, "lstm_model.pt")
         predictor.save(model_path)
-        
+
         new_predictor = CongestionPredictor()
         new_predictor.load(model_path)
-        
+
         assert new_predictor.model_type == "lstm"
         assert new_predictor.is_trained
-        
+
         new_preds = new_predictor.predict(df)
         pd.testing.assert_frame_equal(preds, new_preds)
 
 
-def test_congestion_predictor_mismatched_inputs(dummy_dataset: tuple[pd.DataFrame, np.ndarray]) -> None:
+def test_congestion_predictor_mismatched_inputs(
+    dummy_dataset: tuple[pd.DataFrame, np.ndarray],
+) -> None:
     """Test validation errors for training dimension mismatches."""
     df, labels = dummy_dataset
     predictor = CongestionPredictor()
-    
+
     with pytest.raises(ModelError):
         predictor.train(df, labels[:-1])

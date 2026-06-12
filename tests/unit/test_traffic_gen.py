@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from nroute.core.topology import Topology
 from nroute.simulation.traffic_gen import TrafficGenerator
 
@@ -49,7 +47,7 @@ def test_traffic_gen_uniform(small_graph_data: dict[str, Any]) -> None:
 def test_traffic_gen_gravity(small_graph_data: dict[str, Any]) -> None:
     """Test gravity traffic model selection is biased by node capacities."""
     topo = _get_topo(small_graph_data)
-    
+
     # Modify node capacities to create huge disparity
     # Nodes A, B capacity = 10000.0, C, D, E capacity = 1.0
     topo.add_node("A", capacity=10000.0)
@@ -60,14 +58,14 @@ def test_traffic_gen_gravity(small_graph_data: dict[str, Any]) -> None:
 
     gen = TrafficGenerator(model="gravity", n_flows_per_tick=20, seed=42)
     flows = gen.generate(topo, tick=1)
-    
+
     assert len(flows) == 20
     ab_flow_count = 0
     for flow in flows:
         # Check if endpoints are A and B
         if flow.source in {"A", "B"} and flow.destination in {"A", "B"}:
             ab_flow_count += 1
-            
+
     # Under gravity model, flows between A and B should be highly dominant
     assert ab_flow_count >= 15
 
@@ -75,14 +73,14 @@ def test_traffic_gen_gravity(small_graph_data: dict[str, Any]) -> None:
 def test_traffic_gen_hotspot(small_graph_data: dict[str, Any]) -> None:
     """Test hotspot traffic generator biases destination choices."""
     topo = _get_topo(small_graph_data)
-    
+
     # We specify "D" as the only hotspot node
     gen = TrafficGenerator(model="hotspot", n_flows_per_tick=20, seed=42, hotspot_nodes=["D"])
     flows = gen.generate(topo, tick=2)
 
     assert len(flows) == 20
     d_count = sum(1 for f in flows if f.destination == "D")
-    
+
     # Dest D should represent ~80% of choices
     assert d_count >= 12
 
@@ -90,11 +88,13 @@ def test_traffic_gen_hotspot(small_graph_data: dict[str, Any]) -> None:
 def test_traffic_gen_bursty(small_graph_data: dict[str, Any]) -> None:
     """Test bursty traffic spikes in size and count."""
     topo = _get_topo(small_graph_data)
-    
+
     # High burst probability to guarantee a burst
-    gen = TrafficGenerator(model="bursty", n_flows_per_tick=5, seed=42, burst_prob=1.0, burst_multiplier=4.0)
+    gen = TrafficGenerator(
+        model="bursty", n_flows_per_tick=5, seed=42, burst_prob=1.0, burst_multiplier=4.0
+    )
     flows = gen.generate(topo, tick=3)
-    
+
     # 5 * 4 = 20 flows
     assert len(flows) == 20
     for flow in flows:
@@ -104,7 +104,7 @@ def test_traffic_gen_bursty(small_graph_data: dict[str, Any]) -> None:
 def test_traffic_gen_reproducibility(small_graph_data: dict[str, Any]) -> None:
     """Test that a fixed seed produces identical traffic flows."""
     topo = _get_topo(small_graph_data)
-    
+
     gen1 = TrafficGenerator(model="uniform", n_flows_per_tick=5, seed=100)
     gen2 = TrafficGenerator(model="uniform", n_flows_per_tick=5, seed=100)
 
@@ -112,7 +112,7 @@ def test_traffic_gen_reproducibility(small_graph_data: dict[str, Any]) -> None:
     flows2 = gen2.generate(topo, tick=0)
 
     assert len(flows1) == len(flows2)
-    for f1, f2 in zip(flows1, flows2):
+    for f1, f2 in zip(flows1, flows2, strict=False):
         assert f1.source == f2.source
         assert f1.destination == f2.destination
         assert f1.bytes == f2.bytes

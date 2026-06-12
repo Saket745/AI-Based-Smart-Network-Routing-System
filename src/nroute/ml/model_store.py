@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import os
-import json
 import hashlib
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -48,9 +47,12 @@ class ModelStore:
         # Determine file extension based on model class/type
         # PyTorch models should save as .pt
         ext = ".joblib"
-        if hasattr(model, "model_type") and model.model_type == "lstm":
-            ext = ".pt"
-        elif hasattr(model, "model_type") and model.model_type == "autoencoder":
+        if (
+            hasattr(model, "model_type")
+            and model.model_type == "lstm"
+            or hasattr(model, "model_type")
+            and model.model_type == "autoencoder"
+        ):
             ext = ".pt"
 
         filename = f"{name}_{version}{ext}"
@@ -60,10 +62,10 @@ class ModelStore:
         try:
             # 1. Save model weights
             model.save(str(model_path))
-            
+
             # 2. Compute checksum of saved file
             checksum = self._compute_sha256(model_path)
-            
+
             # 3. Write metadata file
             metadata = {
                 "name": name,
@@ -73,13 +75,15 @@ class ModelStore:
                 "timestamp": datetime.utcnow().isoformat(),
                 "model_type": getattr(model, "model_type", "unknown"),
             }
-            
+
             with open(metadata_path, "w", encoding="utf-8") as f:
                 json.dump(metadata, f, indent=2)
-                
-            logger.info("Model saved successfully", name=name, version=version, path=str(model_path))
+
+            logger.info(
+                "Model saved successfully", name=name, version=version, path=str(model_path)
+            )
             return str(model_path)
-            
+
         except Exception as e:
             raise ModelError(f"Failed to save model {name} (version {version}): {e}") from e
 
@@ -152,7 +156,12 @@ class ModelStore:
 
         try:
             model.load(str(model_path))
-            logger.info("Model loaded and verified", name=name, version=target_meta.get("version"), path=str(model_path))
+            logger.info(
+                "Model loaded and verified",
+                name=name,
+                version=target_meta.get("version"),
+                path=str(model_path),
+            )
             return str(model_path)
         except Exception as e:
             raise ModelError(f"Failed to load model state from file {model_path}: {e}") from e

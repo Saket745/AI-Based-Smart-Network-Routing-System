@@ -139,7 +139,7 @@ class Normalizer:
                 or protocol is None
             ):
                 raise IngestionError(
-                    f"Flow record at index {idx} is missing required fields. " f"Record: {record}"
+                    f"Flow record at index {idx} is missing required fields. Record: {record}"
                 )
 
             # Clean duration and timestamp defaults

@@ -36,21 +36,8 @@ def extract_congestion_features(
     # we can estimate link utilization historically or read from topology if we had topology history.
     # If the history represents the last N ticks, let's look at the current topology's utilization
     # and use the flow records in traffic_history to calculate utilization for past ticks.
-    
-    # Let's pre-compute link utilizations for each tick in traffic_history
-    history_utils: list[dict[tuple[str, str], float]] = []
-    
-    for tm in traffic_history:
-        tick_demands: Counter[Any] = Counter()
-        for flow in tm.flows:
-            # Note: We can't determine the exact path without routing them, but we can assume
-            # direct flows or estimate.
-            # Alternatively, we can assume that each TrafficMatrix in traffic_history represents
-            # a time-step where link utilizations were already recorded in topology, or we can estimate
-            # utilization as: sum(bytes * 8) / (duration * bandwidth) on the direct link if it exists.
-            # Let's estimate path load by using shortest path (Dijkstra) as an approximation.
-            # To be efficient, let's route them using direct link or Dijkstra:
-            pass
+
+    from contextlib import suppress
 
     for u, v in topology.edges:
         try:
@@ -72,19 +59,15 @@ def extract_congestion_features(
         # to ensure the columns are always present and shape is correct.
         for i in range(1, lag_ticks + 1):
             # Simulated lag: decay current util with some index variance
-            lag_val = current_util * (0.8 ** i)
+            lag_val = current_util * (0.8**i)
             lags.append(lag_val)
 
         # Average utilization of successor/neighbor edges
         neighbor_utils = []
-        try:
+        with suppress(Exception):
             for w in topology.neighbors(v):
-                try:
+                with suppress(Exception):
                     neighbor_utils.append(float(topology.get_edge(v, w).get("utilization", 0.0)))
-                except Exception:
-                    pass
-        except Exception:
-            pass
         neighbor_util_avg = sum(neighbor_utils) / len(neighbor_utils) if neighbor_utils else 0.0
 
         feature_dict = {
@@ -96,10 +79,10 @@ def extract_congestion_features(
             "utilization_t": current_util,
             "neighbor_utilization_avg": neighbor_util_avg,
         }
-        
+
         # Add lag columns
         for idx, lag_val in enumerate(lags):
-            feature_dict[f"utilization_t_{idx+1}"] = lag_val
+            feature_dict[f"utilization_t_{idx + 1}"] = lag_val
 
         records.append(feature_dict)
 
@@ -121,21 +104,25 @@ def extract_anomaly_features(traffic: TrafficMatrix) -> pd.DataFrame:
     """
     flows = traffic.flows
     if not flows:
-        return pd.DataFrame([{
-            "bytes_per_second": 0.0,
-            "packets_per_second": 0.0,
-            "flow_count": 0,
-            "avg_packet_size": 0.0,
-            "src_ip_entropy": 0.0,
-            "dst_ip_entropy": 0.0,
-            "protocol_entropy": 0.0,
-            "bytes_std": 0.0,
-        }])
+        return pd.DataFrame(
+            [
+                {
+                    "bytes_per_second": 0.0,
+                    "packets_per_second": 0.0,
+                    "flow_count": 0,
+                    "avg_packet_size": 0.0,
+                    "src_ip_entropy": 0.0,
+                    "dst_ip_entropy": 0.0,
+                    "protocol_entropy": 0.0,
+                    "bytes_std": 0.0,
+                }
+            ]
+        )
 
     total_bytes = sum(f.bytes for f in flows)
     total_packets = sum(f.packets for f in flows)
     flow_count = len(flows)
-    
+
     # Calculate durations
     max_time = max(f.timestamp + f.duration for f in flows)
     min_time = min(f.timestamp for f in flows)

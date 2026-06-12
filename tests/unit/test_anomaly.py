@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -64,7 +65,7 @@ def test_anomaly_detector_isolation_forest(
 ) -> None:
     """Test Isolation Forest anomaly detection, predictions, and save/load."""
     detector = AnomalyDetector(model_type="isolation_forest", contamination=0.1)
-    
+
     with pytest.raises(ModelError):
         detector.detect(normal_traffic_data)
 
@@ -86,13 +87,13 @@ def test_anomaly_detector_isolation_forest(
     with tempfile.TemporaryDirectory() as tmpdir:
         model_path = os.path.join(tmpdir, "forest_model.joblib")
         detector.save(model_path)
-        
+
         new_detector = AnomalyDetector()
         new_detector.load(model_path)
-        
+
         assert new_detector.model_type == "isolation_forest"
         assert new_detector.is_trained
-        
+
         new_results = new_detector.detect(anomalous_traffic_data)
         pd.testing.assert_frame_equal(anomaly_results, new_results)
 
@@ -102,7 +103,7 @@ def test_anomaly_detector_autoencoder(
 ) -> None:
     """Test Autoencoder anomaly detection, predictions, and save/load."""
     detector = AnomalyDetector(model_type="autoencoder", contamination=0.1)
-    
+
     detector.fit(normal_traffic_data, epochs=10, batch_size=8)
     assert detector.is_trained
     assert detector.reconstruction_threshold > 0.0
@@ -120,12 +121,12 @@ def test_anomaly_detector_autoencoder(
     with tempfile.TemporaryDirectory() as tmpdir:
         model_path = os.path.join(tmpdir, "ae_model.pt")
         detector.save(model_path)
-        
+
         new_detector = AnomalyDetector()
         new_detector.load(model_path)
-        
+
         assert new_detector.model_type == "autoencoder"
         assert new_detector.is_trained
-        
+
         new_results = new_detector.detect(anomalous_traffic_data)
         pd.testing.assert_frame_equal(anomaly_results, new_results)

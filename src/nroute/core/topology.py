@@ -473,7 +473,7 @@ class Topology:
             f"Edges: {self.edge_count} ({down_links} down)\n"
             f"Latency range: {min_lat:.1f}ms to {max_lat:.1f}ms\n"
             f"Bandwidth range: {min_bw:.1f}Mbps to {max_bw:.1f}Mbps\n"
-            f"Utilization range: {min_util*100:.1f}% to {max_util*100:.1f}%\n"
+            f"Utilization range: {min_util * 100:.1f}% to {max_util * 100:.1f}%\n"
         )
 
     @classmethod

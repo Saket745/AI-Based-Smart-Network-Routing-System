@@ -9,7 +9,6 @@ from nroute.utils.random import get_rng
 
 if TYPE_CHECKING:
     from nroute.core.topology import Topology
-    from nroute.utils.random import SeededRandom
 
 
 class TrafficGenerator:
@@ -66,13 +65,15 @@ class TrafficGenerator:
         else:
             raise ValueError(f"Unknown traffic model '{self.model}'.")
 
-    def _create_flow(self, src: str, dst: str, tick: int, bytes_multiplier: float = 1.0) -> FlowRecord:
+    def _create_flow(
+        self, src: str, dst: str, tick: int, bytes_multiplier: float = 1.0
+    ) -> FlowRecord:
         """Helper to create a single FlowRecord with realistic metrics."""
         # Random flow sizes
         bytes_val = int(self.rng.randint(1000, 1000000) * bytes_multiplier)
         pkts_val = max(1, bytes_val // self.rng.randint(500, 1450))
         duration = round(self.rng.uniform(0.1, 10.0), 3)
-        
+
         # Weighted protocols: TCP (70%), UDP (25%), ICMP (5%)
         proto = self.rng.choices(["TCP", "UDP", "ICMP"], weights=[0.70, 0.25, 0.05], k=1)[0]
         timestamp = float(tick)
@@ -91,7 +92,7 @@ class TrafficGenerator:
         """Generate flows where endpoints are chosen uniformly at random."""
         flows = []
         nodes = topology.nodes
-        
+
         for _ in range(self.n_flows_per_tick):
             src = self.rng.choice(nodes)
             # Ensure destination is different from source
@@ -100,7 +101,7 @@ class TrafficGenerator:
                 continue
             dst = self.rng.choice(possible_dsts)
             flows.append(self._create_flow(src, dst, tick))
-            
+
         return flows
 
     def _generate_gravity(self, topology: Topology, tick: int) -> list[FlowRecord]:
@@ -138,13 +139,13 @@ class TrafficGenerator:
         """
         nodes = topology.nodes
         hotspots: list[str] = self.kwargs.get("hotspot_nodes", [])
-        
+
         # If no hotspots specified, select top 20% capacity nodes as hotspots
         if not hotspots:
             sorted_nodes = sorted(
                 nodes,
                 key=lambda n: float(topology.get_node(n).get("capacity", 1000.0)),
-                reverse=True
+                reverse=True,
             )
             k = max(1, len(nodes) // 5)
             hotspots = sorted_nodes[:k]
@@ -177,7 +178,7 @@ class TrafficGenerator:
         """
         burst_prob = float(self.kwargs.get("burst_prob", 0.15))
         burst_multiplier = float(self.kwargs.get("burst_multiplier", 5.0))
-        
+
         is_burst = self.rng.random_float() < burst_prob
         count = int(self.n_flows_per_tick * (burst_multiplier if is_burst else 1.0))
         bytes_mult = self.rng.uniform(2.0, 8.0) if is_burst else 1.0

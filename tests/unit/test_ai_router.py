@@ -6,7 +6,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from nroute.core.topology import Topology
 from nroute.routing.ai import AIRouter
@@ -36,9 +35,9 @@ def test_ai_router_fallback(small_graph_data: dict[str, Any]) -> None:
     """Test that untrained AIRouter falls back to Dijkstra shortest path."""
     topo = _get_topo(small_graph_data)
     router = AIRouter(topology=topo)
-    
+
     assert not router.is_trained
-    
+
     # Path A -> D should be standard shortest path: A -> B -> D (15ms)
     path = router.compute_path(topo, "A", "D")
     assert path == ["A", "B", "D"]
@@ -54,7 +53,7 @@ def test_ai_router_congestion_avoidance(small_graph_data: dict[str, Any]) -> Non
     # We mock train the congestion predictor:
     # First set B->D utilization high in topology to extract matching features
     topo.update_edge("B", "D", utilization=0.95)
-    
+
     # Extract features using the official helper
     df = extract_congestion_features(topo, [])
     labels = [1 if idx == "B->D" else 0 for idx in df.index]
@@ -69,8 +68,8 @@ def test_ai_router_congestion_avoidance(small_graph_data: dict[str, Any]) -> Non
 
     # Let's verify that the predictor classifies B->D as congested
     predictions = router.congestion_predictor.predict(df)
-    assert predictions.loc["B->D", "congested"] == True
-    assert predictions.loc["A->B", "congested"] == False
+    assert predictions.loc["B->D", "congested"]
+    assert not predictions.loc["A->B", "congested"]
 
     # Compute path A -> D.
     # Original shortest path: A -> B -> D (latency = 10 + 5 = 15)

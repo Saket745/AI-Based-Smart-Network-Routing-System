@@ -5,15 +5,15 @@ Checks file paths, extensions, naming conventions, and file size limits.
 Can be run manually, as a pre-commit hook, or in CI pipelines.
 """
 
-import sys
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 # Max file size allowed (5MB)
 MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
-WARN_DATA_SIZE_BYTES = 100 * 1024      # 100 KB warn limit for datasets in src/tests
+WARN_DATA_SIZE_BYTES = 100 * 1024  # 100 KB warn limit for datasets in src/tests
 
 # Allowed extensions in each directory category
 ALLOWED_EXTENSIONS = {
@@ -21,7 +21,18 @@ ALLOWED_EXTENSIONS = {
     "tests": {".py", ".yaml", ".yml", ".json", ".csv", ".txt", ".gitkeep"},
     "docs": {".md", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".pdf", ".html", ".css", ".txt"},
     "configs": {".yaml", ".yml", ".toml", ".json", ".ini", ".conf", ".gitkeep"},
-    "experiments": {".py", ".ipynb", ".md", ".json", ".yaml", ".yml", ".csv", ".png", ".txt", ".gitkeep"},
+    "experiments": {
+        ".py",
+        ".ipynb",
+        ".md",
+        ".json",
+        ".yaml",
+        ".yml",
+        ".csv",
+        ".png",
+        ".txt",
+        ".gitkeep",
+    },
     "data": {".csv", ".tsv", ".json", ".pkl", ".parquet", ".gitkeep", ""},
     "scripts": {".py", ".sh", ".bat", ".ps1", ".gitkeep"},
     "models": {".pt", ".pth", ".onnx", ".joblib", ".zip", ".gitkeep"},
@@ -47,20 +58,18 @@ IGNORE_DIRS = {
     "dist",
 }
 
+
 def get_git_tracked_files(repo_root: Path) -> list[Path]:
     """Get all files currently tracked by git in the repository."""
     try:
         result = subprocess.run(
-            ["git", "ls-files"],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            check=True
+            ["git", "ls-files"], cwd=str(repo_root), capture_output=True, text=True, check=True
         )
         return [repo_root / line for line in result.stdout.splitlines() if line.strip()]
     except (subprocess.SubprocessError, FileNotFoundError):
         # Fallback to walking directory if git is not available
         return walk_repo(repo_root)
+
 
 def walk_repo(repo_root: Path) -> list[Path]:
     """Fallback walk of the filesystem to find files, ignoring build/cache dirs."""
@@ -72,10 +81,11 @@ def walk_repo(repo_root: Path) -> list[Path]:
             tracked_files.append(Path(root) / file)
     return tracked_files
 
+
 def validate_file(file_path: Path, repo_root: Path) -> list[str]:
     """Validate a single file path against repository policies."""
     errors = []
-    
+
     # Resolve relative path from repo root
     try:
         rel_path = file_path.relative_to(repo_root)
@@ -88,7 +98,7 @@ def validate_file(file_path: Path, repo_root: Path) -> list[str]:
 
     # Get root folder category (e.g. 'src', 'tests', 'docs')
     category = parts[0]
-    
+
     # Check for file size limits
     if file_path.exists():
         size = file_path.stat().st_size
@@ -106,7 +116,7 @@ def validate_file(file_path: Path, repo_root: Path) -> list[str]:
     # Check directory-specific rules
     ext = file_path.suffix.lower()
     filename = file_path.name
-    
+
     if category in ALLOWED_EXTENSIONS:
         # 1. Allowed file types
         is_gitkeep = filename == ".gitkeep"
@@ -131,7 +141,7 @@ def validate_file(file_path: Path, repo_root: Path) -> list[str]:
                 errors.append(
                     f"[{rel_path}] Python file '{filename}' does not follow snake_case naming convention."
                 )
-        
+
         elif category == "tests" and ext == ".py":
             if not TEST_FILE_PATTERN.match(filename):
                 errors.append(
@@ -143,9 +153,9 @@ def validate_file(file_path: Path, repo_root: Path) -> list[str]:
                 errors.append(
                     f"[{rel_path}] Documentation markdown name '{filename}' has invalid characters."
                 )
-    
+
     # Flag files in unknown top-level directories
-    elif category not in IGNORE_DIRS and not category.startswith('.'):
+    elif category not in IGNORE_DIRS and not category.startswith("."):
         errors.append(
             f"[{rel_path}] File resides in an unrecognized top-level directory '{category}'. "
             "Please organize files within src/, tests/, docs/, configs/, scripts/, experiments/, models/, or data/."
@@ -153,9 +163,10 @@ def validate_file(file_path: Path, repo_root: Path) -> list[str]:
 
     return errors
 
+
 def main() -> int:
     repo_root = Path(__file__).resolve().parent.parent
-    
+
     # If file arguments are passed (e.g., via pre-commit), use them. Otherwise, scan all files.
     if len(sys.argv) > 1:
         files_to_check = [Path(arg).resolve() for arg in sys.argv[1:] if os.path.isfile(arg)]
@@ -165,17 +176,17 @@ def main() -> int:
 
     total_checked = 0
     all_errors = []
-    
+
     for file_path in files_to_check:
         # Ignore files inside ignored directories
         rel_path = file_path.relative_to(repo_root) if file_path.is_absolute() else file_path
         parts = rel_path.parts
-        if parts and (parts[0] in IGNORE_DIRS or parts[0].startswith('.')):
+        if parts and (parts[0] in IGNORE_DIRS or parts[0].startswith(".")):
             continue
-            
+
         if not file_path.exists():
             continue
-            
+
         total_checked += 1
         errors = validate_file(file_path, repo_root)
         if errors:
@@ -187,11 +198,14 @@ def main() -> int:
         print("\n[REPOSITORY GOVERNANCE FAILURE] Policy violations detected:\n")
         for err in all_errors:
             print(f"  - {err}")
-        print("\nPlease fix these issues before committing. Refer to docs/CONTRIBUTING.md for details.\n")
+        print(
+            "\nPlease fix these issues before committing. Refer to docs/CONTRIBUTING.md for details.\n"
+        )
         return 1
 
     print("[REPOSITORY GOVERNANCE SUCCESS] All files conform to standards.")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

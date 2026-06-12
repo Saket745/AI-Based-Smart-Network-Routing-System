@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
-import pandas as pd
 import networkx as nx
+import pandas as pd
 
 from nroute.exceptions import RoutingError
 from nroute.ml.anomaly import AnomalyDetector
 from nroute.ml.congestion import CongestionPredictor
-from nroute.ml.feature_eng import extract_congestion_features, extract_anomaly_features
+from nroute.ml.feature_eng import extract_anomaly_features, extract_congestion_features
 from nroute.routing.base import BaseRouter
 from nroute.utils.logging import get_logger
 
@@ -45,7 +46,7 @@ class AIRouter(BaseRouter):
         """
         self.topology = topology
         self.alpha = alpha
-        
+
         self.congestion_predictor = CongestionPredictor(model_type=congestion_model_type)
         self.anomaly_detector = AnomalyDetector(model_type=anomaly_model_type)
         self.is_trained = False
@@ -70,14 +71,14 @@ class AIRouter(BaseRouter):
             Dictionary of training results and metrics.
         """
         results: dict[str, Any] = {}
-        
+
         # 1. Train Congestion Predictor if features are provided
         if features_congestion is not None and labels_congestion is not None:
             logger.info("Training congestion prediction model...")
             results["congestion"] = self.congestion_predictor.train(
                 features_congestion, labels_congestion, epochs=epochs
             )
-        
+
         # 2. Train Anomaly Detector if normal features are provided
         if features_anomaly is not None:
             logger.info("Training anomaly detection model...")
@@ -87,7 +88,9 @@ class AIRouter(BaseRouter):
         self.is_trained = self.congestion_predictor.is_trained or self.anomaly_detector.is_trained
         return results
 
-    def predict_congestion(self, topology: Topology, traffic_history: list[TrafficMatrix]) -> pd.DataFrame:
+    def predict_congestion(
+        self, topology: Topology, traffic_history: list[TrafficMatrix]
+    ) -> pd.DataFrame:
         """Extract features and predict link congestion probabilities."""
         features = extract_congestion_features(topology, traffic_history)
         return self.congestion_predictor.predict(features)
@@ -134,25 +137,29 @@ class AIRouter(BaseRouter):
                 self.validate_path(topology, res_path, source, destination)
                 return res_path
             except nx.NetworkXNoPath as e:
-                raise RoutingError(f"No path found between '{source}' and '{destination}' (fallback).") from e
+                raise RoutingError(
+                    f"No path found between '{source}' and '{destination}' (fallback)."
+                ) from e
 
         # Extract features and predict congestion probabilities
         try:
             features = extract_congestion_features(topology, [])
             predictions = self.congestion_predictor.predict(features)
         except Exception as e:
-            logger.error("Failed to predict congestion in AIRouter. Falling back to Dijkstra.", error=str(e))
+            logger.error(
+                "Failed to predict congestion in AIRouter. Falling back to Dijkstra.", error=str(e)
+            )
             predictions = pd.DataFrame(columns=["probability"])
 
         # Compute dynamic edge weights: W_e = latency * (1.0 + alpha * congestion_prob)
         def dynamic_weight_func(u: str, v: str, d: dict[str, Any]) -> float:
             link_id = f"{u}->{v}"
             latency = float(d.get("latency", 5.0))
-            
+
             prob = 0.0
             if link_id in predictions.index:
                 prob = float(predictions.loc[link_id, "probability"])
-                
+
             return latency * (1.0 + self.alpha * prob)
 
         try:
@@ -166,7 +173,9 @@ class AIRouter(BaseRouter):
             self.validate_path(topology, res_path, source, destination)
             return res_path
         except nx.NetworkXNoPath as e:
-            raise RoutingError(f"No active path found between '{source}' and '{destination}' using AI weights.") from e
+            raise RoutingError(
+                f"No active path found between '{source}' and '{destination}' using AI weights."
+            ) from e
         except Exception as e:
             if isinstance(e, RoutingError):
                 raise

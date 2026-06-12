@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Any
 import os
+from typing import Any
+
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-import xgboost as xgb
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import xgboost as xgb
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from torch.utils.data import DataLoader, TensorDataset
 
 from nroute.exceptions import ModelError
@@ -86,7 +86,7 @@ class CongestionPredictor:
             return int(name.split("_")[-1])
 
         sorted_cols = sorted(util_cols, key=get_lag_idx, reverse=True)
-        
+
         # Extract values
         seq_data = features[sorted_cols].values
         # Shape: (samples, seq_len, 1)
@@ -132,7 +132,7 @@ class CongestionPredictor:
             criterion = nn.BCEWithLogitsLoss()
 
             self.model.train()
-            for epoch in range(epochs):
+            for _ in range(epochs):
                 for batch_x, batch_y in dataloader:
                     optimizer.zero_grad()
                     logits = self.model(batch_x)
@@ -188,20 +188,17 @@ class CongestionPredictor:
             with torch.no_grad():
                 logits = self.model(x_tensor)
                 probs = torch.sigmoid(logits).numpy().flatten()
-                congested = (probs >= 0.5)
+                congested = probs >= 0.5
 
-        return pd.DataFrame(
-            {"congested": congested, "probability": probs},
-            index=link_ids
-        )
+        return pd.DataFrame({"congested": congested, "probability": probs}, index=link_ids)
 
     def save(self, path: str) -> None:
         """Save the trained model weights and type information."""
         if not self.is_trained:
             raise ModelError("Cannot save an untrained model.")
-            
+
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        
+
         # Pack model weights and type info
         save_dict = {
             "model_type": self.model_type,

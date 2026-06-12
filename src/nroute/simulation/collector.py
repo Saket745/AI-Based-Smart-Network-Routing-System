@@ -54,7 +54,9 @@ class MetricsCollector:
         # or we can compute it from the path latency. Since we want avg flow latency,
         # let's average the 'duration' attribute or paths latency. Let's use flow.duration.
         if completed_flows:
-            avg_latency = sum(flow.duration * 1000.0 for flow in completed_flows) / len(completed_flows)
+            avg_latency = sum(flow.duration * 1000.0 for flow in completed_flows) / len(
+                completed_flows
+            )
         else:
             avg_latency = 0.0
 
@@ -63,7 +65,7 @@ class MetricsCollector:
         completed_packets = sum(flow.packets for flow in completed_flows)
         dropped_packets = sum(flow.packets for flow, _ in dropped_flows)
         total_packets = completed_packets + dropped_packets
-        
+
         if total_packets > 0:
             packet_loss_rate = dropped_packets / total_packets
         else:
@@ -99,7 +101,7 @@ class MetricsCollector:
             reroute_count=reroute_count,
             active_flows=active_flows_count,
         )
-        
+
         self.results.append(metrics)
         return metrics
 

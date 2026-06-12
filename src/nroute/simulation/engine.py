@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any
 from rich.progress import Progress  # type: ignore
 
 from nroute.core.metrics import MetricsCollectionResult
-from nroute.exceptions import SimulationError
 from nroute.routing.base import BaseRouter
 from nroute.simulation.collector import MetricsCollector
 from nroute.utils.logging import get_logger
@@ -55,7 +54,7 @@ class SimulationEngine:
 
         self.collector = MetricsCollector()
         self.rng = get_rng()
-        
+
         # List of active flows in-flight
         # Each flow dict has keys:
         # - "flow": FlowRecord
@@ -77,7 +76,7 @@ class SimulationEngine:
         """
         self.rng = get_rng(seed)
         self.traffic_generator.set_seed(seed)
-        
+
         # Reset collector and active flows
         self.collector = MetricsCollector()
         self.active_flows = []
@@ -98,10 +97,10 @@ class SimulationEngine:
         # Use rich progress bar for visibility
         with Progress(transient=True) as progress:
             task = progress.add_task("[cyan]Running Simulation...", total=duration_ticks)
-            
+
             for tick in range(duration_ticks):
                 timestamp = tick * tick_duration
-                
+
                 # 1. Apply failures scheduled for this tick
                 if self.failure_injector is not None:
                     self.failure_injector.apply(self.topology, tick)
@@ -120,25 +119,29 @@ class SimulationEngine:
                 for flow in new_flows:
                     try:
                         # Compute path using router
-                        path = self.router.compute_path(self.topology, flow.source, flow.destination)
-                        self.active_flows.append({
-                            "flow": flow,
-                            "path": path,
-                            "current_hop_idx": 0,
-                            "accumulated_latency": 0.0,
-                        })
+                        path = self.router.compute_path(
+                            self.topology, flow.source, flow.destination
+                        )
+                        self.active_flows.append(
+                            {
+                                "flow": flow,
+                                "path": path,
+                                "current_hop_idx": 0,
+                                "accumulated_latency": 0.0,
+                            }
+                        )
                     except Exception as e:
                         # Dropped at ingress: no route found
                         dropped_flows.append((flow, f"routing_failed_ingress: {e}"))
 
                 # 5. Forward active/in-flight flows
                 still_active: list[dict[str, Any]] = []
-                
+
                 for state in self.active_flows:
                     flow = state["flow"]
                     path = state["path"]
                     hop_idx = state["current_hop_idx"]
-                    
+
                     # Ensure path is valid and not completed
                     if hop_idx >= len(path) - 1:
                         completed_flows.append(flow)
@@ -217,7 +220,7 @@ class SimulationEngine:
                     dropped_flows=dropped_flows,
                     reroute_count=reroute_count,
                 )
-                
+
                 progress.update(task, advance=1)
 
         logger.info(
@@ -240,12 +243,12 @@ class SimulationEngine:
         # Flow bandwidth demand = (bytes * 8) / (duration * 1e6) in Mbps.
         # If duration is 0, default to 1s.
         link_demands: dict[tuple[str, str], float] = defaultdict(float)
-        
+
         for state in self.active_flows:
             flow = state["flow"]
             path = state["path"]
             hop_idx = state["current_hop_idx"]
-            
+
             if hop_idx < len(path) - 1:
                 u = path[hop_idx]
                 v = path[hop_idx + 1]

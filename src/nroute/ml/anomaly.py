@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Any
 import os
+from typing import Any
+
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import IsolationForest
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from sklearn.ensemble import IsolationForest
 from torch.utils.data import DataLoader, TensorDataset
 
 from nroute.exceptions import ModelError
@@ -60,7 +60,7 @@ class AnomalyDetector:
         self.contamination = contamination
         self.model: Any = None
         self.is_trained = False
-        
+
         # Threshold for reconstruction error (Autoencoder only)
         self.reconstruction_threshold = 0.0
         # Normalization parameters for training features
@@ -77,7 +77,9 @@ class AnomalyDetector:
             # Actual network is initialized during fit() when input dimension is known
             self.model = None
         else:
-            raise ValueError(f"Unknown model_type '{model_type}'. Supported: isolation_forest, autoencoder.")
+            raise ValueError(
+                f"Unknown model_type '{model_type}'. Supported: isolation_forest, autoencoder."
+            )
 
     def _normalize(self, x: np.ndarray, train: bool = False) -> np.ndarray:
         """Normalize features to zero mean and unit variance."""
@@ -116,10 +118,10 @@ class AnomalyDetector:
         elif self.model_type == "autoencoder":
             input_dim = x_data.shape[1]
             self.model = AutoencoderNet(input_dim)
-            
+
             # Normalize training features
             x_norm = self._normalize(x_data, train=True)
-            
+
             x_tensor = torch.tensor(x_norm, dtype=torch.float32)
             dataset = TensorDataset(x_tensor)
             dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -129,7 +131,7 @@ class AnomalyDetector:
 
             # Train Autoencoder
             self.model.train()
-            for epoch in range(epochs):
+            for _ in range(epochs):
                 for (batch_x,) in dataloader:
                     optimizer.zero_grad()
                     reconstructed = self.model(batch_x)
@@ -143,7 +145,7 @@ class AnomalyDetector:
                 reconstructed = self.model(x_tensor)
                 # Compute MSE per sample
                 errors = torch.mean((reconstructed - x_tensor) ** 2, dim=1).numpy()
-                
+
             # Set threshold at the percentile corresponding to contamination
             # e.g., if contamination is 5%, threshold is at 95th percentile
             pct = (1.0 - self.contamination) * 100.0
@@ -178,25 +180,27 @@ class AnomalyDetector:
             # Map score to [0.0, 1.0] where 1.0 is extremely anomalous
             # Standard mapping: anomaly_score = clamp(0.5 - raw_score)
             anomaly_scores = np.clip(0.5 - raw_scores, 0.0, 1.0)
-            
+
             # predict() returns 1 (normal) and -1 (anomaly)
             preds = self.model.predict(x_data)
-            is_anomaly = (preds == -1)
+            is_anomaly = preds == -1
 
         elif self.model_type == "autoencoder":
             self.model.eval()
             x_norm = self._normalize(x_data, train=False)
             x_tensor = torch.tensor(x_norm, dtype=torch.float32)
-            
+
             with torch.no_grad():
                 reconstructed = self.model(x_tensor)
                 # Compute reconstruction error per sample
                 mse_errors = torch.mean((reconstructed - x_tensor) ** 2, dim=1).numpy()
-                
+
             # Map error to score: scale relative to threshold
             # E.g., if error is threshold, score is 0.5. Clamp to [0, 1]
-            anomaly_scores = np.clip((mse_errors / (self.reconstruction_threshold + 1e-6)) * 0.5, 0.0, 1.0)
-            is_anomaly = (mse_errors > self.reconstruction_threshold)
+            anomaly_scores = np.clip(
+                (mse_errors / (self.reconstruction_threshold + 1e-6)) * 0.5, 0.0, 1.0
+            )
+            is_anomaly = mse_errors > self.reconstruction_threshold
 
         # Classify anomaly types using heuristics
         anomaly_types = []
@@ -206,14 +210,14 @@ class AnomalyDetector:
                 continue
 
             row = features.iloc[idx]
-            
+
             # 1. DDoS Heuristic: high byte/packet rate and low entropy (concentrated sources)
             bytes_sec = row.get("bytes_per_second", 0.0)
             src_entropy = row.get("src_ip_entropy", 3.0)
-            
+
             # 2. Black Hole Heuristic: flow count drops to 0 or very low, or bytes dropped entirely
             flow_count = row.get("flow_count", 1)
-            
+
             if bytes_sec > 10000000.0 and src_entropy < 1.5:
                 anomaly_types.append("DDoS")
             elif flow_count == 0 or bytes_sec < 10.0:
@@ -222,11 +226,14 @@ class AnomalyDetector:
                 # Default fallback type is link_failure / high utilization congestion
                 anomaly_types.append("link_failure")
 
-        return pd.DataFrame({
-            "anomaly_score": anomaly_scores,
-            "is_anomaly": is_anomaly,
-            "anomaly_type": anomaly_types,
-        }, index=features.index)
+        return pd.DataFrame(
+            {
+                "anomaly_score": anomaly_scores,
+                "is_anomaly": is_anomaly,
+                "anomaly_type": anomaly_types,
+            },
+            index=features.index,
+        )
 
     def save(self, path: str) -> None:
         """Save model configuration and weights."""
@@ -249,7 +256,9 @@ class AnomalyDetector:
         elif self.model_type == "autoencoder":
             save_dict["reconstruction_threshold"] = self.reconstruction_threshold
             save_dict["state_dict"] = self.model.state_dict()
-            save_dict["input_dim"] = self.feature_means.shape[0] if self.feature_means is not None else 8
+            save_dict["input_dim"] = (
+                self.feature_means.shape[0] if self.feature_means is not None else 8
+            )
             torch.save(save_dict, path)
 
     def load(self, path: str) -> None:

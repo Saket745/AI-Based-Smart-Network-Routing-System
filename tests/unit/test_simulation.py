@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from nroute import Simulator
 from nroute.core.topology import Topology
 from nroute.routing.dijkstra import DijkstraRouter
@@ -42,7 +40,7 @@ def test_simulation_engine_basic_run(small_graph_data: dict[str, Any]) -> None:
     engine = SimulationEngine(topo, router, traffic)
 
     results = engine.run(duration_ticks=10, seed=42)
-    
+
     assert len(results.results) == 10
     assert results.total_throughput() >= 0.0
     assert results.mean_latency() >= 0.0
@@ -54,7 +52,7 @@ def test_simulator_facade(small_graph_data: dict[str, Any]) -> None:
     topo = _get_topo(small_graph_data)
     router = DijkstraRouter()
     sim = Simulator(topology=topo, algorithm=router, duration=5)
-    
+
     results = sim.run(seed=10)
     assert len(results.results) == 5
 
@@ -63,7 +61,7 @@ def test_simulation_failure_injection_reroute(small_graph_data: dict[str, Any]) 
     """Test failure injection triggers flow rerouting and increments metrics."""
     topo = _get_topo(small_graph_data)
     router = DijkstraRouter()
-    
+
     # We want a deterministic single flow from A to D
     # We create a traffic generator that will create a flow from A to D at tick 0
     # and then stops generating new flows.
@@ -74,7 +72,7 @@ def test_simulation_failure_injection_reroute(small_graph_data: dict[str, Any]) 
             return []
 
     traffic = FixedTrafficGenerator(model="uniform", n_flows_per_tick=1, seed=42)
-    
+
     # Setup failure injector: Break link B -> D at tick 1 (flow is mid-route)
     injector = FailureInjector()
     injector.schedule_link_failure("B", "D", tick=1)
@@ -91,7 +89,7 @@ def test_simulation_packet_loss_drop(small_graph_data: dict[str, Any]) -> None:
     """Test flows are dropped probabilistically when packet loss is present."""
     topo = _get_topo(small_graph_data)
     router = DijkstraRouter()
-    
+
     # Set high packet loss on all edges
     for u, v in topo.edges:
         topo.update_edge(u, v, packet_loss=0.8)

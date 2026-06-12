@@ -4,23 +4,23 @@ Commit message validator hook.
 Enforces Conventional Commits style guide for git commits.
 """
 
-import sys
 import re
+import sys
 from pathlib import Path
 
 # Conventional commit types
 VALID_TYPES = {
-    "feat",     # New feature
-    "fix",      # Bug fix
-    "docs",     # Documentation changes
-    "style",    # Formatting, missing semi-colons, etc (no code changes)
-    "refactor", # Refactoring production code (e.g. renaming a variable)
-    "perf",     # Code changes that improve performance
-    "test",     # Adding missing tests or correcting existing tests
-    "build",    # Build system/dependency changes
-    "ci",       # CI configurations and scripts
-    "chore",    # Maintenance tasks
-    "revert",   # Revert a previous commit
+    "feat",  # New feature
+    "fix",  # Bug fix
+    "docs",  # Documentation changes
+    "style",  # Formatting, missing semi-colons, etc (no code changes)
+    "refactor",  # Refactoring production code (e.g. renaming a variable)
+    "perf",  # Code changes that improve performance
+    "test",  # Adding missing tests or correcting existing tests
+    "build",  # Build system/dependency changes
+    "ci",  # CI configurations and scripts
+    "chore",  # Maintenance tasks
+    "revert",  # Revert a previous commit
 }
 
 # Regex to match conventional commits header
@@ -29,17 +29,22 @@ CONVENTIONAL_REGEX = re.compile(
     r"^(?P<type>[a-z]+)(?:\((?P<scope>[a-zA-Z0-9_\-\/]+)\))?(?P<breaking>!)?:\s+(?P<desc>.+)$"
 )
 
+
 def validate_message(msg: str) -> list[str]:
     """Validate a commit message. Returns a list of error messages, empty if valid."""
     errors = []
-    
+
     # Strip whitespace
     msg = msg.strip()
     if not msg:
         return ["Commit message cannot be empty."]
 
     # Ignore standard git merge or auto-generated commits
-    if msg.startswith("Merge branch") or msg.startswith("Merge pull request") or msg.startswith("Merge remote-tracking branch"):
+    if (
+        msg.startswith("Merge branch")
+        or msg.startswith("Merge pull request")
+        or msg.startswith("Merge remote-tracking branch")
+    ):
         return []
 
     # Get the first line (header) of the commit message
@@ -70,13 +75,14 @@ def validate_message(msg: str) -> list[str]:
 
     return errors
 
+
 def main() -> int:
     if len(sys.argv) < 2:
         print("Usage: validate_commit_msg.py <commit_msg_file_path_or_text>")
         return 1
 
     target = sys.argv[1]
-    
+
     # Check if the target is a file path
     target_path = Path(target)
     if target_path.is_file():
@@ -90,7 +96,7 @@ def main() -> int:
         commit_msg = target
 
     errors = validate_message(commit_msg)
-    
+
     if errors:
         print("\n[COMMIT GOVERNANCE FAILURE] Invalid commit message structure:\n")
         for err in errors:
@@ -102,6 +108,7 @@ def main() -> int:
         return 1
 
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())
