@@ -71,7 +71,10 @@ def verify():
 
     # Assertions for verification
     assert successful_rl == total_tests, "RL router failed some inferences (fallback triggered)"
-    print("[SUCCESS] RL Router successfully inferred paths for all tested pairs without falling back!")
+    print(
+        "[SUCCESS] RL Router successfully inferred paths for all tested pairs without falling back!"
+    )
+
 
 if __name__ == "__main__":
     verify()

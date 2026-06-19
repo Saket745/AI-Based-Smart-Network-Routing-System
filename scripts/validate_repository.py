@@ -105,7 +105,7 @@ def validate_file(file_path: Path, repo_root: Path) -> list[str]:
         size = file_path.stat().st_size
         if size > MAX_FILE_SIZE_BYTES:
             errors.append(
-                f"[{rel_path}] Size ({size / (1024*1024):.2f}MB) exceeds the 5MB maximum limit. "
+                f"[{rel_path}] Size ({size / (1024 * 1024):.2f}MB) exceeds the 5MB maximum limit. "
                 "Large files should be stored outside the repo or tracked via Git LFS."
             )
 

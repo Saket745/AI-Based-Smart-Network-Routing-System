@@ -14,40 +14,7 @@ except ImportError:
 
 if TYPE_CHECKING:
     from nroute.core.topology import Topology
-
-
-class GraphTensorBundle:
-    """
-    Structured bundle of extracted graph features for GNN training/inference.
-    Supports both attribute access (bundle.node_features) and dictionary access (bundle['node_features'])
-    for backward compatibility.
-    """
-
-    def __init__(
-        self,
-        node_features: np.ndarray | Any,
-        edge_index: np.ndarray | Any,
-        edge_features: np.ndarray | Any,
-        node_to_idx: dict[str, int],
-        idx_to_node: list[str],
-    ) -> None:
-        self.node_features = node_features
-        self.edge_index = edge_index
-        self.edge_features = edge_features
-        self.node_to_idx = node_to_idx
-        self.idx_to_node = idx_to_node
-
-    def __getitem__(self, key: str) -> Any:
-        try:
-            return getattr(self, key)
-        except AttributeError as e:
-            raise KeyError(key) from e
-
-    def get(self, key: str, default: Any = None) -> Any:
-        return getattr(self, key, default)
-
-    def keys(self) -> list[str]:
-        return ["node_features", "edge_index", "edge_features", "node_to_idx", "idx_to_node"]
+from nroute.ml.graph.bundle import GraphTensorBundle
 
 
 class BaseFeatureExtractor(abc.ABC):

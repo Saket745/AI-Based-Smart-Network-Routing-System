@@ -22,7 +22,7 @@ from nroute.utils.loader import load_custom_class
 try:
     import torch
 except ImportError:
-    torch = None
+    torch = None  # type: ignore[assignment]
 
 
 def test_loader_valid_and_invalid() -> None:
@@ -86,7 +86,7 @@ class ConfiguredRouter(BaseRouter):
         # get_router should resolve and load it
         router = get_router("my-config-router")
         assert router.__class__.__name__ == "ConfiguredRouter"
-        assert router.compute_path(None, "A", "B") == ["A", "via-config", "B"]
+        assert router.compute_path(Topology(), "A", "B") == ["A", "via-config", "B"]
 
 
 def test_default_graph_feature_extractor() -> None:

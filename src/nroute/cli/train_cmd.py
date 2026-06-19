@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 from rich.console import Console
 
 from nroute.core.topology import Topology
 from nroute.exceptions import ModelError
+
+if TYPE_CHECKING:
+    import torch
 
 console = Console()
 
@@ -257,4 +261,159 @@ def train_rl(
         console.print(f"[green]+[/green] RL model saved to [bold]{out_path}[/bold]")
     except Exception as e:
         console.print(f"[red]x RL training error:[/red] {e}")
+        raise SystemExit(1) from e
+
+
+@train_cmd.command(name="gnn")
+@click.option(
+    "--topology",
+    "-t",
+    "topo_path",
+    type=click.Path(exists=True),
+    required=True,
+    help="Path to a topology JSON file (used to generate training data).",
+)
+@click.option(
+    "--model-type",
+    type=click.Choice(["gcn", "graphsage"], case_sensitive=False),
+    default="gcn",
+    show_default=True,
+    help="GNN model architecture to train.",
+)
+@click.option(
+    "--epochs",
+    type=int,
+    default=10,
+    show_default=True,
+    help="Number of training epochs.",
+)
+@click.option(
+    "--lr",
+    type=float,
+    default=0.01,
+    show_default=True,
+    help="Learning rate.",
+)
+@click.option(
+    "--hidden-dim",
+    type=int,
+    default=32,
+    show_default=True,
+    help="Hidden dimension size.",
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    type=click.Path(),
+    default="models/gnn",
+    show_default=True,
+    help="Output directory for the trained GNN model and metadata.",
+)
+@click.option(
+    "--dataset-dir",
+    type=click.Path(),
+    default="data/gnn_dataset",
+    show_default=True,
+    help="Directory to store compiled Parquet datasets.",
+)
+@click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
+@click.pass_context
+def train_gnn(
+    ctx: click.Context,
+    topo_path: str,
+    model_type: str,
+    epochs: int,
+    lr: float,
+    hidden_dim: int,
+    output_dir: str,
+    dataset_dir: str,
+    seed: int,
+) -> None:
+    """Train a Graph Neural Network (GCN/GraphSAGE) on network topologies."""
+    import os
+    import shutil
+
+    from torch.utils.data import DataLoader
+
+    from nroute.ml.datasets.generator import DatasetGenerator
+    from nroute.ml.model_store import ModelStore
+    from nroute.ml.models.gcn import GCNModel
+    from nroute.ml.models.graphsage import GraphSAGEModel
+    from nroute.ml.training.trainer import GNNGraphDataset, GNNTrainer, collate_dataset_batch
+
+    try:
+        topo = Topology.load(topo_path)
+    except Exception as e:
+        console.print(f"[red]x Failed to load topology:[/red] {e}")
+        raise SystemExit(1) from e
+
+    console.print("\n[cyan]Collecting simulation traces and compiling to Parquet...[/cyan]")
+
+    if os.path.exists(dataset_dir):
+        shutil.rmtree(dataset_dir, ignore_errors=True)
+
+    generator = DatasetGenerator(
+        topology=topo,
+        router_alg="dijkstra",
+        traffic_model="uniform",
+        duration_ticks=50,
+        flows_per_tick=5,
+        seed=seed,
+    )
+
+    snapshots = generator.generate_snapshots()
+    generator.compile_to_parquet(snapshots, dataset_dir)
+    console.print(f"[green]+[/green] Datasets saved in [bold]{dataset_dir}[/bold]")
+
+    node_df, edge_df, _ = DatasetGenerator.load_parquet_dataset(dataset_dir)
+    ticks = sorted(node_df["tick"].unique())
+    split_idx = int(len(ticks) * 0.8)
+    train_ticks = ticks[:split_idx]
+    val_ticks = ticks[split_idx:]
+
+    train_node_df = node_df[node_df["tick"].isin(train_ticks)]
+    train_edge_df = edge_df[edge_df["tick"].isin(train_ticks)]
+    val_node_df = node_df[node_df["tick"].isin(val_ticks)]
+    val_edge_df = edge_df[edge_df["tick"].isin(val_ticks)]
+
+    train_dataset = GNNGraphDataset(train_node_df, train_edge_df)
+    val_dataset = GNNGraphDataset(val_node_df, val_edge_df)
+
+    train_loader = DataLoader(
+        train_dataset, batch_size=4, shuffle=True, collate_fn=collate_dataset_batch
+    )
+    val_loader = DataLoader(
+        val_dataset, batch_size=4, shuffle=False, collate_fn=collate_dataset_batch
+    )
+
+    node_in_dim = 8
+    edge_in_dim = 6
+
+    model: torch.nn.Module
+    if model_type.lower() == "gcn":
+        model = GCNModel(node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim)
+    else:
+        model = GraphSAGEModel(
+            node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim
+        )
+
+    console.print(f"[cyan]Training GNN model ({model_type.upper()})...[/cyan]")
+    trainer = GNNTrainer(model=model, lr=lr)
+
+    for epoch in range(1, epochs + 1):
+        train_metrics = trainer.train_epoch(train_loader)
+        val_metrics = trainer.evaluate(val_loader)
+        console.print(
+            f"  Epoch {epoch:02d}/{epochs:02d} | "
+            f"Loss: {train_metrics['loss']:.4f} (Cls: {train_metrics['cls_loss']:.4f}, Reg: {train_metrics['reg_loss']:.4f}) | "
+            f"Val Loss: {val_metrics['val_loss']:.4f}"
+        )
+
+    # Save trained model
+    try:
+        model_store = ModelStore(base_dir=output_dir)
+        saved_path = model_store.save_model(model, name=model_type.lower(), version="1.0.0")
+        console.print(f"[green]+[/green] GNN model saved to [bold]{saved_path}[/bold]")
+    except Exception as e:
+        console.print(f"[red]x Saving error:[/red] {e}")
         raise SystemExit(1) from e

@@ -10,44 +10,44 @@ from nroute.utils.logging import configure_logging, get_logger
 
 def _reset_logging_state() -> None:
     """Reset the module-level _configured flag and structlog state between tests."""
-    nroute_logging._configured = False  # type: ignore[attr-defined]
+    nroute_logging._configured = False
     structlog.reset_defaults()
 
 
 def test_configure_logging_default_sets_configured_flag() -> None:
     """configure_logging() should set _configured = True on first call."""
     _reset_logging_state()
-    assert nroute_logging._configured is False  # type: ignore[attr-defined]
+    assert nroute_logging._configured is False
     configure_logging(verbose=False, json_format=False)
-    assert nroute_logging._configured is True  # type: ignore[attr-defined]
+    assert nroute_logging._configured is True
 
 
 def test_configure_logging_verbose_sets_configured_flag() -> None:
     """configure_logging(verbose=True) should complete and set _configured = True."""
     _reset_logging_state()
     configure_logging(verbose=True, json_format=False)
-    assert nroute_logging._configured is True  # type: ignore[attr-defined]
+    assert nroute_logging._configured is True
 
 
 def test_configure_logging_json_format() -> None:
     """configure_logging(json_format=True) should complete without error."""
     _reset_logging_state()
     configure_logging(verbose=False, json_format=True)
-    assert nroute_logging._configured is True  # type: ignore[attr-defined]
+    assert nroute_logging._configured is True
 
 
 def test_configure_logging_idempotent() -> None:
     """Calling configure_logging() twice must be a no-op — _configured guards it."""
     _reset_logging_state()
     configure_logging(verbose=False)
-    assert nroute_logging._configured is True  # type: ignore[attr-defined]
+    assert nroute_logging._configured is True
 
     # Reset only the structlog defaults, NOT _configured — simulate second call
     structlog.reset_defaults()
     configure_logging(verbose=True)  # Should be guarded and return immediately
 
     # _configured must still be True (was already set by first call)
-    assert nroute_logging._configured is True  # type: ignore[attr-defined]
+    assert nroute_logging._configured is True
 
 
 def test_configure_logging_each_option_no_raise() -> None:

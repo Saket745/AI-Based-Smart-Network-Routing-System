@@ -54,10 +54,10 @@ def test_negotiation_profile_init() -> None:
 
     # Factory get_router tests
     assert isinstance(get_router("negotiation"), NegotiationRouter)
-    assert get_router("negotiation").profile == "balanced"
-    assert get_router("negotiation-latency").profile == "latency"
-    assert get_router("negotiation-congestion").profile == "congestion"
-    assert get_router("negotiation-balanced").profile == "balanced"
+    assert get_router("negotiation").profile == "balanced"  # type: ignore[attr-defined]
+    assert get_router("negotiation-latency").profile == "latency"  # type: ignore[attr-defined]
+    assert get_router("negotiation-congestion").profile == "congestion"  # type: ignore[attr-defined]
+    assert get_router("negotiation-balanced").profile == "balanced"  # type: ignore[attr-defined]
 
 
 def test_negotiation_routing_latency(small_graph_data: dict[str, Any]) -> None:

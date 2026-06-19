@@ -49,7 +49,12 @@ models/*.pt
 models/*.pth
 models/*.onnx
 models/*.meta
+models/**/*.metadata.json
+models/gnn/
 !models/.gitkeep
+
+# ─── Datasets ─────────────────────────────────────────
+data/gnn_dataset/
 
 # ─── Output & Results ────────────────────────────────
 output/

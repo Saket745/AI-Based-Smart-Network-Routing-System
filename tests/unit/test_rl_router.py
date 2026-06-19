@@ -40,7 +40,7 @@ def test_rl_environment_lifecycle(small_graph_data: dict[str, Any]) -> None:
     env = NetworkRoutingEnv(topology=topo, max_hops=5)
 
     assert env.observation_space.shape == (4 * len(topo.nodes) + 5 * len(topo.edges),)
-    assert env.action_space.n == env.max_out_degree
+    assert env.action_space.n == env.max_out_degree  # type: ignore[attr-defined]
 
     obs, info = env.reset(seed=42)
     assert obs.shape == env.observation_space.shape
