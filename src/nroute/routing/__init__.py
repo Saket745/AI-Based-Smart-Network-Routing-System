@@ -8,6 +8,7 @@ from typing import Any
 from nroute.routing.ai import AIRouter
 from nroute.routing.base import BaseRouter, FallbackRouter
 from nroute.routing.bellman_ford import BellmanFordRouter
+from nroute.routing.bfs import BFSRouter
 from nroute.routing.dijkstra import DijkstraRouter
 from nroute.routing.ecmp import ECMPRouter
 from nroute.routing.registry import ROUTER_REGISTRY, register_router
@@ -19,7 +20,7 @@ def get_router(algorithm: str, topology: Any = None) -> BaseRouter:
     Factory function to get a router instance by name.
 
     Args:
-        algorithm: "dijkstra" | "bellman-ford" | "ecmp" | "ai" | "rl" | "ppo" | "dqn" or custom registered name.
+        algorithm: "dijkstra" | "bellman-ford" | "ecmp" | "bfs" | "ai" | "rl" | "ppo" | "dqn" or custom registered name.
         topology: Optional topology context.
     """
     alg = algorithm.lower().strip()
@@ -40,6 +41,8 @@ def get_router(algorithm: str, topology: Any = None) -> BaseRouter:
         return ECMPRouter()
     elif alg == "ai":
         return AIRouter(topology=topology)
+    elif alg == "bfs":
+        return BFSRouter()
     elif alg in {"rl", "ppo", "dqn"}:
         rl_algo = "ppo" if alg == "rl" else alg
         return RLRouter(topology=topology, algorithm=rl_algo)
@@ -50,6 +53,7 @@ def get_router(algorithm: str, topology: Any = None) -> BaseRouter:
 __all__ = [
     "ROUTER_REGISTRY",
     "AIRouter",
+    "BFSRouter",
     "BaseRouter",
     "BellmanFordRouter",
     "DijkstraRouter",

@@ -86,6 +86,13 @@ def simulate_cmd() -> None:
     default=0.2,
     help="Delay in seconds between ticks during visualization.",
 )
+@click.option(
+    "--model-path",
+    "-m",
+    type=click.Path(),
+    default=None,
+    help="Path to a pretrained model to load into the RL/AI router.",
+)
 @click.pass_context
 def run_sim(
     ctx: click.Context,
@@ -98,6 +105,7 @@ def run_sim(
     output: str | None,
     visualize: bool,
     visualize_delay: float,
+    model_path: str | None,
 ) -> None:
     """Run a network simulation."""
     seed = seed or ctx.obj.get("seed")
@@ -110,6 +118,15 @@ def run_sim(
 
     try:
         router = get_router(algorithm, topology=topo)
+
+        # Load pretrained model if provided
+        if model_path and hasattr(router, "load"):
+            try:
+                router.load(model_path)
+                console.print(f"[green]+[/green] Loaded pretrained model from [bold]{model_path}[/bold]")
+            except Exception as e:
+                console.print(f"[yellow]! Failed to load model:[/yellow] {e}")
+
         traffic_gen = TrafficGenerator(model=traffic_model, n_flows_per_tick=flows_per_tick)
         engine = SimulationEngine(topo, router, traffic_gen)
 
@@ -223,6 +240,13 @@ def run_sim(
     default=None,
     help="Output path for comparison JSON.",
 )
+@click.option(
+    "--model-path",
+    "-m",
+    type=click.Path(),
+    default=None,
+    help="Path to a pretrained model to load into RL/AI routers.",
+)
 @click.pass_context
 def compare(
     ctx: click.Context,
@@ -233,6 +257,7 @@ def compare(
     flows_per_tick: int,
     seed: int | None,
     output: str | None,
+    model_path: str | None,
 ) -> None:
     """Compare multiple routing algorithms on the same topology and traffic."""
     seed = seed or ctx.obj.get("seed")
@@ -259,6 +284,14 @@ def compare(
     for algo in algo_list:
         try:
             router = get_router(algo, topology=topo)
+
+            # Load pretrained model if provided and router supports it
+            if model_path and hasattr(router, "load"):
+                try:
+                    router.load(model_path)
+                except Exception as e:
+                    console.print(f"[yellow]! Failed to load model for {algo.upper()}:[/yellow] {e}")
+
             traffic_gen = TrafficGenerator(model=traffic_model, n_flows_per_tick=flows_per_tick)
             engine = SimulationEngine(topo, router, traffic_gen)
             result = engine.run(duration_ticks=duration, seed=seed)

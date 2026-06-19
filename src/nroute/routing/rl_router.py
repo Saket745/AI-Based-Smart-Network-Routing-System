@@ -6,11 +6,13 @@ import json
 import os
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 from stable_baselines3 import DQN, PPO
 
 from nroute.exceptions import ModelError, RoutingError
 from nroute.ml.rl_env import NetworkRoutingEnv
-from nroute.routing.base import BaseRouter
+from nroute.routing.base import BaseRouter, FallbackRouter
+from nroute.routing.bfs import BFSRouter
 from nroute.routing.dijkstra import DijkstraRouter
 from nroute.utils.logging import get_logger
 
@@ -36,6 +38,7 @@ class RLRouter(BaseRouter):
         self,
         topology: Topology | None = None,
         algorithm: str = "ppo",
+        confidence_threshold: float = 0.4,
     ) -> None:
         """
         Initialize the RLRouter.
@@ -43,11 +46,15 @@ class RLRouter(BaseRouter):
         Args:
             topology: Optional topology context.
             algorithm: RL algorithm: "ppo" | "dqn".
+            confidence_threshold: Minimum action probability to trust the RL
+                policy. If the model's chosen action has probability below this
+                threshold, the router falls back to Dijkstra.
         """
         self.topology = topology
         self.algorithm = algorithm.lower().strip()
         self.model: Any = None
         self.is_trained = False
+        self.confidence_threshold = confidence_threshold
 
         # Training topology metadata — cached at train time, reused at inference
         self._training_nodes: list[str] | None = None
@@ -189,6 +196,47 @@ class RLRouter(BaseRouter):
             "is_trained": True,
         }
 
+    def _cascade_fallback(
+        self,
+        topology: Topology,
+        source: str,
+        destination: str,
+        weight: str | Callable[[dict[str, Any]], float] | None = None,
+    ) -> list[str]:
+        """Cascade fallback: Dijkstra -> BFS -> RoutingError."""
+        fallback = FallbackRouter([DijkstraRouter(), BFSRouter()])
+        return fallback.compute_path(topology, source, destination, weight=weight)
+
+    def _get_action_confidence(self, obs: np.ndarray) -> tuple[int, float]:
+        """Extract action and its probability from the RL model.
+
+        Returns:
+            Tuple of (chosen_action, action_probability).
+        """
+        try:
+            if self.algorithm == "ppo":
+                # PPO: use action_probability from the policy distribution
+                obs_tensor, _ = self.model.policy.obs_to_tensor(obs)
+                distribution = self.model.policy.get_distribution(obs_tensor)
+                probs = distribution.distribution.probs.detach().cpu().numpy().flatten()
+                action = int(np.argmax(probs))
+                confidence = float(probs[action])
+                return action, confidence
+            else:
+                # DQN: use softmax of Q-values as proxy for confidence
+                obs_tensor, _ = self.model.policy.obs_to_tensor(obs)
+                q_values = self.model.policy.q_net(obs_tensor).detach().cpu().numpy().flatten()
+                # Softmax to get pseudo-probabilities
+                exp_q = np.exp(q_values - np.max(q_values))
+                probs = exp_q / exp_q.sum()
+                action = int(np.argmax(q_values))
+                confidence = float(probs[action])
+                return action, confidence
+        except Exception:
+            # If confidence extraction fails, fall back to normal predict
+            action, _ = self.model.predict(obs, deterministic=True)
+            return int(action), 1.0  # Assume full confidence on failure
+
     def compute_path(
         self,
         topology: Topology,
@@ -197,7 +245,11 @@ class RLRouter(BaseRouter):
         weight: str | Callable[[dict[str, Any]], float] | None = None,
     ) -> list[str]:
         """
-        Compute path from source to destination. Falls back to Dijkstra if model is not trained.
+        Compute path from source to destination.
+
+        Cascade fallback chain: RL -> Dijkstra -> BFS -> RoutingError.
+        If the RL model's action confidence is below ``confidence_threshold``,
+        the policy is not trusted and the cascade fallback is used instead.
 
         Args:
             topology: The network topology.
@@ -207,19 +259,17 @@ class RLRouter(BaseRouter):
         """
         # 1. Fallback if not trained
         if not self.is_trained or self.model is None:
-            logger.warning("RLRouter is not trained. Falling back to DijkstraRouter.")
-            dijkstra = DijkstraRouter()
-            return dijkstra.compute_path(topology, source, destination, weight=weight)
+            logger.warning("RLRouter is not trained. Using cascade fallback.")
+            return self._cascade_fallback(topology, source, destination, weight=weight)
 
         # 2. Check topology compatibility with training topology
         is_compatible, reason = self._check_topology_compatibility(topology)
         if not is_compatible:
             logger.warning(
                 f"Topology incompatible with training topology: {reason}. "
-                "Falling back to DijkstraRouter."
+                "Using cascade fallback."
             )
-            dijkstra = DijkstraRouter()
-            return dijkstra.compute_path(topology, source, destination, weight=weight)
+            return self._cascade_fallback(topology, source, destination, weight=weight)
 
         # 3. Run RL inference step-by-step
         try:
@@ -231,10 +281,9 @@ class RLRouter(BaseRouter):
             if env.obs_dim != self._training_obs_dim:
                 logger.warning(
                     f"Observation dimension mismatch (training={self._training_obs_dim}, "
-                    f"inference={env.obs_dim}). Falling back to DijkstraRouter."
+                    f"inference={env.obs_dim}). Using cascade fallback."
                 )
-                dijkstra = DijkstraRouter()
-                return dijkstra.compute_path(topology, source, destination, weight=weight)
+                return self._cascade_fallback(topology, source, destination, weight=weight)
 
             # Setup env state manually to the source/destination pair
             if source not in env.node_to_idx or destination not in env.node_to_idx:
@@ -253,8 +302,16 @@ class RLRouter(BaseRouter):
             truncated = False
 
             while not (terminated or truncated):
-                action, _ = self.model.predict(obs, deterministic=True)
-                obs, _reward, terminated, truncated, info = env.step(int(action))
+                action, confidence = self._get_action_confidence(obs)
+
+                if confidence < self.confidence_threshold:
+                    logger.warning(
+                        f"RL action confidence {confidence:.3f} below threshold "
+                        f"{self.confidence_threshold}. Using cascade fallback."
+                    )
+                    return self._cascade_fallback(topology, source, destination, weight=weight)
+
+                obs, _reward, terminated, truncated, info = env.step(action)
 
             if info.get("status") == "success" and env.current_node == destination:
                 path = list(env.path)
@@ -263,17 +320,18 @@ class RLRouter(BaseRouter):
 
             # If terminated in failure
             logger.warning(
-                f"RL path computation failed (env status: {info.get('status')}). Falling back to DijkstraRouter."
+                f"RL path computation failed (env status: {info.get('status')}). "
+                "Using cascade fallback."
             )
-            dijkstra = DijkstraRouter()
-            return dijkstra.compute_path(topology, source, destination, weight=weight)
+            return self._cascade_fallback(topology, source, destination, weight=weight)
 
         except Exception as e:
+            if isinstance(e, RoutingError):
+                raise
             logger.error(
-                f"RL path inference encountered an error: {e}. Falling back to DijkstraRouter."
+                f"RL path inference encountered an error: {e}. Using cascade fallback."
             )
-            dijkstra = DijkstraRouter()
-            return dijkstra.compute_path(topology, source, destination, weight=weight)
+            return self._cascade_fallback(topology, source, destination, weight=weight)
 
     def save(self, path: str) -> None:
         """Save the trained model weights and type information."""

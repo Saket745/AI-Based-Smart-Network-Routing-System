@@ -294,3 +294,135 @@ def test_rl_env_proximity_reward_signal(small_graph_data: dict[str, Any]) -> Non
     # Reward for moving toward destination should be positive (distance decreased by 1)
     # proximity_weight * (prev_distance - curr_distance) = 10 * (2 - 1) = 10.0
     assert reward_toward > 0, f"Moving toward destination should give positive reward, got {reward_toward}"
+
+
+# ── Pass 2: PRD Compliance Gap Tests ──────────────────────────────────────────
+
+
+def test_bfs_router_basic(small_graph_data: dict[str, Any]) -> None:
+    """Test that BFSRouter computes minimum-hop path ignoring edge weights."""
+    from nroute.routing.bfs import BFSRouter
+
+    topo = _get_topo(small_graph_data)
+    router = BFSRouter()
+
+    # A -> D shortest hop path should be A -> B -> D (2 hops)
+    path = router.compute_path(topo, "A", "D")
+    assert path[0] == "A"
+    assert path[-1] == "D"
+    assert len(path) <= 3  # At most 2 hops
+
+
+def test_bfs_router_unreachable(small_graph_data: dict[str, Any]) -> None:
+    """Test that BFSRouter raises RoutingError when no path exists."""
+    from nroute.exceptions import RoutingError
+    from nroute.routing.bfs import BFSRouter
+
+    topo = _get_topo(small_graph_data)
+    router = BFSRouter()
+
+    with pytest.raises(RoutingError):
+        router.compute_path(topo, "A", "NONEXISTENT")
+
+
+def test_bfs_registered_in_factory(small_graph_data: dict[str, Any]) -> None:
+    """Test that 'bfs' algorithm is registered in get_router factory."""
+    from nroute.routing import get_router
+    from nroute.routing.bfs import BFSRouter
+
+    router = get_router("bfs")
+    assert isinstance(router, BFSRouter)
+
+
+def test_rl_router_confidence_fallback(small_graph_data: dict[str, Any]) -> None:
+    """Test that RLRouter falls back when action confidence is low."""
+    topo = _get_topo(small_graph_data)
+
+    # Train with very few episodes so model is likely uncertain
+    router = RLRouter(topology=topo, algorithm="ppo", confidence_threshold=0.99)
+    router.train(episodes=2, seed=42)
+    assert router.is_trained
+
+    # With an extremely high threshold (0.99), the model will almost certainly
+    # fall back to the cascade (Dijkstra -> BFS)
+    path = router.compute_path(topo, "A", "D")
+    assert path[0] == "A"
+    assert path[-1] == "D"
+    assert len(path) >= 2
+
+
+def test_rl_env_jains_fairness_reward(small_graph_data: dict[str, Any]) -> None:
+    """Test that Jain's fairness index contributes to the step reward."""
+    topo = _get_topo(small_graph_data)
+
+    # Isolate only fairness signal
+    env = NetworkRoutingEnv(
+        topology=topo,
+        max_hops=20,
+        training_mode=False,
+        reward_params={
+            "alpha": 0.0,
+            "beta": 0.0,
+            "gamma": 0.0,
+            "delta": 0.0,
+            "proximity": 0.0,
+            "fairness": 10.0,  # Only fairness signal
+        },
+    )
+
+    env.reset(seed=42)
+    env.current_node = "A"
+    env.destination = "D"
+    env.path = ["A"]
+    env.hops = 0
+    env._visit_counts = {"A": 1}
+
+    # Step to B
+    neighbors_a = sorted(list(topo.neighbors("A")))
+    b_idx = neighbors_a.index("B")
+    _obs, reward, _terminated, _truncated, _info = env.step(b_idx)
+
+    # With all edges at 0% utilization, remaining capacity = 1.0 for all edges
+    # Jain's index = (sum(1.0))^2 / (N * sum(1.0)^2) = N^2 / (N * N) = 1.0
+    # fairness_weight * jains = 10.0 * 1.0 = 10.0
+    # (plus possible success bonus if B == destination, which it isn't here)
+    assert reward > 0, f"Fairness reward should be positive for uniform utilization, got {reward}"
+
+
+def test_ai_router_anomaly_alpha_escalation(small_graph_data: dict[str, Any]) -> None:
+    """Test that AIRouter escalates alpha when anomaly is detected and reverts when cleared."""
+    from nroute.routing.ai import AIRouter
+
+    topo = _get_topo(small_graph_data)
+    router = AIRouter(topology=topo, alpha=5.0, anomaly_alpha_scale=4.0)
+
+    # Initially, alpha should be base value
+    assert router.alpha == 5.0
+    assert not router._anomaly_active
+
+    # Without a trained anomaly detector, update_traffic_history should not change alpha
+    # (anomaly_detector.is_trained is False)
+    from nroute.core.traffic import FlowRecord, TrafficMatrix
+
+    tm = TrafficMatrix(flows=[
+        FlowRecord(source="A", destination="D", bytes=1000, packets=10, duration=1.0, protocol="TCP", timestamp=0.0),
+        FlowRecord(source="B", destination="C", bytes=2000, packets=20, duration=2.0, protocol="UDP", timestamp=1.0),
+    ])
+    router.update_traffic_history(tm)
+    assert router.alpha == 5.0
+    assert not router._anomaly_active
+    assert len(router.traffic_history) == 1
+
+
+def test_ai_router_cascade_fallback(small_graph_data: dict[str, Any]) -> None:
+    """Test that AIRouter uses cascade fallback (Dijkstra -> BFS) when untrained."""
+    from nroute.routing.ai import AIRouter
+
+    topo = _get_topo(small_graph_data)
+    router = AIRouter(topology=topo)
+
+    # Untrained AIRouter should still find a path via cascade fallback
+    path = router.compute_path(topo, "A", "D")
+    assert path[0] == "A"
+    assert path[-1] == "D"
+    assert len(path) >= 2

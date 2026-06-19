@@ -46,6 +46,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
                 gamma: Packet loss multiplier (discourages high packet loss).
                 delta: Step/hop penalty (discourages long paths).
                 proximity: Proximity-to-destination bonus weight.
+                fairness: Jain's fairness index bonus weight.
             training_mode: If True, randomize edge attributes on each reset
                 to expose the agent to varied congestion states.
         """
@@ -61,6 +62,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             "gamma": 50.0,  # Packet loss coefficient
             "delta": 0.5,  # Step/hop penalty (reduced from 2.0)
             "proximity": 5.0,  # Proximity-to-destination bonus weight
+            "fairness": 2.0,  # Jain's fairness index bonus weight
         }
 
         # Keep deterministic sort of nodes and edges
@@ -304,6 +306,22 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         step_reward += proximity_weight * distance_delta
 
         reward = step_reward
+
+        # Jain's fairness index of remaining edge capacities
+        fairness_weight = self.reward_params.get("fairness", 2.0)
+        if fairness_weight > 0 and self.num_edges > 0:
+            remaining_caps = []
+            for src, dst in self.edges:
+                attrs = self.topology.get_edge(src, dst)
+                util = float(attrs.get("utilization", 0.0))
+                remaining_caps.append(max(0.0, 1.0 - util))
+            remaining = np.array(remaining_caps, dtype=np.float64)
+            sum_r = remaining.sum()
+            sum_r2 = (remaining ** 2).sum()
+            n = len(remaining)
+            jains = (sum_r ** 2) / (n * sum_r2) if sum_r2 > 0 else 1.0
+            reward += fairness_weight * jains
+
 
         # Check if reached destination
         if self.current_node == self.destination:
