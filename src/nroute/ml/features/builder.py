@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 import numpy as np
@@ -37,8 +37,8 @@ class FeatureBuilder:
         # 1. Compute Topological Centrality metrics using NetworkX on topology.graph
         # Convert to undirected for centralities if needed, but since topology is directed, we use DiGraph.
         graph = topology.graph
-        betweenness = nx.betweenness_centrality(graph, weight="latency")
-        closeness = nx.closeness_centrality(graph, distance="latency")
+        betweenness: dict[Any, float] = nx.betweenness_centrality(graph, weight="latency")
+        closeness: dict[Any, float] = nx.closeness_centrality(graph, distance="latency")
 
         max_degree = max(len(list(topology.neighbors(n))) for n in nodes) if nodes else 1
         if max_degree == 0:

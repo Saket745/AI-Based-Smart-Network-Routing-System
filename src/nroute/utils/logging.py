@@ -11,7 +11,7 @@ import structlog
 if TYPE_CHECKING:
     from structlog.types import FilteringBoundLogger
 
-_configured = False
+_configured: bool = False
 
 
 def configure_logging(verbose: bool = False, json_format: bool = False) -> None:
