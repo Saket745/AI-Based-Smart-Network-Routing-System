@@ -42,20 +42,20 @@ def anomalies(traffic_path: str, model_path: str) -> None:
     try:
         features = pd.read_csv(traffic_path)
     except Exception as e:
-        console.print(f"[red]✗ Failed to load traffic data:[/red] {e}")
+        console.print(f"[red]x Failed to load traffic data:[/red] {e}")
         raise SystemExit(1) from e
 
     try:
         detector = AnomalyDetector()
         detector.load(model_path)
     except ModelError as e:
-        console.print(f"[red]✗ Failed to load model:[/red] {e}")
+        console.print(f"[red]x Failed to load model:[/red] {e}")
         raise SystemExit(1) from e
 
     try:
         results = detector.detect(features)
     except ModelError as e:
-        console.print(f"[red]✗ Detection failed:[/red] {e}")
+        console.print(f"[red]x Detection failed:[/red] {e}")
         raise SystemExit(1) from e
 
     # Display results

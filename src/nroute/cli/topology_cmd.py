@@ -95,7 +95,7 @@ def generate(
             out_path.parent.mkdir(parents=True, exist_ok=True)
             topo.save(str(out_path))
             console.print(
-                f"[green]✓[/green] Topology saved to [bold]{out_path}[/bold]  "
+                f"[green]+[/green] Topology saved to [bold]{out_path}[/bold]  "
                 f"({topo.node_count} nodes, {topo.edge_count} edges)"
             )
         else:
@@ -103,7 +103,7 @@ def generate(
             _print_topology_summary(topo, title=f"{topo_type} Topology")
 
     except TopologyError as e:
-        console.print(f"[red]✗ Topology error:[/red] {e}")
+        console.print(f"[red]x Topology error:[/red] {e}")
         raise SystemExit(1) from e
 
 
@@ -122,7 +122,7 @@ def show(filepath: str) -> None:
         topo = Topology.load(filepath)
         _print_topology_summary(topo, title=f"Topology: {filepath}")
     except Exception as e:
-        console.print(f"[red]✗ Failed to load topology:[/red] {e}")
+        console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
 

@@ -6,7 +6,6 @@ import os
 import tempfile
 from typing import Any
 
-import numpy as np
 import pytest
 
 from nroute.core.topology import Topology
@@ -132,7 +131,7 @@ def test_rl_env_graduated_loop_penalty(small_graph_data: dict[str, Any]) -> None
     topo = _get_topo(small_graph_data)
     env = NetworkRoutingEnv(topology=topo, max_hops=20, training_mode=False)
 
-    obs, info = env.reset(seed=42)
+    _obs, info = env.reset(seed=42)
     source = info["source"]
 
     # Find a neighbor of the source
@@ -140,7 +139,7 @@ def test_rl_env_graduated_loop_penalty(small_graph_data: dict[str, Any]) -> None
     assert len(neighbors) > 0
 
     # Step to first neighbor
-    obs, reward1, terminated, truncated, info = env.step(0)
+    _obs, _reward1, terminated, _truncated, info = env.step(0)
     assert not terminated, f"Should not terminate on first step, status={info.get('status')}"
 
     first_node = env.current_node
@@ -156,7 +155,7 @@ def test_rl_env_graduated_loop_penalty(small_graph_data: dict[str, Any]) -> None
 
     if back_idx is not None:
         # First revisit to source — should get penalty but NOT terminate
-        obs, reward2, terminated, truncated, info = env.step(back_idx)
+        _obs, _reward2, terminated, _truncated, info = env.step(back_idx)
         assert info.get("revisit_penalty", False) or info.get("status") == "success"
         # If we're back at source and it's not the destination, it should have revisit penalty
         if env.current_node == source and info.get("status") != "success":
@@ -240,21 +239,8 @@ def test_rl_router_topology_mismatch_fallback(small_graph_data: dict[str, Any]) 
 
     # Create a modified topology with an extra node
     modified_data = dict(small_graph_data)
-    modified_data["nodes"] = list(small_graph_data["nodes"]) + [
-        {"id": "F", "type": "router", "capacity": 1000.0, "status": "up"}
-    ]
-    modified_data["edges"] = list(small_graph_data["edges"]) + [
-        {
-            "src": "D",
-            "dst": "F",
-            "bandwidth": 1000.0,
-            "latency": 5.0,
-            "jitter": 0.2,
-            "packet_loss": 0.0,
-            "utilization": 0.0,
-            "status": "up",
-        }
-    ]
+    modified_data["nodes"] = [*list(small_graph_data["nodes"]), {"id": "F", "type": "router", "capacity": 1000.0, "status": "up"}]
+    modified_data["edges"] = [*list(small_graph_data["edges"]), {"src": "D", "dst": "F", "bandwidth": 1000.0, "latency": 5.0, "jitter": 0.2, "packet_loss": 0.0, "utilization": 0.0, "status": "up"}]
     modified_topo = _get_topo(modified_data)
 
     # compute_path on mismatched topology should still work (via Dijkstra fallback)
@@ -303,7 +289,7 @@ def test_rl_env_proximity_reward_signal(small_graph_data: dict[str, Any]) -> Non
     # A -> B (distance to D: A=2, B=1, getting closer)
     neighbors_a = sorted(list(topo.neighbors("A")))
     b_idx = neighbors_a.index("B")
-    obs, reward_toward, terminated, truncated, info = env.step(b_idx)
+    _obs, reward_toward, _terminated, _truncated, _info = env.step(b_idx)
 
     # Reward for moving toward destination should be positive (distance decreased by 1)
     # proximity_weight * (prev_distance - curr_distance) = 10 * (2 - 1) = 10.0

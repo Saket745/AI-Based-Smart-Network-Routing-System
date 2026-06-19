@@ -105,7 +105,7 @@ def run_sim(
     try:
         topo = Topology.load(topo_path)
     except Exception as e:
-        console.print(f"[red]✗ Failed to load topology:[/red] {e}")
+        console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
     try:
@@ -133,10 +133,10 @@ def run_sim(
             result = engine.run(duration_ticks=duration, seed=seed)
 
     except SimulationError as e:
-        console.print(f"[red]✗ Simulation error:[/red] {e}")
+        console.print(f"[red]x Simulation error:[/red] {e}")
         raise SystemExit(1) from e
     except Exception as e:
-        console.print(f"[red]✗ Simulation failed:[/red] {e}")
+        console.print(f"[red]x Simulation failed:[/red] {e}")
         raise SystemExit(1) from e
 
     # Display results
@@ -174,7 +174,7 @@ def run_sim(
             ],
         }
         out_path.write_text(json.dumps(metrics_data, indent=2))
-        console.print(f"[green]✓[/green] Metrics saved to [bold]{out_path}[/bold]")
+        console.print(f"[green]+[/green] Metrics saved to [bold]{out_path}[/bold]")
 
 
 @simulate_cmd.command(name="compare")
@@ -239,13 +239,13 @@ def compare(
     algo_list = [a.strip() for a in algorithms.split(",") if a.strip()]
 
     if len(algo_list) < 2:
-        console.print("[red]✗ Please provide at least 2 algorithms to compare.[/red]")
+        console.print("[red]x Please provide at least 2 algorithms to compare.[/red]")
         raise SystemExit(1)
 
     try:
         topo = Topology.load(topo_path)
     except Exception as e:
-        console.print(f"[red]✗ Failed to load topology:[/red] {e}")
+        console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
     console.print(
@@ -331,7 +331,7 @@ def compare(
             else:
                 comparison_data[algo] = {"error": "simulation_failed"}
         out_path.write_text(json.dumps(comparison_data, indent=2))
-        console.print(f"\n[green]✓[/green] Comparison saved to [bold]{out_path}[/bold]")
+        console.print(f"\n[green]+[/green] Comparison saved to [bold]{out_path}[/bold]")
 
     console.print()
 

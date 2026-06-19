@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, Any
 
 import gymnasium as gym
@@ -164,15 +165,13 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             # Perturb packet loss: small probability increase under congestion
             rand_loss = min(1.0, base_loss + rand_util * float(self.np_random.uniform(0.0, 0.03)))
 
-            try:
+            with contextlib.suppress(Exception):
                 self.topology.update_edge(
                     src, dst,
                     utilization=rand_util,
                     latency=rand_latency,
                     packet_loss=rand_loss,
                 )
-            except Exception:
-                pass  # Skip edges that can't be updated (down links)
 
     def _restore_edge_attributes(self) -> None:
         """Restore original edge attributes after training episode."""
@@ -180,15 +179,13 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             return
 
         for (src, dst), orig in self._original_edge_attrs.items():
-            try:
+            with contextlib.suppress(Exception):
                 self.topology.update_edge(
                     src, dst,
                     utilization=orig["utilization"],
                     latency=orig["latency"],
                     packet_loss=orig["packet_loss"],
                 )
-            except Exception:
-                pass
 
     def reset(
         self,

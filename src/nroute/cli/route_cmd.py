@@ -59,25 +59,25 @@ def compute(
     try:
         topo = Topology.load(topo_path)
     except Exception as e:
-        console.print(f"[red]✗ Failed to load topology:[/red] {e}")
+        console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
     # Validate that source and destination exist
     if source not in topo.nodes:
-        console.print(f"[red]✗ Source node '{source}' not found in topology.[/red]")
+        console.print(f"[red]x Source node '{source}' not found in topology.[/red]")
         raise SystemExit(1)
     if destination not in topo.nodes:
-        console.print(f"[red]✗ Destination node '{destination}' not found in topology.[/red]")
+        console.print(f"[red]x Destination node '{destination}' not found in topology.[/red]")
         raise SystemExit(1)
 
     try:
         router = get_router(algorithm, topology=topo)
         path = router.compute_path(topo, source, destination, weight=weight)
     except RoutingError as e:
-        console.print(f"[red]✗ Routing error:[/red] {e}")
+        console.print(f"[red]x Routing error:[/red] {e}")
         raise SystemExit(1) from e
     except Exception as e:
-        console.print(f"[red]✗ Failed to compute route:[/red] {e}")
+        console.print(f"[red]x Failed to compute route:[/red] {e}")
         raise SystemExit(1) from e
 
     # Compute route metrics

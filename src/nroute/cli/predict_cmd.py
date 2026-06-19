@@ -50,14 +50,14 @@ def congestion(topo_path: str, model_path: str, threshold: float) -> None:
     try:
         topo = Topology.load(topo_path)
     except Exception as e:
-        console.print(f"[red]✗ Failed to load topology:[/red] {e}")
+        console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
     try:
         predictor = CongestionPredictor()
         predictor.load(model_path)
     except ModelError as e:
-        console.print(f"[red]✗ Failed to load model:[/red] {e}")
+        console.print(f"[red]x Failed to load model:[/red] {e}")
         raise SystemExit(1) from e
 
     # Extract current link features
@@ -87,7 +87,7 @@ def congestion(topo_path: str, model_path: str, threshold: float) -> None:
     try:
         predictions = predictor.predict(features)
     except Exception as e:
-        console.print(f"[red]✗ Prediction failed:[/red] {e}")
+        console.print(f"[red]x Prediction failed:[/red] {e}")
         raise SystemExit(1) from e
 
     # Display results

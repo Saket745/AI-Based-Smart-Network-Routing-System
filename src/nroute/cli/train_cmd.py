@@ -63,7 +63,7 @@ def train_congestion(
     try:
         topo = Topology.load(topo_path)
     except Exception as e:
-        console.print(f"[red]✗ Failed to load topology:[/red] {e}")
+        console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
     console.print("\n[cyan]Generating training data from simulation...[/cyan]")
@@ -103,9 +103,9 @@ def train_congestion(
         out_path.parent.mkdir(parents=True, exist_ok=True)
         predictor.save(str(out_path))
 
-        console.print(f"[green]✓[/green] Congestion model saved to [bold]{out_path}[/bold]")
+        console.print(f"[green]+[/green] Congestion model saved to [bold]{out_path}[/bold]")
     except ModelError as e:
-        console.print(f"[red]✗ Training error:[/red] {e}")
+        console.print(f"[red]x Training error:[/red] {e}")
         raise SystemExit(1) from e
 
 
@@ -151,7 +151,7 @@ def train_anomaly(
     try:
         Topology.load(topo_path)
     except Exception as e:
-        console.print(f"[red]✗ Failed to load topology:[/red] {e}")
+        console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
     console.print("\n[cyan]Generating normal traffic features for training...[/cyan]")
@@ -184,9 +184,9 @@ def train_anomaly(
         out_path.parent.mkdir(parents=True, exist_ok=True)
         detector.save(str(out_path))
 
-        console.print(f"[green]✓[/green] Anomaly model saved to [bold]{out_path}[/bold]")
+        console.print(f"[green]+[/green] Anomaly model saved to [bold]{out_path}[/bold]")
     except ModelError as e:
-        console.print(f"[red]✗ Training error:[/red] {e}")
+        console.print(f"[red]x Training error:[/red] {e}")
         raise SystemExit(1) from e
 
 
@@ -237,7 +237,7 @@ def train_rl(
     try:
         topo = Topology.load(topo_path)
     except Exception as e:
-        console.print(f"[red]✗ Failed to load topology:[/red] {e}")
+        console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
     console.print(
@@ -254,7 +254,7 @@ def train_rl(
         out_path.parent.mkdir(parents=True, exist_ok=True)
         rl_router.save(str(out_path))
 
-        console.print(f"[green]✓[/green] RL model saved to [bold]{out_path}[/bold]")
+        console.print(f"[green]+[/green] RL model saved to [bold]{out_path}[/bold]")
     except Exception as e:
-        console.print(f"[red]✗ RL training error:[/red] {e}")
+        console.print(f"[red]x RL training error:[/red] {e}")
         raise SystemExit(1) from e
