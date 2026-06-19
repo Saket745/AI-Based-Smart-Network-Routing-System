@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import tempfile
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -114,7 +113,7 @@ def test_model_store_missing_model_or_metadata() -> None:
         store.save_model(model, name="partial", version="1.0.0")
 
         # Query different version
-        with pytest.raises(ModelError, match="version '2.0.0' for 'partial' not found"):
+        with pytest.raises(ModelError, match=r"version '2\.0\.0' for 'partial' not found"):
             store.load_model(model, name="partial", version="2.0.0")
 
 

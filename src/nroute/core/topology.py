@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
 import networkx as nx
 
@@ -14,9 +14,6 @@ from nroute.utils.validators import (
     validate_positive_float,
     validate_probability,
 )
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 # Type aliases for nodes and edges
 NodeDict = dict[str, Any]
