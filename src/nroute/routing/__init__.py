@@ -13,6 +13,7 @@ from nroute.routing.dijkstra import DijkstraRouter
 from nroute.routing.ecmp import ECMPRouter
 from nroute.routing.registry import ROUTER_REGISTRY, register_router
 from nroute.routing.rl_router import RLRouter
+from nroute.routing.negotiation import NegotiationRouter
 
 
 def get_router(algorithm: str, topology: Any = None) -> BaseRouter:
@@ -46,6 +47,14 @@ def get_router(algorithm: str, topology: Any = None) -> BaseRouter:
     elif alg in {"rl", "ppo", "dqn"}:
         rl_algo = "ppo" if alg == "rl" else alg
         return RLRouter(topology=topology, algorithm=rl_algo)
+    elif alg == "negotiation":
+        return NegotiationRouter(profile="balanced")
+    elif alg == "negotiation-latency":
+        return NegotiationRouter(profile="latency")
+    elif alg == "negotiation-congestion":
+        return NegotiationRouter(profile="congestion")
+    elif alg == "negotiation-balanced":
+        return NegotiationRouter(profile="balanced")
     else:
         raise ValueError(f"Unknown router name '{algorithm}'.")
 
@@ -60,6 +69,7 @@ __all__ = [
     "ECMPRouter",
     "FallbackRouter",
     "RLRouter",
+    "NegotiationRouter",
     "get_router",
     "register_router",
 ]

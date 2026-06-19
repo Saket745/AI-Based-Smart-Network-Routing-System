@@ -37,7 +37,19 @@ def simulate_cmd() -> None:
     "--algorithm",
     "-a",
     type=click.Choice(
-        ["dijkstra", "bellman-ford", "ecmp", "ai", "rl", "ppo", "dqn"],
+        [
+            "dijkstra",
+            "bellman-ford",
+            "ecmp",
+            "ai",
+            "rl",
+            "ppo",
+            "dqn",
+            "negotiation",
+            "negotiation-latency",
+            "negotiation-congestion",
+            "negotiation-balanced",
+        ],
         case_sensitive=False,
     ),
     default="dijkstra",
@@ -208,7 +220,7 @@ def run_sim(
     "-a",
     type=str,
     required=True,
-    help="Comma-separated list of algorithms to compare (e.g. dijkstra,ecmp,bellman-ford).",
+    help="Comma-separated list of algorithms to compare (e.g. dijkstra,ecmp,negotiation).",
 )
 @click.option(
     "--duration",
