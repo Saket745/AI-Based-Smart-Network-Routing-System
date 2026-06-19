@@ -10,6 +10,9 @@ import yaml
 from pydantic import BaseModel, Field
 
 from nroute.exceptions import ConfigError
+from nroute.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class GeneralConfig(BaseModel):
@@ -182,6 +185,10 @@ def load_config(path: str | Path | None = None) -> NRouteConfig:
                                 config_dict[section][key] = float(env_val)
                                 continue
                         except ValueError:
+                            logger.warning(
+                                f"Failed to cast env var {env_key}='{env_val}' to {field_info.annotation}. "
+                                "Falling back to raw string."
+                            )
                             # Fall back to raw string to let Pydantic handle/error
                             pass
 
