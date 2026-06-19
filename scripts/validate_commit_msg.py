@@ -85,7 +85,17 @@ def main() -> int:
 
     # Check if the target is a file path
     target_path = Path(target)
-    if target_path.is_file():
+    try:
+        is_file = target_path.is_file()
+    except OSError:
+        # Multi-line / very long commit messages (e.g. bodies with a
+        # "Co-authored-by:" trailer) have no path separators, so the whole
+        # string is treated as a single path component. Once it exceeds the
+        # filesystem's NAME_MAX, os.stat() raises ENAMETOOLONG instead of
+        # returning False. Treat that the same as "not a file".
+        is_file = False
+
+    if is_file:
         try:
             commit_msg = target_path.read_text(encoding="utf-8")
         except Exception as e:
