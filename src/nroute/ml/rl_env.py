@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import gymnasium as gym
+import networkx as nx
 import numpy as np
 from gymnasium import spaces
 
@@ -30,6 +31,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         topology: Topology,
         max_hops: int = 20,
         reward_params: dict[str, float] | None = None,
+        training_mode: bool = True,
     ) -> None:
         """
         Initialize the environment.
@@ -42,17 +44,22 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
                 beta: Bandwidth multiplier (encourages high bandwidth).
                 gamma: Packet loss multiplier (discourages high packet loss).
                 delta: Step/hop penalty (discourages long paths).
+                proximity: Proximity-to-destination bonus weight.
+            training_mode: If True, randomize edge attributes on each reset
+                to expose the agent to varied congestion states.
         """
         super().__init__()
         self.topology = topology
         self.max_hops = max_hops
+        self.training_mode = training_mode
 
-        # Default reward hyperparameters
+        # Default reward hyperparameters (rebalanced for better learning)
         self.reward_params = reward_params or {
-            "alpha": 10.0,  # Latency coefficient
+            "alpha": 5.0,  # Latency coefficient (reduced from 10.0)
             "beta": 1.0,  # Bandwidth coefficient (normalized by 1000.0)
             "gamma": 50.0,  # Packet loss coefficient
-            "delta": 2.0,  # Step/hop penalty
+            "delta": 0.5,  # Step/hop penalty (reduced from 2.0)
+            "proximity": 5.0,  # Proximity-to-destination bonus weight
         }
 
         # Keep deterministic sort of nodes and edges
@@ -96,6 +103,92 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         self.destination = self.nodes[0]
         self.path: list[str] = []
         self.hops = 0
+        # Track visit counts per node for graduated loop penalty
+        self._visit_counts: dict[str, int] = {}
+
+        # Precompute all-pairs shortest path distances for proximity reward
+        self._shortest_distances: dict[str, dict[str, int]] = {}
+        self._precompute_distances()
+
+        # Store original edge attributes for training-mode perturbation
+        self._original_edge_attrs: dict[tuple[str, str], dict[str, float]] = {}
+        if self.training_mode:
+            for src, dst in self.edges:
+                attrs = self.topology.get_edge(src, dst)
+                self._original_edge_attrs[(src, dst)] = {
+                    "utilization": float(attrs.get("utilization", 0.0)),
+                    "latency": float(attrs.get("latency", 5.0)),
+                    "packet_loss": float(attrs.get("packet_loss", 0.0)),
+                }
+
+    def _precompute_distances(self) -> None:
+        """Precompute all-pairs unweighted shortest path distances using BFS."""
+        try:
+            # Use the underlying NetworkX graph for BFS distance computation
+            for node in self.nodes:
+                try:
+                    lengths = nx.single_source_shortest_path_length(
+                        self.topology.graph, node
+                    )
+                    self._shortest_distances[node] = dict(lengths)
+                except Exception:
+                    self._shortest_distances[node] = {}
+        except Exception:
+            # If distance computation fails, empty dict means no proximity bonus
+            pass
+
+    def _get_distance_to_dest(self, from_node: str) -> int:
+        """Get precomputed hop distance from a node to the current destination."""
+        dists = self._shortest_distances.get(from_node, {})
+        return dists.get(self.destination, self.num_nodes)  # Fallback: max possible
+
+    def _randomize_edge_attributes(self) -> None:
+        """Randomize edge utilization, latency, and loss to simulate varied congestion.
+
+        Only applied during training mode to expose the RL agent to diverse
+        network states instead of always-zero utilization.
+        """
+        if not self.training_mode:
+            return
+
+        for src, dst in self.edges:
+            orig = self._original_edge_attrs.get((src, dst), {})
+            base_latency = orig.get("latency", 5.0)
+            base_loss = orig.get("packet_loss", 0.0)
+
+            # Randomize utilization: uniform [0.0, 0.85] to cover normal and congested
+            rand_util = float(self.np_random.uniform(0.0, 0.85))
+            # Perturb latency: base * (1 + utilization * random_factor)
+            lat_factor = 1.0 + rand_util * float(self.np_random.uniform(0.5, 2.0))
+            rand_latency = max(0.1, base_latency * lat_factor)
+            # Perturb packet loss: small probability increase under congestion
+            rand_loss = min(1.0, base_loss + rand_util * float(self.np_random.uniform(0.0, 0.03)))
+
+            try:
+                self.topology.update_edge(
+                    src, dst,
+                    utilization=rand_util,
+                    latency=rand_latency,
+                    packet_loss=rand_loss,
+                )
+            except Exception:
+                pass  # Skip edges that can't be updated (down links)
+
+    def _restore_edge_attributes(self) -> None:
+        """Restore original edge attributes after training episode."""
+        if not self.training_mode:
+            return
+
+        for (src, dst), orig in self._original_edge_attrs.items():
+            try:
+                self.topology.update_edge(
+                    src, dst,
+                    utilization=orig["utilization"],
+                    latency=orig["latency"],
+                    packet_loss=orig["packet_loss"],
+                )
+            except Exception:
+                pass
 
     def reset(
         self,
@@ -104,6 +197,10 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
     ) -> tuple[np.ndarray, dict[str, Any]]:
         """Reset the environment to a random source/destination pair."""
         super().reset(seed=seed)
+
+        # Restore edge attrs from previous episode, then randomize for new episode
+        self._restore_edge_attributes()
+        self._randomize_edge_attributes()
 
         # Pick active nodes for source and destination
         up_nodes = [
@@ -123,6 +220,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         self.destination = up_nodes[dst_idx]
         self.path = [self.current_node]
         self.hops = 0
+        self._visit_counts = {self.current_node: 1}
 
         obs = self._get_obs()
         info = {
@@ -168,37 +266,58 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         bandwidth = float(edge_attr.get("bandwidth", 1000.0))
         loss = float(edge_attr.get("packet_loss", 0.0))
 
-        # Check loop detection
-        if next_node in self.path:
-            reward = -20.0
+        # 4. Graduated loop detection
+        visit_count = self._visit_counts.get(next_node, 0)
+        if visit_count >= 2:
+            # Third visit to same node — terminate with heavy penalty
+            reward = -30.0
             terminated = True
             info["status"] = "failed_loop_detected"
             return self._get_obs(), reward, terminated, truncated, info
 
-        # Update path
+        # Update path and visit counts
         self.path.append(next_node)
         self.current_node = next_node
         self.hops += 1
+        self._visit_counts[next_node] = visit_count + 1
 
-        # 4. Compute reward
-        # Step reward encourages: short hop length, low latency, high bandwidth, low loss
-        alpha = self.reward_params["alpha"]
-        beta = self.reward_params["beta"]
-        gamma = self.reward_params["gamma"]
-        delta = self.reward_params["delta"]
+        # 5. Compute reward
+        alpha = self.reward_params.get("alpha", 5.0)
+        beta = self.reward_params.get("beta", 1.0)
+        gamma = self.reward_params.get("gamma", 50.0)
+        delta = self.reward_params.get("delta", 0.5)
+        proximity_weight = self.reward_params.get("proximity", 5.0)
 
+        # Base step reward: low latency, high bandwidth, low loss
         step_reward = (
             alpha * (1.0 / max(0.1, latency)) + beta * (bandwidth / 1000.0) - gamma * loss - delta
         )
+
+        # Apply revisit penalty (graduated: -5.0 on first revisit)
+        if visit_count == 1:
+            step_reward -= 10.0
+            info["revisit_penalty"] = True
+
+        # Proximity-to-destination bonus (precomputed BFS distance)
+        prev_distance = self._get_distance_to_dest(self.path[-2])  # where we came from
+        curr_distance = self._get_distance_to_dest(self.current_node)
+
+        # Bonus for getting closer, penalty for moving away
+        distance_delta = prev_distance - curr_distance
+        step_reward += proximity_weight * distance_delta
+
         reward = step_reward
 
         # Check if reached destination
         if self.current_node == self.destination:
-            # Reached destination bonus
-            reward += 100.0
+            # Reached destination bonus (scaled inversely by path length)
+            efficiency_bonus = max(10.0, 100.0 - self.hops * 2.0)
+            reward += efficiency_bonus
             terminated = True
             info["status"] = "success"
         elif self.hops >= self.max_hops:
+            # Penalty for failing to reach destination within budget
+            reward -= 10.0
             truncated = True
             info["status"] = "truncated_max_hops"
         else:

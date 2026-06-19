@@ -6,6 +6,7 @@ import os
 import tempfile
 from typing import Any
 
+import numpy as np
 import pytest
 
 from nroute.core.topology import Topology
@@ -80,6 +81,12 @@ def test_rl_router_training_and_saving(small_graph_data: dict[str, Any]) -> None
     assert train_metrics["is_trained"]
     assert router.is_trained
 
+    # Verify training topology metadata was cached
+    assert router._training_nodes is not None
+    assert router._training_edges is not None
+    assert router._training_obs_dim is not None
+    assert router._training_max_out_degree is not None
+
     # Verify RL path computation (with fallback mechanism on failure)
     path = router.compute_path(topo, "A", "D")
     assert len(path) >= 2
@@ -100,6 +107,10 @@ def test_rl_router_training_and_saving(small_graph_data: dict[str, Any]) -> None
         assert new_router.is_trained
         assert new_router.algorithm == "ppo"
 
+        # Verify training topology metadata was restored
+        assert new_router._training_nodes == router._training_nodes
+        assert new_router._training_obs_dim == router._training_obs_dim
+
         loaded_path = new_router.compute_path(topo, "A", "D")
         assert loaded_path == path
 
@@ -114,3 +125,186 @@ def test_rl_router_validation_errors(small_graph_data: dict[str, Any]) -> None:
     router = RLRouter(algorithm="ppo")
     with pytest.raises(ModelError, match="Cannot train RLRouter without a topology"):
         router.train()
+
+
+def test_rl_env_graduated_loop_penalty(small_graph_data: dict[str, Any]) -> None:
+    """Test that loop detection is graduated: first revisit gets penalty, second terminates."""
+    topo = _get_topo(small_graph_data)
+    env = NetworkRoutingEnv(topology=topo, max_hops=20, training_mode=False)
+
+    obs, info = env.reset(seed=42)
+    source = info["source"]
+
+    # Find a neighbor of the source
+    neighbors = sorted(list(topo.neighbors(source)))
+    assert len(neighbors) > 0
+
+    # Step to first neighbor
+    obs, reward1, terminated, truncated, info = env.step(0)
+    assert not terminated, f"Should not terminate on first step, status={info.get('status')}"
+
+    first_node = env.current_node
+
+    # Now check if we can go back to source (first revisit should be allowed)
+    # Find the action index that leads back to source
+    current_neighbors = sorted(list(topo.neighbors(first_node)))
+    back_idx = None
+    for i, n in enumerate(current_neighbors):
+        if n == source:
+            back_idx = i
+            break
+
+    if back_idx is not None:
+        # First revisit to source — should get penalty but NOT terminate
+        obs, reward2, terminated, truncated, info = env.step(back_idx)
+        assert info.get("revisit_penalty", False) or info.get("status") == "success"
+        # If we're back at source and it's not the destination, it should have revisit penalty
+        if env.current_node == source and info.get("status") != "success":
+            assert not terminated, "First revisit should not terminate the episode"
+
+
+def test_rl_env_precomputed_distances(small_graph_data: dict[str, Any]) -> None:
+    """Test that shortest path distances are precomputed correctly."""
+    topo = _get_topo(small_graph_data)
+    env = NetworkRoutingEnv(topology=topo, max_hops=20, training_mode=False)
+
+    # Verify distances were computed
+    assert len(env._shortest_distances) > 0
+
+    # Check known distances from test graph: A -> D should be 2 hops (A -> B -> D)
+    dist_a_d = env._shortest_distances.get("A", {}).get("D", None)
+    assert dist_a_d is not None
+    assert dist_a_d == 2  # A -> B -> D
+
+
+def test_rl_env_training_mode_randomization(small_graph_data: dict[str, Any]) -> None:
+    """Test that training mode randomizes edge attributes on reset."""
+    topo = _get_topo(small_graph_data)
+    env = NetworkRoutingEnv(topology=topo, max_hops=20, training_mode=True)
+
+    # Capture original utilizations
+    original_utils = {}
+    for src, dst in env.edges:
+        original_utils[(src, dst)] = float(topo.get_edge(src, dst).get("utilization", 0.0))
+
+    # Reset should randomize edge attributes
+    env.reset(seed=42)
+
+    # At least some utilizations should have changed from 0.0
+    changed = False
+    for src, dst in env.edges:
+        new_util = float(topo.get_edge(src, dst).get("utilization", 0.0))
+        if new_util != original_utils[(src, dst)]:
+            changed = True
+            break
+
+    assert changed, "Training mode reset should randomize edge utilizations"
+
+    # After restore, originals should be back
+    env._restore_edge_attributes()
+    for (src, dst), orig_util in original_utils.items():
+        current_util = float(topo.get_edge(src, dst).get("utilization", 0.0))
+        assert abs(current_util - orig_util) < 1e-6, (
+            f"Edge ({src}, {dst}) utilization not restored: {current_util} != {orig_util}"
+        )
+
+
+def test_rl_env_inference_mode_no_randomization(small_graph_data: dict[str, Any]) -> None:
+    """Test that inference mode (training_mode=False) does NOT randomize edge attributes."""
+    topo = _get_topo(small_graph_data)
+    env = NetworkRoutingEnv(topology=topo, max_hops=20, training_mode=False)
+
+    # Capture utilizations before reset
+    pre_utils = {}
+    for src, dst in env.edges:
+        pre_utils[(src, dst)] = float(topo.get_edge(src, dst).get("utilization", 0.0))
+
+    env.reset(seed=42)
+
+    # Utilizations should be unchanged in inference mode
+    for (src, dst), pre_util in pre_utils.items():
+        post_util = float(topo.get_edge(src, dst).get("utilization", 0.0))
+        assert abs(post_util - pre_util) < 1e-6, (
+            f"Inference mode should not randomize: ({src}, {dst}) changed from {pre_util} to {post_util}"
+        )
+
+
+def test_rl_router_topology_mismatch_fallback(small_graph_data: dict[str, Any]) -> None:
+    """Test that topology mismatch triggers explicit warning and Dijkstra fallback."""
+    topo = _get_topo(small_graph_data)
+    router = RLRouter(topology=topo, algorithm="ppo")
+
+    # Train on original topology
+    router.train(episodes=5, seed=42)
+    assert router.is_trained
+
+    # Create a modified topology with an extra node
+    modified_data = dict(small_graph_data)
+    modified_data["nodes"] = list(small_graph_data["nodes"]) + [
+        {"id": "F", "type": "router", "capacity": 1000.0, "status": "up"}
+    ]
+    modified_data["edges"] = list(small_graph_data["edges"]) + [
+        {
+            "src": "D",
+            "dst": "F",
+            "bandwidth": 1000.0,
+            "latency": 5.0,
+            "jitter": 0.2,
+            "packet_loss": 0.0,
+            "utilization": 0.0,
+            "status": "up",
+        }
+    ]
+    modified_topo = _get_topo(modified_data)
+
+    # compute_path on mismatched topology should still work (via Dijkstra fallback)
+    path = router.compute_path(modified_topo, "A", "D")
+    assert len(path) >= 2
+    assert path[0] == "A"
+    assert path[-1] == "D"
+
+
+def test_rl_router_n_steps_scaling(small_graph_data: dict[str, Any]) -> None:
+    """Test that PPO n_steps is scaled relative to topology size."""
+    topo = _get_topo(small_graph_data)
+    router = RLRouter(topology=topo, algorithm="ppo")
+
+    # Train and check metrics include n_steps
+    metrics = router.train(episodes=5, seed=42)
+    assert "n_steps" in metrics
+    # For max_hops=20: min(256, max(64, 20*4)) = min(256, 80) = 80
+    assert metrics["n_steps"] == 80
+
+
+def test_rl_env_proximity_reward_signal(small_graph_data: dict[str, Any]) -> None:
+    """Test that proximity reward encourages moving toward destination."""
+    topo = _get_topo(small_graph_data)
+    env = NetworkRoutingEnv(
+        topology=topo,
+        max_hops=20,
+        training_mode=False,
+        reward_params={
+            "alpha": 0.0,
+            "beta": 0.0,
+            "gamma": 0.0,
+            "delta": 0.0,
+            "proximity": 10.0,  # Only proximity signal
+        },
+    )
+
+    # Force specific source/dest for predictable testing
+    env.reset(seed=42)
+    env.current_node = "A"
+    env.destination = "D"
+    env.path = ["A"]
+    env.hops = 0
+    env._visit_counts = {"A": 1}
+
+    # A -> B (distance to D: A=2, B=1, getting closer)
+    neighbors_a = sorted(list(topo.neighbors("A")))
+    b_idx = neighbors_a.index("B")
+    obs, reward_toward, terminated, truncated, info = env.step(b_idx)
+
+    # Reward for moving toward destination should be positive (distance decreased by 1)
+    # proximity_weight * (prev_distance - curr_distance) = 10 * (2 - 1) = 10.0
+    assert reward_toward > 0, f"Moving toward destination should give positive reward, got {reward_toward}"

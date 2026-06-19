@@ -27,6 +27,9 @@ class RLRouter(BaseRouter):
     """
     RL-based router that trains a neural network policy (PPO/DQN) to route packets,
     with a robust fallback to Dijkstra shortest path on failure.
+
+    Caches the training topology's node/edge ordering so observation vectors are
+    consistent between training and inference, even when the live topology changes.
     """
 
     def __init__(
@@ -46,8 +49,52 @@ class RLRouter(BaseRouter):
         self.model: Any = None
         self.is_trained = False
 
+        # Training topology metadata — cached at train time, reused at inference
+        self._training_nodes: list[str] | None = None
+        self._training_edges: list[tuple[str, str]] | None = None
+        self._training_node_to_idx: dict[str, int] | None = None
+        self._training_edge_to_idx: dict[tuple[str, str], int] | None = None
+        self._training_obs_dim: int | None = None
+        self._training_max_out_degree: int | None = None
+        self._training_max_hops: int = 20
+
         if self.algorithm not in {"ppo", "dqn"}:
             raise ValueError(f"Unknown RL algorithm '{algorithm}'. Supported: ppo, dqn.")
+
+    def _check_topology_compatibility(self, topology: Topology) -> tuple[bool, str]:
+        """Check if a live topology is compatible with the training topology.
+
+        Returns:
+            Tuple of (is_compatible, reason_string).
+        """
+        if self._training_nodes is None or self._training_edges is None:
+            return False, "No training topology metadata available"
+
+        live_nodes = set(sorted(topology.nodes))
+        train_nodes = set(self._training_nodes)
+
+        added_nodes = live_nodes - train_nodes
+        removed_nodes = train_nodes - live_nodes
+
+        live_edges = set(sorted(topology.edges))
+        train_edges = set(self._training_edges)
+
+        added_edges = live_edges - train_edges
+        removed_edges = train_edges - live_edges
+
+        if added_nodes or removed_nodes or added_edges or removed_edges:
+            parts = []
+            if added_nodes:
+                parts.append(f"added_nodes={added_nodes}")
+            if removed_nodes:
+                parts.append(f"removed_nodes={removed_nodes}")
+            if added_edges:
+                parts.append(f"added_edges={len(added_edges)}")
+            if removed_edges:
+                parts.append(f"removed_edges={len(removed_edges)}")
+            return False, f"Topology mismatch: {', '.join(parts)}"
+
+        return True, "compatible"
 
     def train(
         self,
@@ -70,7 +117,16 @@ class RLRouter(BaseRouter):
             raise ModelError("Cannot train RLRouter without a topology context.")
 
         logger.info("Initializing Gymnasium environment for RL training...")
-        env = NetworkRoutingEnv(self.topology)
+        env = NetworkRoutingEnv(self.topology, training_mode=True)
+
+        # Cache training topology ordering for consistent inference later
+        self._training_nodes = list(env.nodes)
+        self._training_edges = list(env.edges)
+        self._training_node_to_idx = dict(env.node_to_idx)
+        self._training_edge_to_idx = dict(env.edge_to_idx)
+        self._training_obs_dim = env.obs_dim
+        self._training_max_out_degree = env.max_out_degree
+        self._training_max_hops = env.max_hops
 
         # Seeding environment
         if seed is not None:
@@ -84,15 +140,25 @@ class RLRouter(BaseRouter):
             f"Training RL agent using {self.algorithm.upper()} for {episodes} episodes ({total_timesteps} steps)..."
         )
 
+        # Scale n_steps relative to topology size to avoid too-few-updates problem
+        n_steps = min(256, max(64, env.max_hops * 4))
+
         if self.algorithm == "ppo":
+            # Ensure batch_size divides n_steps evenly
+            batch_size = min(64, n_steps)
+            while n_steps % batch_size != 0 and batch_size > 1:
+                batch_size -= 1
+
             self.model = PPO(
                 "MlpPolicy",
                 env,
                 verbose=0,
                 seed=seed,
                 learning_rate=0.0003,
-                n_steps=256,
-                batch_size=64,
+                n_steps=n_steps,
+                batch_size=batch_size,
+                n_epochs=10,
+                ent_coef=0.01,  # Encourage exploration
             )
         else:  # dqn
             self.model = DQN(
@@ -101,18 +167,25 @@ class RLRouter(BaseRouter):
                 verbose=0,
                 seed=seed,
                 learning_rate=0.001,
-                buffer_size=10000,
+                buffer_size=max(10000, total_timesteps),
                 batch_size=64,
+                learning_starts=max(100, n_steps),
+                exploration_fraction=0.3,
             )
 
         self.model.learn(total_timesteps=total_timesteps)
         self.is_trained = True
+
+        # Restore edge attributes after training
+        env._restore_edge_attributes()
+
         logger.info("RL training completed successfully.")
 
         return {
             "algorithm": self.algorithm,
             "episodes": episodes,
             "total_timesteps": total_timesteps,
+            "n_steps": n_steps,
             "is_trained": True,
         }
 
@@ -138,10 +211,30 @@ class RLRouter(BaseRouter):
             dijkstra = DijkstraRouter()
             return dijkstra.compute_path(topology, source, destination, weight=weight)
 
-        # 2. Run RL inference step-by-step
+        # 2. Check topology compatibility with training topology
+        is_compatible, reason = self._check_topology_compatibility(topology)
+        if not is_compatible:
+            logger.warning(
+                f"Topology incompatible with training topology: {reason}. "
+                "Falling back to DijkstraRouter."
+            )
+            dijkstra = DijkstraRouter()
+            return dijkstra.compute_path(topology, source, destination, weight=weight)
+
+        # 3. Run RL inference step-by-step
         try:
-            # Create a temporary environment to run deterministic steps
-            env = NetworkRoutingEnv(topology)
+            # Create inference environment with training_mode=False
+            # to avoid randomizing edge attributes during inference
+            env = NetworkRoutingEnv(topology, training_mode=False)
+
+            # Verify observation space matches training
+            if env.obs_dim != self._training_obs_dim:
+                logger.warning(
+                    f"Observation dimension mismatch (training={self._training_obs_dim}, "
+                    f"inference={env.obs_dim}). Falling back to DijkstraRouter."
+                )
+                dijkstra = DijkstraRouter()
+                return dijkstra.compute_path(topology, source, destination, weight=weight)
 
             # Setup env state manually to the source/destination pair
             if source not in env.node_to_idx or destination not in env.node_to_idx:
@@ -153,6 +246,7 @@ class RLRouter(BaseRouter):
             env.destination = destination
             env.path = [source]
             env.hops = 0
+            env._visit_counts = {source: 1}
 
             obs = env._get_obs()
             terminated = False
@@ -191,11 +285,24 @@ class RLRouter(BaseRouter):
         # Save stable-baselines3 model weights
         self.model.save(path)
 
-        # Save metadata info next to it
+        # Save metadata info next to it (including training topology ordering)
         meta_path = f"{path}.meta"
         try:
+            meta = {
+                "algorithm": self.algorithm,
+                "is_trained": self.is_trained,
+                "training_nodes": self._training_nodes,
+                "training_edges": (
+                    [list(e) for e in self._training_edges]
+                    if self._training_edges
+                    else None
+                ),
+                "training_obs_dim": self._training_obs_dim,
+                "training_max_out_degree": self._training_max_out_degree,
+                "training_max_hops": self._training_max_hops,
+            }
             with open(meta_path, "w", encoding="utf-8") as f:
-                json.dump({"algorithm": self.algorithm, "is_trained": self.is_trained}, f, indent=2)
+                json.dump(meta, f, indent=2)
         except Exception as e:
             raise ModelError(f"Failed to save RLRouter metadata to {meta_path}: {e}") from e
 
@@ -210,6 +317,22 @@ class RLRouter(BaseRouter):
                 meta = json.load(f)
             self.algorithm = meta["algorithm"]
             self.is_trained = meta["is_trained"]
+
+            # Restore training topology metadata if present
+            self._training_nodes = meta.get("training_nodes")
+            training_edges_raw = meta.get("training_edges")
+            if training_edges_raw is not None:
+                self._training_edges = [tuple(e) for e in training_edges_raw]
+                self._training_edge_to_idx = {
+                    edge: idx for idx, edge in enumerate(self._training_edges)
+                }
+            if self._training_nodes is not None:
+                self._training_node_to_idx = {
+                    node: idx for idx, node in enumerate(self._training_nodes)
+                }
+            self._training_obs_dim = meta.get("training_obs_dim")
+            self._training_max_out_degree = meta.get("training_max_out_degree")
+            self._training_max_hops = meta.get("training_max_hops", 20)
         except Exception as e:
             raise ModelError(f"Failed to load RLRouter metadata from {meta_path}: {e}") from e
 
