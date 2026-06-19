@@ -14,6 +14,7 @@ from nroute.routing.ecmp import ECMPRouter
 from nroute.routing.registry import ROUTER_REGISTRY, register_router
 from nroute.routing.rl_router import RLRouter
 from nroute.routing.negotiation import NegotiationRouter
+from nroute.routing.base_nn import BaseNNRouter
 
 
 def get_router(algorithm: str, topology: Any = None) -> BaseRouter:
@@ -33,6 +34,21 @@ def get_router(algorithm: str, topology: Any = None) -> BaseRouter:
         if "topology" in sig.parameters:
             return router_cls(topology=topology)  # type: ignore[call-arg]
         return router_cls()
+
+    # Check custom configuration registry
+    from nroute.core.config import load_config
+    from nroute.utils.loader import load_custom_class
+    try:
+        cfg = load_config()
+        if alg in cfg.custom_routers:
+            import_str = cfg.custom_routers[alg]
+            router_cls = load_custom_class(import_str)
+            sig = inspect.signature(router_cls.__init__)
+            if "topology" in sig.parameters:
+                return router_cls(topology=topology)
+            return router_cls()
+    except Exception:
+        pass
 
     if alg == "dijkstra":
         return DijkstraRouter()
@@ -70,6 +86,7 @@ __all__ = [
     "FallbackRouter",
     "RLRouter",
     "NegotiationRouter",
+    "BaseNNRouter",
     "get_router",
     "register_router",
 ]

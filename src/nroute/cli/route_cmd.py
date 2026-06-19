@@ -43,6 +43,7 @@ def route_cmd() -> None:
             "negotiation-latency",
             "negotiation-congestion",
             "negotiation-balanced",
+            "custom",
         ],
         case_sensitive=False,
     ),
@@ -60,12 +61,19 @@ def route_cmd() -> None:
     show_default=True,
     help="Edge weight attribute for path computation.",
 )
+@click.option(
+    "--custom-router",
+    type=str,
+    default=None,
+    help="Import target for custom router in path/to/file.py:ClassName format (requires -a custom).",
+)
 def compute(
     topo_path: str,
     algorithm: str,
     source: str,
     destination: str,
     weight: str,
+    custom_router: str | None,
 ) -> None:
     """Compute the optimal route between two nodes."""
     try:
@@ -83,7 +91,19 @@ def compute(
         raise SystemExit(1)
 
     try:
-        router = get_router(algorithm, topology=topo)
+        if algorithm.lower() == "custom":
+            if not custom_router:
+                raise click.UsageError("Option '--custom-router' is required when using algorithm 'custom'.")
+            from nroute.utils.loader import load_custom_class
+            import inspect
+            router_cls = load_custom_class(custom_router)
+            sig = inspect.signature(router_cls.__init__)
+            if "topology" in sig.parameters:
+                router = router_cls(topology=topo)
+            else:
+                router = router_cls()
+        else:
+            router = get_router(algorithm, topology=topo)
         path = router.compute_path(topo, source, destination, weight=weight)
     except RoutingError as e:
         console.print(f"[red]x Routing error:[/red] {e}")

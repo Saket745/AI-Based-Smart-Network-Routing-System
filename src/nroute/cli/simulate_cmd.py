@@ -49,6 +49,7 @@ def simulate_cmd() -> None:
             "negotiation-latency",
             "negotiation-congestion",
             "negotiation-balanced",
+            "custom",
         ],
         case_sensitive=False,
     ),
@@ -105,6 +106,12 @@ def simulate_cmd() -> None:
     default=None,
     help="Path to a pretrained model to load into the RL/AI router.",
 )
+@click.option(
+    "--custom-router",
+    type=str,
+    default=None,
+    help="Import target for custom router in path/to/file.py:ClassName format (requires -a custom).",
+)
 @click.pass_context
 def run_sim(
     ctx: click.Context,
@@ -118,6 +125,7 @@ def run_sim(
     visualize: bool,
     visualize_delay: float,
     model_path: str | None,
+    custom_router: str | None,
 ) -> None:
     """Run a network simulation."""
     seed = seed or ctx.obj.get("seed")
@@ -129,7 +137,19 @@ def run_sim(
         raise SystemExit(1) from e
 
     try:
-        router = get_router(algorithm, topology=topo)
+        if algorithm.lower() == "custom":
+            if not custom_router:
+                raise click.UsageError("Option '--custom-router' is required when using algorithm 'custom'.")
+            from nroute.utils.loader import load_custom_class
+            import inspect
+            router_cls = load_custom_class(custom_router)
+            sig = inspect.signature(router_cls.__init__)
+            if "topology" in sig.parameters:
+                router = router_cls(topology=topo)
+            else:
+                router = router_cls()
+        else:
+            router = get_router(algorithm, topology=topo)
 
         # Load pretrained model if provided
         if model_path and hasattr(router, "load"):
@@ -259,6 +279,12 @@ def run_sim(
     default=None,
     help="Path to a pretrained model to load into RL/AI routers.",
 )
+@click.option(
+    "--custom-router",
+    type=str,
+    default=None,
+    help="Import target for custom router in path/to/file.py:ClassName format (requires custom in -a).",
+)
 @click.pass_context
 def compare(
     ctx: click.Context,
@@ -270,6 +296,7 @@ def compare(
     seed: int | None,
     output: str | None,
     model_path: str | None,
+    custom_router: str | None,
 ) -> None:
     """Compare multiple routing algorithms on the same topology and traffic."""
     seed = seed or ctx.obj.get("seed")
@@ -295,7 +322,19 @@ def compare(
 
     for algo in algo_list:
         try:
-            router = get_router(algo, topology=topo)
+            if algo.lower() == "custom":
+                if not custom_router:
+                    raise click.UsageError("Option '--custom-router' is required when using algorithm 'custom'.")
+                from nroute.utils.loader import load_custom_class
+                import inspect
+                router_cls = load_custom_class(custom_router)
+                sig = inspect.signature(router_cls.__init__)
+                if "topology" in sig.parameters:
+                    router = router_cls(topology=topo)
+                else:
+                    router = router_cls()
+            else:
+                router = get_router(algo, topology=topo)
 
             # Load pretrained model if provided and router supports it
             if model_path and hasattr(router, "load"):

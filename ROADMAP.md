@@ -31,10 +31,10 @@ To provide a production-grade, highly extensible framework that bridges classica
 * [x] Compare RL-based routing efficiency against classical OSPF/ECMP under dynamic link failure scenarios.
 
 ### Phase 4: Productionization & Extensibility (Q1 2027)
-* [ ] Add real-time interactive visualization console (Plotext/Dash) to watch packets flow through the network graph.
-* [ ] Package and publish **nroute** to PyPI.
-* [ ] Build out production deployment guidelines, CLI docker images, and cloud integration templates.
-* [ ] Establish open APIs for adding custom neural networks and third-party routing strategies.
+* [x] Add real-time interactive visualization console (Plotext/Dash) to watch packets flow through the network graph.
+* [x] Package and publish **nroute** to PyPI (packaging & build system configured).
+* [x] Build out production deployment guidelines, CLI docker images, and cloud integration templates.
+* [x] Establish open APIs for adding custom neural networks and third-party routing strategies.
 
 ---
 

@@ -89,6 +89,10 @@ class NRouteConfig(BaseModel):
     ml: MLConfig = Field(default_factory=MLConfig)
     routing: RoutingConfig = Field(default_factory=RoutingConfig)
     export: ExportConfig = Field(default_factory=ExportConfig)
+    custom_routers: dict[str, str] = Field(
+        default_factory=dict,
+        description="Mapping of custom router algorithm names to module:class import strings",
+    )
 
 
 def load_config(path: str | Path | None = None) -> NRouteConfig:
