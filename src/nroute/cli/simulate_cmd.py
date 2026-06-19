@@ -139,12 +139,16 @@ def run_sim(
     try:
         if algorithm.lower() == "custom":
             if not custom_router:
-                raise click.UsageError("Option '--custom-router' is required when using algorithm 'custom'.")
+                raise click.UsageError(
+                    "Option '--custom-router' is required when using algorithm 'custom'."
+                )
             import inspect
 
+            from nroute.routing.base import BaseRouter
             from nroute.utils.loader import load_custom_class
-            router_cls = load_custom_class(custom_router)
-            sig = inspect.signature(router_cls.__init__)
+
+            router_cls = load_custom_class(custom_router, expected_superclass=BaseRouter)
+            sig = inspect.signature(router_cls)
             router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         else:
             router = get_router(algorithm, topology=topo)
@@ -153,7 +157,9 @@ def run_sim(
         if model_path and hasattr(router, "load"):
             try:
                 router.load(model_path)
-                console.print(f"[green]+[/green] Loaded pretrained model from [bold]{model_path}[/bold]")
+                console.print(
+                    f"[green]+[/green] Loaded pretrained model from [bold]{model_path}[/bold]"
+                )
             except Exception as e:
                 console.print(f"[yellow]! Failed to load model:[/yellow] {e}")
 
@@ -322,12 +328,16 @@ def compare(
         try:
             if algo.lower() == "custom":
                 if not custom_router:
-                    raise click.UsageError("Option '--custom-router' is required when using algorithm 'custom'.")
+                    raise click.UsageError(
+                        "Option '--custom-router' is required when using algorithm 'custom'."
+                    )
                 import inspect
 
+                from nroute.routing.base import BaseRouter
                 from nroute.utils.loader import load_custom_class
-                router_cls = load_custom_class(custom_router)
-                sig = inspect.signature(router_cls.__init__)
+
+                router_cls = load_custom_class(custom_router, expected_superclass=BaseRouter)
+                sig = inspect.signature(router_cls)
                 router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
             else:
                 router = get_router(algo, topology=topo)
@@ -337,7 +347,9 @@ def compare(
                 try:
                     router.load(model_path)
                 except Exception as e:
-                    console.print(f"[yellow]! Failed to load model for {algo.upper()}:[/yellow] {e}")
+                    console.print(
+                        f"[yellow]! Failed to load model for {algo.upper()}:[/yellow] {e}"
+                    )
 
             traffic_gen = TrafficGenerator(model=traffic_model, n_flows_per_tick=flows_per_tick)
             engine = SimulationEngine(topo, router, traffic_gen)

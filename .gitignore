@@ -48,6 +48,7 @@ models/*.zip
 models/*.pt
 models/*.pth
 models/*.onnx
+models/*.meta
 !models/.gitkeep
 
 # ─── Output & Results ────────────────────────────────

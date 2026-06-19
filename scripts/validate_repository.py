@@ -36,6 +36,7 @@ ALLOWED_EXTENSIONS = {
     "data": {".csv", ".tsv", ".json", ".pkl", ".parquet", ".gitkeep", ""},
     "scripts": {".py", ".sh", ".bat", ".ps1", ".gitkeep"},
     "models": {".pt", ".pth", ".onnx", ".joblib", ".zip", ".gitkeep"},
+    "k8s": {".yaml", ".yml", ".gitkeep"},
 }
 
 # Regex naming patterns

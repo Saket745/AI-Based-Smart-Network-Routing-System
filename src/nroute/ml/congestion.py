@@ -47,6 +47,13 @@ class CongestionPredictor:
     Predicts link congestion probabilities using XGBoost or LSTM models.
     """
 
+    @property
+    def preferred_extension(self) -> str:
+        """Get the preferred file extension for saving the model."""
+        if self.model_type == "lstm":
+            return ".pt"
+        return ".joblib"
+
     def __init__(self, model_type: str = "xgboost", custom_model: Any = None) -> None:
         """
         Initialize the CongestionPredictor.

@@ -558,26 +558,3 @@ class Topology:
             if (flow.source, flow.destination) not in topo.edges:
                 topo.add_edge(flow.source, flow.destination)
         return topo
-
-    def compute_routes(
-        self,
-        traffic_matrix: Any,
-        router: str | Any = "dijkstra",
-        weight: str | Callable[[dict[str, Any]], float] | None = None,
-    ) -> dict[tuple[str, str], list[str]]:
-        """
-        Compute paths for all flow records in a traffic matrix.
-
-        Args:
-            traffic_matrix: The traffic matrix containing flow demands.
-            router: A BaseRouter instance or router name ("dijkstra" | "bellman-ford" | "ecmp").
-            weight: Edge attribute name or weight function to use as routing metric.
-
-        Returns:
-            A dictionary mapping (source, destination) to the computed path.
-        """
-        from nroute.routing import BaseRouter, get_router
-
-        r_inst: BaseRouter = get_router(router, self) if isinstance(router, str) else router
-
-        return r_inst.compute_routes(self, traffic_matrix, weight=weight)

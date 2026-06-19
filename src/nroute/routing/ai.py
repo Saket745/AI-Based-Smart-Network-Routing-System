@@ -221,9 +221,7 @@ class AIRouter(BaseRouter):
             self.validate_path(topology, res_path, source, destination)
             return res_path
         except nx.NetworkXNoPath:
-            logger.warning(
-                "No path found with AI weights. Using cascade fallback."
-            )
+            logger.warning("No path found with AI weights. Using cascade fallback.")
             return _cascade_fallback()
         except Exception as e:
             if isinstance(e, RoutingError):

@@ -48,6 +48,13 @@ class AnomalyDetector:
     using Isolation Forest or Autoencoder models.
     """
 
+    @property
+    def preferred_extension(self) -> str:
+        """Get the preferred file extension for saving the model."""
+        if self.model_type == "autoencoder":
+            return ".pt"
+        return ".joblib"
+
     def __init__(
         self,
         model_type: str = "isolation_forest",

@@ -44,7 +44,12 @@ from nroute.exceptions import (
     TopologyError,
     ValidationError,
 )
-from nroute.ml.rl_env import NetworkRoutingEnv
+from nroute.ml import (
+    BaseFeatureExtractor,
+    DefaultGraphFeatureExtractor,
+    GraphTensorBundle,
+    NetworkRoutingEnv,
+)
 from nroute.routing import (
     ROUTER_REGISTRY,
     AIRouter,
@@ -62,6 +67,7 @@ class Simulator:
     """
 
     def __init__(self, topology: Topology, algorithm: Any, duration: int) -> None:
+        from nroute.routing import get_router
         from nroute.simulation.engine import SimulationEngine
         from nroute.simulation.traffic_gen import TrafficGenerator
 
@@ -69,9 +75,15 @@ class Simulator:
         self.algorithm = algorithm
         self.duration = duration
 
+        # Resolve algorithm if passed as a string
+        if isinstance(algorithm, str):
+            self.router = get_router(algorithm, topology=topology)
+        else:
+            self.router = algorithm
+
         # Default to a uniform traffic generator with 5 flows per tick
         self.traffic_gen = TrafficGenerator(model="uniform", n_flows_per_tick=5)
-        self.engine = SimulationEngine(topology, algorithm, self.traffic_gen)
+        self.engine = SimulationEngine(topology, self.router, self.traffic_gen)
 
     def run(self, seed: int | None = None) -> MetricsCollectionResult:
         """Run the simulation for the configured duration."""
@@ -81,9 +93,12 @@ class Simulator:
 __all__ = [
     "ROUTER_REGISTRY",
     "AIRouter",
+    "BaseFeatureExtractor",
     "BaseRouter",
     "ConfigError",
+    "DefaultGraphFeatureExtractor",
     "FlowRecord",
+    "GraphTensorBundle",
     "IngestionError",
     "MetricsCollectionResult",
     "ModelError",

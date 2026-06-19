@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -44,13 +44,7 @@ class ModelStore:
         Returns:
             String representing the path to the saved model file.
         """
-        # Determine file extension based on model class/type
-        # PyTorch models should save as .pt
-        ext = ".joblib"
-        if (hasattr(model, "model_type") and model.model_type == "lstm") or (
-            hasattr(model, "model_type") and model.model_type == "autoencoder"
-        ):
-            ext = ".pt"
+        ext = getattr(model, "preferred_extension", ".joblib")
 
         filename = f"{name}_{version}{ext}"
         model_path = self.base_dir / filename
@@ -69,7 +63,7 @@ class ModelStore:
                 "version": version,
                 "file_path": str(model_path),
                 "sha256": checksum,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "model_type": getattr(model, "model_type", "unknown"),
             }
 

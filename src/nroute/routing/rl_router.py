@@ -266,8 +266,7 @@ class RLRouter(BaseRouter):
         is_compatible, reason = self._check_topology_compatibility(topology)
         if not is_compatible:
             logger.warning(
-                f"Topology incompatible with training topology: {reason}. "
-                "Using cascade fallback."
+                f"Topology incompatible with training topology: {reason}. Using cascade fallback."
             )
             return self._cascade_fallback(topology, source, destination, weight=weight)
 
@@ -328,9 +327,7 @@ class RLRouter(BaseRouter):
         except Exception as e:
             if isinstance(e, RoutingError):
                 raise
-            logger.error(
-                f"RL path inference encountered an error: {e}. Using cascade fallback."
-            )
+            logger.error(f"RL path inference encountered an error: {e}. Using cascade fallback.")
             return self._cascade_fallback(topology, source, destination, weight=weight)
 
     def save(self, path: str) -> None:
@@ -351,9 +348,7 @@ class RLRouter(BaseRouter):
                 "is_trained": self.is_trained,
                 "training_nodes": self._training_nodes,
                 "training_edges": (
-                    [list(e) for e in self._training_edges]
-                    if self._training_edges
-                    else None
+                    [list(e) for e in self._training_edges] if self._training_edges else None
                 ),
                 "training_obs_dim": self._training_obs_dim,
                 "training_max_out_degree": self._training_max_out_degree,

@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 
-def load_custom_class(import_str: str) -> type:
+def load_custom_class(import_str: str, expected_superclass: type | None = None) -> type:
     """
     Dynamically load a class from a module or a Python file.
 
@@ -18,6 +18,7 @@ def load_custom_class(import_str: str) -> type:
 
     Args:
         import_str: The import target string in module:class or path:class format.
+        expected_superclass: Optional superclass to validate inheritance against.
 
     Returns:
         The loaded class type.
@@ -25,6 +26,7 @@ def load_custom_class(import_str: str) -> type:
     Raises:
         ValueError: If the format is invalid.
         ImportError: If the module or class cannot be loaded.
+        TypeError: If the class does not inherit from expected_superclass.
     """
     import_str = import_str.strip()
 
@@ -54,7 +56,7 @@ def load_custom_class(import_str: str) -> type:
             raise ImportError(f"Python file not found: {file_path}")
 
         # Construct a unique module name based on file path
-        module_name = f"nroute.dynamic.{file_path.stem}_{hash(str(file_path)) & 0xffffffff}"
+        module_name = f"nroute.dynamic.{file_path.stem}_{hash(str(file_path)) & 0xFFFFFFFF}"
 
         try:
             spec = importlib.util.spec_from_file_location(module_name, file_path)
@@ -80,5 +82,10 @@ def load_custom_class(import_str: str) -> type:
     cls = getattr(module, class_name)
     if not isinstance(cls, type):
         raise ImportError(f"Target '{class_name}' in module '{module_part}' is not a class type.")
+
+    if expected_superclass is not None and not issubclass(cls, expected_superclass):
+        raise TypeError(
+            f"Target class '{class_name}' in module '{module_part}' does not inherit from '{expected_superclass.__name__}'."
+        )
 
     return cls

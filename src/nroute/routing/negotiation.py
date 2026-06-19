@@ -74,11 +74,7 @@ class NegotiationRouter(BaseRouter):
                 link_cost = latency / max(0.01, 1.0 - utilization)
             else:  # balanced
                 # Hybrid of latency, packet loss, and congestion penalty
-                link_cost = (
-                    latency
-                    + 50.0 * packet_loss
-                    + 5.0 / max(0.01, 1.0 - utilization)
-                )
+                link_cost = latency + 50.0 * packet_loss + 5.0 / max(0.01, 1.0 - utilization)
 
         # Estimate remaining cost from v to destination
         if v == destination:
@@ -88,6 +84,7 @@ class NegotiationRouter(BaseRouter):
                 if weight_func is not None:
                     rem_weight = weight_func
                 else:
+
                     def rem_weight(x: str, y: str, edge_data: dict[str, Any]) -> float:
                         lat = float(edge_data.get("latency", 5.0))
                         util = float(edge_data.get("utilization", 0.0))
@@ -135,13 +132,17 @@ class NegotiationRouter(BaseRouter):
         if weight is not None:
             if isinstance(weight, str):
                 weight_attr = weight
+
                 def weight_func_str(u: str, v: str, d: dict[str, Any]) -> float:
                     return float(d.get(weight_attr, 1.0))
+
                 weight_func = weight_func_str
             else:
                 wt_callable = weight
+
                 def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
                     return float(wt_callable(d))
+
                 weight_func = weight_func_callable
 
         # Hop-by-hop contract-net negotiation with backtracking

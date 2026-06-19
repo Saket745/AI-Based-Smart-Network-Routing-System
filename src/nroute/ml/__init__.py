@@ -9,12 +9,20 @@ from nroute.ml.feature_eng import (
     extract_anomaly_features,
     extract_congestion_features,
 )
+from nroute.ml.features import (
+    BaseFeatureExtractor,
+    DefaultGraphFeatureExtractor,
+    GraphTensorBundle,
+)
 from nroute.ml.model_store import ModelStore
 from nroute.ml.rl_env import NetworkRoutingEnv
 
 __all__ = [
     "AnomalyDetector",
+    "BaseFeatureExtractor",
     "CongestionPredictor",
+    "DefaultGraphFeatureExtractor",
+    "GraphTensorBundle",
     "ModelStore",
     "NetworkRoutingEnv",
     "create_congestion_labels",

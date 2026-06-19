@@ -10,17 +10,51 @@ import numpy as np
 try:
     import torch
 except ImportError:
-    torch = None
+    torch = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from nroute.core.topology import Topology
+
+
+class GraphTensorBundle:
+    """
+    Structured bundle of extracted graph features for GNN training/inference.
+    Supports both attribute access (bundle.node_features) and dictionary access (bundle['node_features'])
+    for backward compatibility.
+    """
+
+    def __init__(
+        self,
+        node_features: np.ndarray | Any,
+        edge_index: np.ndarray | Any,
+        edge_features: np.ndarray | Any,
+        node_to_idx: dict[str, int],
+        idx_to_node: list[str],
+    ) -> None:
+        self.node_features = node_features
+        self.edge_index = edge_index
+        self.edge_features = edge_features
+        self.node_to_idx = node_to_idx
+        self.idx_to_node = idx_to_node
+
+    def __getitem__(self, key: str) -> Any:
+        try:
+            return getattr(self, key)
+        except AttributeError as e:
+            raise KeyError(key) from e
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
+    def keys(self) -> list[str]:
+        return ["node_features", "edge_index", "edge_features", "node_to_idx", "idx_to_node"]
 
 
 class BaseFeatureExtractor(abc.ABC):
     """Abstract base class for all feature extraction pipelines."""
 
     @abc.abstractmethod
-    def extract_features(self, topology: Topology) -> dict[str, Any]:
+    def extract_features(self, topology: Topology) -> GraphTensorBundle:
         """
         Extract features from the topology.
 
@@ -49,7 +83,7 @@ class DefaultGraphFeatureExtractor(BaseFeatureExtractor):
         """
         self.use_pytorch = use_pytorch
 
-    def extract_features(self, topology: Topology) -> dict[str, Any]:
+    def extract_features(self, topology: Topology) -> GraphTensorBundle:
         # Sort nodes and edges deterministic ordering
         nodes = sorted(topology.nodes)
         edges = sorted(topology.edges)
@@ -85,18 +119,20 @@ class DefaultGraphFeatureExtractor(BaseFeatureExtractor):
             edge_index_arr = np.empty((2, 0), dtype=np.int64)
             edge_features_arr = np.empty((0, 5), dtype=np.float32)
 
-        res = {
-            "node_features": node_features_arr,
-            "edge_index": edge_index_arr,
-            "edge_features": edge_features_arr,
-            "node_to_idx": node_to_idx,
-            "idx_to_node": nodes,
-        }
+        node_features_val: Any = node_features_arr
+        edge_index_val: Any = edge_index_arr
+        edge_features_val: Any = edge_features_arr
 
         # Convert to PyTorch tensors if requested
         if self.use_pytorch and torch is not None:
-            res["node_features"] = torch.from_numpy(res["node_features"])
-            res["edge_index"] = torch.from_numpy(res["edge_index"])
-            res["edge_features"] = torch.from_numpy(res["edge_features"])
+            node_features_val = torch.from_numpy(node_features_val)
+            edge_index_val = torch.from_numpy(edge_index_val)
+            edge_features_val = torch.from_numpy(edge_features_val)
 
-        return res
+        return GraphTensorBundle(
+            node_features=node_features_val,
+            edge_index=edge_index_val,
+            edge_features=edge_features_val,
+            node_to_idx=node_to_idx,
+            idx_to_node=nodes,
+        )

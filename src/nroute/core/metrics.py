@@ -8,6 +8,11 @@ from pathlib import Path
 import pandas as pd
 from pydantic import BaseModel, Field
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from nroute.core.topology import Topology
+
 from nroute.exceptions import SimulationError
 
 
@@ -27,6 +32,37 @@ class RouteMetrics(BaseModel):
     bottleneck_utilization: float = Field(
         ..., ge=0.0, le=1.0, description="Maximum link utilization along the path"
     )
+
+    @classmethod
+    def from_path(cls, topology: Topology, path: list[str]) -> RouteMetrics:
+        """
+        Compute RouteMetrics for a given path and topology.
+        """
+        total_latency = 0.0
+        total_hops = len(path) - 1
+        bottleneck_bw = float("inf")
+        bottleneck_util = 0.0
+
+        for i in range(total_hops):
+            u, v = path[i], path[i + 1]
+            try:
+                edge = topology.get_edge(u, v)
+                total_latency += float(edge.get("latency", 0.0))
+                bw = float(edge.get("bandwidth", float("inf")))
+                util = float(edge.get("utilization", 0.0))
+                if bw < bottleneck_bw:
+                    bottleneck_bw = bw
+                    bottleneck_util = util
+            except Exception:
+                pass
+
+        return cls(
+            path=path,
+            total_latency=total_latency,
+            total_hops=total_hops,
+            bottleneck_bandwidth=bottleneck_bw,
+            bottleneck_utilization=bottleneck_util,
+        )
 
 
 class SimulationMetrics(BaseModel):

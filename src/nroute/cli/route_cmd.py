@@ -6,6 +6,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from nroute.core.metrics import RouteMetrics
 from nroute.core.topology import Topology
 from nroute.exceptions import RoutingError
 from nroute.routing import get_router
@@ -93,12 +94,16 @@ def compute(
     try:
         if algorithm.lower() == "custom":
             if not custom_router:
-                raise click.UsageError("Option '--custom-router' is required when using algorithm 'custom'.")
+                raise click.UsageError(
+                    "Option '--custom-router' is required when using algorithm 'custom'."
+                )
             import inspect
 
+            from nroute.routing.base import BaseRouter
             from nroute.utils.loader import load_custom_class
-            router_cls = load_custom_class(custom_router)
-            sig = inspect.signature(router_cls.__init__)
+
+            router_cls = load_custom_class(custom_router, expected_superclass=BaseRouter)
+            sig = inspect.signature(router_cls)
             router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         else:
             router = get_router(algorithm, topology=topo)
@@ -111,23 +116,7 @@ def compute(
         raise SystemExit(1) from e
 
     # Compute route metrics
-    total_latency = 0.0
-    total_hops = len(path) - 1
-    bottleneck_bw = float("inf")
-    bottleneck_util = 0.0
-
-    for i in range(total_hops):
-        u, v = path[i], path[i + 1]
-        try:
-            edge = topo.get_edge(u, v)
-            total_latency += float(edge.get("latency", 0.0))
-            bw = float(edge.get("bandwidth", float("inf")))
-            util = float(edge.get("utilization", 0.0))
-            if bw < bottleneck_bw:
-                bottleneck_bw = bw
-                bottleneck_util = util
-        except Exception:
-            pass
+    metrics = RouteMetrics.from_path(topo, path)
 
     # Display results
     console.print()
@@ -143,18 +132,20 @@ def compute(
     table.add_column("Value", style="green", justify="right")
 
     table.add_row("Algorithm", algorithm.upper())
-    table.add_row("Hops", str(total_hops))
-    table.add_row("Total Latency", f"{total_latency:.2f} ms")
+    table.add_row("Hops", str(metrics.total_hops))
+    table.add_row("Total Latency", f"{metrics.total_latency:.2f} ms")
     table.add_row(
         "Bottleneck Bandwidth",
-        f"{bottleneck_bw:.0f} Mbps" if bottleneck_bw < float("inf") else "N/A",
+        f"{metrics.bottleneck_bandwidth:.0f} Mbps"
+        if metrics.bottleneck_bandwidth < float("inf")
+        else "N/A",
     )
-    table.add_row("Bottleneck Utilization", f"{bottleneck_util:.1%}")
+    table.add_row("Bottleneck Utilization", f"{metrics.bottleneck_utilization:.1%}")
 
     console.print(table)
 
     # Per-hop breakdown
-    if total_hops > 0:
+    if metrics.total_hops > 0:
         hop_table = Table(
             title="Hop-by-Hop Breakdown", show_header=True, header_style="bold magenta"
         )
@@ -166,7 +157,7 @@ def compute(
         hop_table.add_column("Utilization", style="green", justify="right")
         hop_table.add_column("Status", justify="center")
 
-        for i in range(total_hops):
+        for i in range(metrics.total_hops):
             u, v = path[i], path[i + 1]
             try:
                 edge = topo.get_edge(u, v)

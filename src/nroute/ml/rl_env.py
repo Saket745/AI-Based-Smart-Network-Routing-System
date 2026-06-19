@@ -51,7 +51,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
                 to expose the agent to varied congestion states.
         """
         super().__init__()
-        self.topology = topology
+        self.topology = topology.copy()
         self.max_hops = max_hops
         self.training_mode = training_mode
 
@@ -130,9 +130,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             # Use the underlying NetworkX graph for BFS distance computation
             for node in self.nodes:
                 try:
-                    lengths = nx.single_source_shortest_path_length(
-                        self.topology.graph, node
-                    )
+                    lengths = nx.single_source_shortest_path_length(self.topology.graph, node)
                     self._shortest_distances[node] = dict(lengths)
                 except Exception:
                     self._shortest_distances[node] = {}
@@ -169,7 +167,8 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
 
             with contextlib.suppress(Exception):
                 self.topology.update_edge(
-                    src, dst,
+                    src,
+                    dst,
                     utilization=rand_util,
                     latency=rand_latency,
                     packet_loss=rand_loss,
@@ -183,7 +182,8 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         for (src, dst), orig in self._original_edge_attrs.items():
             with contextlib.suppress(Exception):
                 self.topology.update_edge(
-                    src, dst,
+                    src,
+                    dst,
                     utilization=orig["utilization"],
                     latency=orig["latency"],
                     packet_loss=orig["packet_loss"],
@@ -317,11 +317,10 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
                 remaining_caps.append(max(0.0, 1.0 - util))
             remaining = np.array(remaining_caps, dtype=np.float64)
             sum_r = remaining.sum()
-            sum_r2 = (remaining ** 2).sum()
+            sum_r2 = (remaining**2).sum()
             n = len(remaining)
-            jains = (sum_r ** 2) / (n * sum_r2) if sum_r2 > 0 else 1.0
+            jains = (sum_r**2) / (n * sum_r2) if sum_r2 > 0 else 1.0
             reward += fairness_weight * jains
-
 
         # Check if reached destination
         if self.current_node == self.destination:

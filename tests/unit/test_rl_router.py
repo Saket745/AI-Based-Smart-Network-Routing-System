@@ -184,7 +184,7 @@ def test_rl_env_training_mode_randomization(small_graph_data: dict[str, Any]) ->
     # Capture original utilizations
     original_utils = {}
     for src, dst in env.edges:
-        original_utils[(src, dst)] = float(topo.get_edge(src, dst).get("utilization", 0.0))
+        original_utils[(src, dst)] = float(env.topology.get_edge(src, dst).get("utilization", 0.0))
 
     # Reset should randomize edge attributes
     env.reset(seed=42)
@@ -192,7 +192,7 @@ def test_rl_env_training_mode_randomization(small_graph_data: dict[str, Any]) ->
     # At least some utilizations should have changed from 0.0
     changed = False
     for src, dst in env.edges:
-        new_util = float(topo.get_edge(src, dst).get("utilization", 0.0))
+        new_util = float(env.topology.get_edge(src, dst).get("utilization", 0.0))
         if new_util != original_utils[(src, dst)]:
             changed = True
             break
@@ -202,7 +202,7 @@ def test_rl_env_training_mode_randomization(small_graph_data: dict[str, Any]) ->
     # After restore, originals should be back
     env._restore_edge_attributes()
     for (src, dst), orig_util in original_utils.items():
-        current_util = float(topo.get_edge(src, dst).get("utilization", 0.0))
+        current_util = float(env.topology.get_edge(src, dst).get("utilization", 0.0))
         assert abs(current_util - orig_util) < 1e-6, (
             f"Edge ({src}, {dst}) utilization not restored: {current_util} != {orig_util}"
         )
@@ -216,13 +216,13 @@ def test_rl_env_inference_mode_no_randomization(small_graph_data: dict[str, Any]
     # Capture utilizations before reset
     pre_utils = {}
     for src, dst in env.edges:
-        pre_utils[(src, dst)] = float(topo.get_edge(src, dst).get("utilization", 0.0))
+        pre_utils[(src, dst)] = float(env.topology.get_edge(src, dst).get("utilization", 0.0))
 
     env.reset(seed=42)
 
     # Utilizations should be unchanged in inference mode
     for (src, dst), pre_util in pre_utils.items():
-        post_util = float(topo.get_edge(src, dst).get("utilization", 0.0))
+        post_util = float(env.topology.get_edge(src, dst).get("utilization", 0.0))
         assert abs(post_util - pre_util) < 1e-6, (
             f"Inference mode should not randomize: ({src}, {dst}) changed from {pre_util} to {post_util}"
         )
@@ -239,8 +239,23 @@ def test_rl_router_topology_mismatch_fallback(small_graph_data: dict[str, Any]) 
 
     # Create a modified topology with an extra node
     modified_data = dict(small_graph_data)
-    modified_data["nodes"] = [*list(small_graph_data["nodes"]), {"id": "F", "type": "router", "capacity": 1000.0, "status": "up"}]
-    modified_data["edges"] = [*list(small_graph_data["edges"]), {"src": "D", "dst": "F", "bandwidth": 1000.0, "latency": 5.0, "jitter": 0.2, "packet_loss": 0.0, "utilization": 0.0, "status": "up"}]
+    modified_data["nodes"] = [
+        *list(small_graph_data["nodes"]),
+        {"id": "F", "type": "router", "capacity": 1000.0, "status": "up"},
+    ]
+    modified_data["edges"] = [
+        *list(small_graph_data["edges"]),
+        {
+            "src": "D",
+            "dst": "F",
+            "bandwidth": 1000.0,
+            "latency": 5.0,
+            "jitter": 0.2,
+            "packet_loss": 0.0,
+            "utilization": 0.0,
+            "status": "up",
+        },
+    ]
     modified_topo = _get_topo(modified_data)
 
     # compute_path on mismatched topology should still work (via Dijkstra fallback)
@@ -293,7 +308,9 @@ def test_rl_env_proximity_reward_signal(small_graph_data: dict[str, Any]) -> Non
 
     # Reward for moving toward destination should be positive (distance decreased by 1)
     # proximity_weight * (prev_distance - curr_distance) = 10 * (2 - 1) = 10.0
-    assert reward_toward > 0, f"Moving toward destination should give positive reward, got {reward_toward}"
+    assert reward_toward > 0, (
+        f"Moving toward destination should give positive reward, got {reward_toward}"
+    )
 
 
 # ── Pass 2: PRD Compliance Gap Tests ──────────────────────────────────────────
@@ -404,10 +421,28 @@ def test_ai_router_anomaly_alpha_escalation(small_graph_data: dict[str, Any]) ->
     # (anomaly_detector.is_trained is False)
     from nroute.core.traffic import FlowRecord, TrafficMatrix
 
-    tm = TrafficMatrix(flows=[
-        FlowRecord(source="A", destination="D", bytes=1000, packets=10, duration=1.0, protocol="TCP", timestamp=0.0),
-        FlowRecord(source="B", destination="C", bytes=2000, packets=20, duration=2.0, protocol="UDP", timestamp=1.0),
-    ])
+    tm = TrafficMatrix(
+        flows=[
+            FlowRecord(
+                source="A",
+                destination="D",
+                bytes=1000,
+                packets=10,
+                duration=1.0,
+                protocol="TCP",
+                timestamp=0.0,
+            ),
+            FlowRecord(
+                source="B",
+                destination="C",
+                bytes=2000,
+                packets=20,
+                duration=2.0,
+                protocol="UDP",
+                timestamp=1.0,
+            ),
+        ]
+    )
     router.update_traffic_history(tm)
     assert router.alpha == 5.0
     assert not router._anomaly_active

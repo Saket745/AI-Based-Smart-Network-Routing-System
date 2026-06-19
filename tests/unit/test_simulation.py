@@ -56,6 +56,12 @@ def test_simulator_facade(small_graph_data: dict[str, Any]) -> None:
     results = sim.run(seed=10)
     assert len(results.results) == 5
 
+    # Test passing algorithm name as a string
+    sim_str = Simulator(topology=topo, algorithm="dijkstra", duration=5)
+    assert isinstance(sim_str.router, DijkstraRouter)
+    results_str = sim_str.run(seed=10)
+    assert len(results_str.results) == 5
+
 
 def test_simulation_failure_injection_reroute(small_graph_data: dict[str, Any]) -> None:
     """Test failure injection triggers flow rerouting and increments metrics."""

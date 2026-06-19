@@ -38,14 +38,15 @@ def get_router(algorithm: str, topology: Any = None) -> BaseRouter:
     # Check custom configuration registry
     from nroute.core.config import load_config
     from nroute.utils.loader import load_custom_class
+
     try:
         cfg = load_config()
         if alg in cfg.custom_routers:
             import_str = cfg.custom_routers[alg]
-            router_cls = load_custom_class(import_str)
+            router_cls = load_custom_class(import_str, expected_superclass=BaseRouter)
             sig = inspect.signature(router_cls.__init__)
             if "topology" in sig.parameters:
-                return router_cls(topology=topology)
+                return router_cls(topology=topology)  # type: ignore[call-arg]
             return router_cls()
     except Exception:
         pass

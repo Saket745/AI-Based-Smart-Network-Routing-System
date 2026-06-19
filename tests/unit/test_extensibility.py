@@ -44,6 +44,12 @@ class CustomTestRouter:
         router = cls()
         assert router.compute_path(None, "A", "B") == ["A", "B"]
 
+        # Invalid subclass validation
+        from nroute.routing.base import BaseRouter
+
+        with pytest.raises(TypeError, match="does not inherit from"):
+            load_custom_class(f"{file_path}:CustomTestRouter", expected_superclass=BaseRouter)
+
         # Invalid format (no colon)
         with pytest.raises(ValueError, match="Expected format"):
             load_custom_class(str(file_path))
@@ -62,7 +68,8 @@ def test_config_custom_routers_resolution(monkeypatch: Any) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         file_path = Path(tmpdir) / "configured_router.py"
         file_path.write_text("""
-class ConfiguredRouter:
+from nroute.routing.base import BaseRouter
+class ConfiguredRouter(BaseRouter):
     def compute_path(self, topology, source, destination, weight=None):
         return [source, "via-config", destination]
 """)
@@ -73,6 +80,7 @@ class ConfiguredRouter:
 
         # Monkeypatch load_config to return our mocked config
         import nroute.core.config
+
         monkeypatch.setattr(nroute.core.config, "load_config", lambda *args, **kwargs: cfg)
 
         # get_router should resolve and load it
@@ -124,8 +132,11 @@ def test_default_graph_feature_extractor() -> None:
 
 def test_base_nn_router_subclass() -> None:
     """Test subclassing BaseNNRouter and its routing loop execution/validations."""
+
     class MockGNNRouter(BaseNNRouter):
-        def predict_next_hop(self, features: Any, current_node: str, destination: str, topology: Topology) -> str:
+        def predict_next_hop(
+            self, features: Any, current_node: str, destination: str, topology: Topology
+        ) -> str:
             # Hardcode simple next hop hops: A -> B -> C
             hops = {"A": "B", "B": "C"}
             return hops.get(current_node, destination)
@@ -152,7 +163,9 @@ def test_base_nn_router_subclass() -> None:
     topo_loop.add_edge("B", "A")  # Allow pathing B -> A to test loop detection
 
     class LoopNNRouter(BaseNNRouter):
-        def predict_next_hop(self, features: Any, current_node: str, destination: str, topology: Topology) -> str:
+        def predict_next_hop(
+            self, features: Any, current_node: str, destination: str, topology: Topology
+        ) -> str:
             # Forces A -> B -> A loop
             return "A" if current_node == "B" else "B"
 
@@ -162,7 +175,9 @@ def test_base_nn_router_subclass() -> None:
 
     # Test invalid next-hop (no edge)
     class DisconnectedNNRouter(BaseNNRouter):
-        def predict_next_hop(self, features: Any, current_node: str, destination: str, topology: Topology) -> str:
+        def predict_next_hop(
+            self, features: Any, current_node: str, destination: str, topology: Topology
+        ) -> str:
             # Predicts next hop C which is not connected to A
             return "C"
 
