@@ -140,14 +140,12 @@ def run_sim(
         if algorithm.lower() == "custom":
             if not custom_router:
                 raise click.UsageError("Option '--custom-router' is required when using algorithm 'custom'.")
-            from nroute.utils.loader import load_custom_class
             import inspect
+
+            from nroute.utils.loader import load_custom_class
             router_cls = load_custom_class(custom_router)
             sig = inspect.signature(router_cls.__init__)
-            if "topology" in sig.parameters:
-                router = router_cls(topology=topo)
-            else:
-                router = router_cls()
+            router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         else:
             router = get_router(algorithm, topology=topo)
 
@@ -325,14 +323,12 @@ def compare(
             if algo.lower() == "custom":
                 if not custom_router:
                     raise click.UsageError("Option '--custom-router' is required when using algorithm 'custom'.")
-                from nroute.utils.loader import load_custom_class
                 import inspect
+
+                from nroute.utils.loader import load_custom_class
                 router_cls = load_custom_class(custom_router)
                 sig = inspect.signature(router_cls.__init__)
-                if "topology" in sig.parameters:
-                    router = router_cls(topology=topo)
-                else:
-                    router = router_cls()
+                router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
             else:
                 router = get_router(algo, topology=topo)
 

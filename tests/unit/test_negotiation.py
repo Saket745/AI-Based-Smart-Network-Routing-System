@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 from typing import Any
+
 import pytest
 from click.testing import CliRunner
 
+from nroute.cli.main import cli
 from nroute.core.topology import Topology
 from nroute.exceptions import RoutingError
 from nroute.routing import get_router
 from nroute.routing.negotiation import NegotiationRouter
 from nroute.simulation.engine import SimulationEngine
 from nroute.simulation.traffic_gen import TrafficGenerator
-from nroute.cli.main import cli
 
 
 def _get_topo(small_graph_data: dict[str, Any]) -> Topology:

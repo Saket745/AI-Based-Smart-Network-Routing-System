@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
+
 import networkx as nx
 
 from nroute.exceptions import RoutingError
@@ -134,10 +135,14 @@ class NegotiationRouter(BaseRouter):
         if weight is not None:
             if isinstance(weight, str):
                 weight_attr = weight
-                weight_func = lambda u, v, d: float(d.get(weight_attr, 1.0))
+                def weight_func_str(u: str, v: str, d: dict[str, Any]) -> float:
+                    return float(d.get(weight_attr, 1.0))
+                weight_func = weight_func_str
             else:
                 wt_callable = weight
-                weight_func = lambda u, v, d: float(wt_callable(d))
+                def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
+                    return float(wt_callable(d))
+                weight_func = weight_func_callable
 
         # Hop-by-hop contract-net negotiation with backtracking
         def negotiate_path(
@@ -163,9 +168,8 @@ class NegotiationRouter(BaseRouter):
             # Sort neighbors by bid cost (lowest first)
             bids.sort(key=lambda x: x[1])
 
-            # Try neighbors in order of bid cost
             for neighbor, _ in bids:
-                result = negotiate_path(neighbor, path_so_far + [neighbor])
+                result = negotiate_path(neighbor, [*path_so_far, neighbor])
                 if result is not None:
                     return result
 

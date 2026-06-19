@@ -94,14 +94,12 @@ def compute(
         if algorithm.lower() == "custom":
             if not custom_router:
                 raise click.UsageError("Option '--custom-router' is required when using algorithm 'custom'.")
-            from nroute.utils.loader import load_custom_class
             import inspect
+
+            from nroute.utils.loader import load_custom_class
             router_cls = load_custom_class(custom_router)
             sig = inspect.signature(router_cls.__init__)
-            if "topology" in sig.parameters:
-                router = router_cls(topology=topo)
-            else:
-                router = router_cls()
+            router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         else:
             router = get_router(algorithm, topology=topo)
         path = router.compute_path(topo, source, destination, weight=weight)
@@ -133,10 +131,10 @@ def compute(
 
     # Display results
     console.print()
-    console.rule(f"[bold cyan]Route: {source} → {destination}[/bold cyan]")
+    console.rule(f"[bold cyan]Route: {source} -> {destination}[/bold cyan]")
 
     # Path display
-    path_str = " → ".join(path)
+    path_str = " -> ".join(path)
     console.print(f"\n  [bold]Path:[/bold] {path_str}\n")
 
     # Metrics table
@@ -176,12 +174,12 @@ def compute(
                 bw_str = f"{float(edge.get('bandwidth', 0)):.0f}"
                 util_str = f"{float(edge.get('utilization', 0)):.1%}"
                 status = edge.get("status", "up")
-                status_icon = "🟢" if status == "up" else "🔴"
+                status_icon = "[green]up[/green]" if status == "up" else "[red]down[/red]"
             except Exception:
                 lat_str = "?"
                 bw_str = "?"
                 util_str = "?"
-                status_icon = "❓"
+                status_icon = "[yellow]?[/yellow]"
 
             hop_table.add_row(str(i + 1), u, v, lat_str, bw_str, util_str, status_icon)
 

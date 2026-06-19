@@ -76,7 +76,7 @@ def congestion(topo_path: str, model_path: str, threshold: float) -> None:
                 "queue_depth": 0.0,  # default placeholder
             }
         )
-        edge_ids.append(f"{u} → {v}")
+        edge_ids.append(f"{u} -> {v}")
 
     if not rows:
         console.print("[yellow]No edges found in topology.[/yellow]")
@@ -108,13 +108,13 @@ def congestion(topo_path: str, model_path: str, threshold: float) -> None:
         p = float(prob) if not isinstance(prob, int | float) else prob
         if p >= threshold:
             prob_style = "bold red"
-            status = "🔴 CONGESTED"
+            status = "[bold red]CONGESTED[/bold red]"
         elif p >= threshold * 0.7:
             prob_style = "yellow"
-            status = "🟡 AT RISK"
+            status = "[yellow]AT RISK[/yellow]"
         else:
             prob_style = "green"
-            status = "🟢 NORMAL"
+            status = "[green]NORMAL[/green]"
 
         table.add_row(edge_id, f"[{prob_style}]{p:.3f}[/{prob_style}]", status)
 

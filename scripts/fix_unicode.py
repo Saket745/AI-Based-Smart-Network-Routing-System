@@ -2,7 +2,7 @@ import os
 
 cli_dir = r"c:\Users\mssak\OneDrive\Desktop\Network Route Optimizer\AI-Based-Smart-Network-Routing-System\src\nroute\cli"
 
-for root, dirs, files in os.walk(cli_dir):
+for root, _dirs, files in os.walk(cli_dir):
     for file in files:
         if file.endswith(".py"):
             path = os.path.join(root, file)

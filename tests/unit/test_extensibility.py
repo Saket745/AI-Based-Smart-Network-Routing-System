@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -11,6 +10,7 @@ import numpy as np
 import pytest
 from click.testing import CliRunner
 
+from nroute.cli.main import cli
 from nroute.core.config import NRouteConfig
 from nroute.core.topology import Topology
 from nroute.exceptions import RoutingError
@@ -18,7 +18,6 @@ from nroute.ml.features import DefaultGraphFeatureExtractor
 from nroute.routing import get_router
 from nroute.routing.base_nn import BaseNNRouter
 from nroute.utils.loader import load_custom_class
-from nroute.cli.main import cli
 
 try:
     import torch

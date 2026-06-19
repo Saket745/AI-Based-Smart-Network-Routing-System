@@ -7,14 +7,14 @@ from typing import Any
 
 from nroute.routing.ai import AIRouter
 from nroute.routing.base import BaseRouter, FallbackRouter
+from nroute.routing.base_nn import BaseNNRouter
 from nroute.routing.bellman_ford import BellmanFordRouter
 from nroute.routing.bfs import BFSRouter
 from nroute.routing.dijkstra import DijkstraRouter
 from nroute.routing.ecmp import ECMPRouter
+from nroute.routing.negotiation import NegotiationRouter
 from nroute.routing.registry import ROUTER_REGISTRY, register_router
 from nroute.routing.rl_router import RLRouter
-from nroute.routing.negotiation import NegotiationRouter
-from nroute.routing.base_nn import BaseNNRouter
 
 
 def get_router(algorithm: str, topology: Any = None) -> BaseRouter:
@@ -79,14 +79,14 @@ __all__ = [
     "ROUTER_REGISTRY",
     "AIRouter",
     "BFSRouter",
+    "BaseNNRouter",
     "BaseRouter",
     "BellmanFordRouter",
     "DijkstraRouter",
     "ECMPRouter",
     "FallbackRouter",
-    "RLRouter",
     "NegotiationRouter",
-    "BaseNNRouter",
+    "RLRouter",
     "get_router",
     "register_router",
 ]
