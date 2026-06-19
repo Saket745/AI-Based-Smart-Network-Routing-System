@@ -5,6 +5,7 @@ import sys
 # Add src directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
+import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
@@ -70,10 +71,10 @@ def main():
         f"Total ticks: {len(ticks)} | Train: {len(train_ticks)} ticks | Val: {len(val_ticks)} ticks"
     )
 
-    train_node_df = node_df[node_df["tick"].isin(train_ticks)]
-    train_edge_df = edge_df[edge_df["tick"].isin(train_ticks)]
-    val_node_df = node_df[node_df["tick"].isin(val_ticks)]
-    val_edge_df = edge_df[edge_df["tick"].isin(val_ticks)]
+    train_node_df = pd.DataFrame(node_df[node_df["tick"].isin(train_ticks)])
+    train_edge_df = pd.DataFrame(edge_df[edge_df["tick"].isin(train_ticks)])
+    val_node_df = pd.DataFrame(node_df[node_df["tick"].isin(val_ticks)])
+    val_edge_df = pd.DataFrame(edge_df[edge_df["tick"].isin(val_ticks)])
 
     train_dataset = GNNGraphDataset(train_node_df, train_edge_df)
     val_dataset = GNNGraphDataset(val_node_df, val_edge_df)
