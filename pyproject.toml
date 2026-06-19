@@ -127,6 +127,10 @@ module = [
     "plotext",
     "pandas.*",
     "yaml.*",
+    "numpy.*",
+    "click.*",
+    "rich.*",
+    "matplotlib.*",
 ]
 ignore_missing_imports = true
 
