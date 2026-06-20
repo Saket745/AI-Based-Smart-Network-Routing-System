@@ -404,5 +404,3 @@ def test_rl_env_jains_fairness_reward(small_graph_data: dict[str, Any]) -> None:
     # fairness_weight * jains = 10.0 * 1.0 = 10.0
     # (plus possible success bonus if B == destination, which it isn't here)
     assert reward > 0, f"Fairness reward should be positive for uniform utilization, got {reward}"
-
-
