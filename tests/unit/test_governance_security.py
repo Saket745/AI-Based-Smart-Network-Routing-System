@@ -14,7 +14,6 @@ from nroute.exceptions import ModelError
 from nroute.ml.anomaly import AnomalyDetector
 from nroute.ml.congestion import CongestionPredictor
 
-
 def test_anomaly_detector_secure_loading_enforcement():
     """Verify that AnomalyDetector blocks insecure files by default."""
     detector = AnomalyDetector(model_type="isolation_forest")
@@ -34,7 +33,6 @@ def test_anomaly_detector_secure_loading_enforcement():
         except (ModelError, KeyError):
             # We expect failure later since it's not a real model, but the security block is bypassed
             pass
-
 
 def test_congestion_predictor_secure_loading_enforcement():
     """Verify that CongestionPredictor blocks insecure files by default."""
