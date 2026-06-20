@@ -444,7 +444,7 @@ class TestDetectCLI:
                 "flow_count": [5, 100],
                 "avg_packet_size": [500.0, 1500.0],
                 "src_ip_entropy": [3.0, 0.5],
-                "dst_port_entropy": [2.5, 0.2],
+                "dst_ip_entropy": [2.5, 0.2],
                 "utilization": [0.2, 0.95],
                 "latency_avg": [5.0, 150.0],
             }
