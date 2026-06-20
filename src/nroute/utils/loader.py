@@ -8,7 +8,11 @@ import sys
 from pathlib import Path
 
 
-def load_custom_class(import_str: str, expected_superclass: type | None = None) -> type:
+def load_custom_class(
+    import_str: str,
+    expected_superclass: type | None = None,
+    allow_unsafe: bool = False,
+) -> type:
     """
     Dynamically load a class from a module or a Python file.
 
@@ -19,6 +23,9 @@ def load_custom_class(import_str: str, expected_superclass: type | None = None) 
     Args:
         import_str: The import target string in module:class or path:class format.
         expected_superclass: Optional superclass to validate inheritance against.
+        allow_unsafe: If True, allows loading from local Python files. For security,
+            this is False by default to prevent arbitrary code execution from
+            untrusted configurations.
 
     Returns:
         The loaded class type.
@@ -27,6 +34,7 @@ def load_custom_class(import_str: str, expected_superclass: type | None = None) 
         ValueError: If the format is invalid.
         ImportError: If the module or class cannot be loaded.
         TypeError: If the class does not inherit from expected_superclass.
+        PermissionError: If loading from a file is attempted with allow_unsafe=False.
     """
     import_str = import_str.strip()
 
@@ -51,6 +59,13 @@ def load_custom_class(import_str: str, expected_superclass: type | None = None) 
 
     # Check if module_part is a path to a local .py file
     if module_part.endswith(".py") or os.path.exists(module_part):
+        if not allow_unsafe:
+            raise PermissionError(
+                f"Loading from a local Python file ('{module_part}') is restricted for "
+                "security reasons. Use a standard module path or set allow_unsafe=True "
+                "if you trust the source."
+            )
+
         file_path = Path(module_part).resolve()
         if not file_path.is_file():
             raise ImportError(f"Python file not found: {file_path}")

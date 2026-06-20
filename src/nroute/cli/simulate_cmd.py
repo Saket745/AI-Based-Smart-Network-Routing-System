@@ -112,6 +112,12 @@ def simulate_cmd() -> None:
     default=None,
     help="Import target for custom router in path/to/file.py:ClassName format (requires -a custom).",
 )
+@click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading custom routers from local Python files (security risk).",
+)
 @click.pass_context
 def run_sim(
     ctx: click.Context,
@@ -126,6 +132,7 @@ def run_sim(
     visualize_delay: float,
     model_path: str | None,
     custom_router: str | None,
+    allow_unsafe: bool,
 ) -> None:
     """Run a network simulation."""
     seed = seed or ctx.obj.get("seed")
@@ -147,11 +154,13 @@ def run_sim(
             from nroute.routing.base import BaseRouter
             from nroute.utils.loader import load_custom_class
 
-            router_cls = load_custom_class(custom_router, expected_superclass=BaseRouter)
+            router_cls = load_custom_class(
+                custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
+            )
             sig = inspect.signature(router_cls)
             router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         else:
-            router = get_router(algorithm, topology=topo)
+            router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
 
         # Load pretrained model if provided
         if model_path and hasattr(router, "load"):
@@ -289,6 +298,12 @@ def run_sim(
     default=None,
     help="Import target for custom router in path/to/file.py:ClassName format (requires custom in -a).",
 )
+@click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading custom routers from local Python files (security risk).",
+)
 @click.pass_context
 def compare(
     ctx: click.Context,
@@ -301,6 +316,7 @@ def compare(
     output: str | None,
     model_path: str | None,
     custom_router: str | None,
+    allow_unsafe: bool,
 ) -> None:
     """Compare multiple routing algorithms on the same topology and traffic."""
     seed = seed or ctx.obj.get("seed")
@@ -336,11 +352,13 @@ def compare(
                 from nroute.routing.base import BaseRouter
                 from nroute.utils.loader import load_custom_class
 
-                router_cls = load_custom_class(custom_router, expected_superclass=BaseRouter)
+                router_cls = load_custom_class(
+                    custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
+                )
                 sig = inspect.signature(router_cls)
                 router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
             else:
-                router = get_router(algo, topology=topo)
+                router = get_router(algo, topology=topo, allow_unsafe=allow_unsafe)
 
             # Load pretrained model if provided and router supports it
             if model_path and hasattr(router, "load"):
