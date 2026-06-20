@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
+import zipfile
 
+import joblib
 import numpy as np
 import pandas as pd
 import pytest
+import torch
 
 from nroute.exceptions import ModelError
 from nroute.ml.congestion import CongestionPredictor
@@ -115,3 +119,76 @@ def test_congestion_predictor_mismatched_inputs(
 
     with pytest.raises(ModelError):
         predictor.train(df, labels[:-1])
+
+
+def test_congestion_predictor_security(dummy_dataset: tuple[pd.DataFrame, np.ndarray]) -> None:
+    """Test security aspects of model loading."""
+    df, labels = dummy_dataset
+
+    class Malicious:
+        def __reduce__(self):
+            return (os.system, ("touch VULNERABLE",))
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # 1. Test legacy joblib rejection
+        legacy_xgb_path = os.path.join(tmpdir, "legacy_xgb.joblib")
+        legacy_data = {"model_type": "xgboost", "is_trained": True, "model": "fake_model"}
+        joblib.dump(legacy_data, legacy_xgb_path)
+
+        predictor = CongestionPredictor()
+        with pytest.raises(ModelError, match="Insecure model file detected"):
+            predictor.load(legacy_xgb_path)
+
+        # 2. Test legacy joblib opt-in
+        # It will fail on 'fake_model' not being a real XGBoost object, but it should pass the security check
+        try:
+            predictor.load(legacy_xgb_path, allow_unsafe=True)
+        except Exception as e:
+            assert "Insecure model file detected" not in str(e)
+
+        # 3. Test malicious PyTorch payload rejection
+        malicious_pt_path = os.path.join(tmpdir, "malicious.pt")
+        malicious_data = {"metadata": {"model_type": "lstm", "is_trained": True}, "payload": Malicious()}
+        torch.save(malicious_data, malicious_pt_path)
+
+        with pytest.raises(ModelError, match="Failed to load PyTorch model securely"):
+            predictor.load(malicious_pt_path)
+
+        # 4. Test custom model without save method
+        class CustomNoSave:
+            def train(self, f, l):
+                pass
+            @property
+            def is_trained(self):
+                return True
+
+        predictor_custom = CongestionPredictor(model_type="custom", custom_model=CustomNoSave())
+        with pytest.raises(ModelError, match="does not implement a 'save' method"):
+            predictor_custom.save(os.path.join(tmpdir, "custom.model"))
+
+        # 5. Verify no vulnerability was triggered (VULNERABLE file should not exist)
+        assert not os.path.exists("VULNERABLE")
+
+
+def test_congestion_predictor_xgboost_format_verification(
+    dummy_dataset: tuple[pd.DataFrame, np.ndarray],
+) -> None:
+    """Verify that XGBoost is actually saved as a ZIP with JSON inside."""
+    df, labels = dummy_dataset
+    predictor = CongestionPredictor(model_type="xgboost")
+    predictor.train(df, labels)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        model_path = os.path.join(tmpdir, "xgb.model")
+        predictor.save(model_path)
+
+        assert zipfile.is_zipfile(model_path)
+        with zipfile.ZipFile(model_path, "r") as zf:
+            file_list = zf.namelist()
+            assert "metadata.json" in file_list
+            assert "model.json" in file_list
+
+            with zf.open("metadata.json") as f:
+                meta = json.load(f)
+                assert meta["model_type"] == "xgboost"
+                assert meta["serialization_version"] == "2.0"
