@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import sys
 import tempfile
 from pathlib import Path
 
@@ -73,15 +72,15 @@ class Derived(Base):
 
     try:
         # Load the base class first so we can use it for validation
-        Base = load_custom_class(f"{tmp_path}:Base")
+        base_cls = load_custom_class(f"{tmp_path}:Base")
 
         # Success case
-        cls = load_custom_class(f"{tmp_path}:Derived", expected_superclass=Base)
-        assert issubclass(cls, Base)
+        cls = load_custom_class(f"{tmp_path}:Derived", expected_superclass=base_cls)
+        assert issubclass(cls, base_cls)
 
         # Failure case
         with pytest.raises(TypeError, match="does not inherit from 'Base'"):
-            load_custom_class("pathlib:Path", expected_superclass=Base)
+            load_custom_class("pathlib:Path", expected_superclass=base_cls)
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
