@@ -14,7 +14,6 @@ to isolate root failures.
 
 from __future__ import annotations
 
-import contextlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
@@ -318,7 +317,6 @@ class RCACorrelator:
         if root_peer:
             downstream_nodes.add(root_peer)
 
-        # Expand to topology neighbours of the failing link
         graph = self.topology.graph
         if root_node and root_node in graph:
             downstream_nodes.update(graph.successors(root_node))
