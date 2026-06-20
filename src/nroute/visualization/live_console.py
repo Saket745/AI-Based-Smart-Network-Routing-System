@@ -76,23 +76,16 @@ class LiveSimulationConsole:
     def update_events(self, tick: int) -> None:
         """Inspect engine state and log node/link status changes and packet events."""
         # 1. Check for topology status changes (links & nodes going down/up)
+        graph = self.engine.topology.graph
         current_down_links = set()
-        for u, v in self.engine.topology.edges:
-            try:
-                edge_data = self.engine.topology.get_edge(u, v)
-                if edge_data.get("status") == "down":
-                    current_down_links.add((u, v))
-            except Exception:
-                pass
+        for u, v, edge_data in graph.edges(data=True):
+            if edge_data.get("status") == "down":
+                current_down_links.add((u, v))
 
         current_down_nodes = set()
-        for node in self.engine.topology.nodes:
-            try:
-                node_data = self.engine.topology.get_node(node)
-                if node_data.get("status") == "down":
-                    current_down_nodes.add(node)
-            except Exception:
-                pass
+        for node, node_data in graph.nodes(data=True):
+            if node_data.get("status") == "down":
+                current_down_nodes.add(node)
 
         # Links going down
         for u, v in current_down_links - self.prev_down_links:
@@ -206,9 +199,9 @@ class LiveSimulationConsole:
             table.add_column("Utilization", justify="right")
 
             # Sort edges for stable rendering
-            sorted_edges = sorted(engine.topology.edges)
-            for u, v in sorted_edges:
-                edge_data = engine.topology.get_edge(u, v)
+            graph = engine.topology.graph
+            sorted_edges = sorted(graph.edges(data=True))
+            for u, v, edge_data in sorted_edges:
                 status = str(edge_data.get("status", "up")).upper()
                 if status == "DOWN":
                     status_str = "[bold red]🔴 DOWN[/bold red]"

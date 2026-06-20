@@ -109,13 +109,11 @@ class TrafficGenerator:
         Generate flows where traffic demand between u and v is proportional
         to Capacity(u) * Capacity(v).
         """
+        graph = topology.graph
         nodes = topology.nodes
         capacities = {}
         for node in nodes:
-            try:
-                cap = topology.get_node(node).get("capacity", 1000.0)
-            except Exception:
-                cap = 1000.0
+            cap = graph.nodes[node].get("capacity", 1000.0)
             capacities[node] = max(1.0, float(cap))
 
         pairs = []
@@ -137,6 +135,7 @@ class TrafficGenerator:
         """
         Generate flows where 80% of traffic targets a set of hotspot nodes.
         """
+        graph = topology.graph
         nodes = topology.nodes
         hotspots: list[str] = self.kwargs.get("hotspot_nodes", [])
 
@@ -144,7 +143,7 @@ class TrafficGenerator:
         if not hotspots:
             sorted_nodes = sorted(
                 nodes,
-                key=lambda n: float(topology.get_node(n).get("capacity", 1000.0)),
+                key=lambda n: float(graph.nodes[n].get("capacity", 1000.0)),
                 reverse=True,
             )
             k = max(1, len(nodes) // 5)

@@ -107,17 +107,18 @@ class BaseRouter(ABC):
                 f"Path destination '{path[-1]}' does not match expected destination '{destination}'."
             )
 
+        graph = topology.graph
         for node in path:
-            if node not in topology.nodes:
+            if node not in graph:
                 raise RoutingError(f"Node '{node}' in path does not exist in topology.")
             # If a node is down, the route is invalid
-            if topology.get_node(node).get("status") == "down":
+            if graph.nodes[node].get("status") == "down":
                 raise RoutingError(f"Node '{node}' in path is down.")
 
         for u, v in itertools.pairwise(path):
-            if (u, v) not in topology.edges:
+            if not graph.has_edge(u, v):
                 raise RoutingError(f"Edge '{u}->{v}' in path does not exist in topology.")
-            edge_attr = topology.get_edge(u, v)
+            edge_attr = graph.edges[u, v]
             if edge_attr.get("status") == "down":
                 raise RoutingError(f"Edge '{u}->{v}' in path is down.")
 
@@ -127,15 +128,16 @@ class BaseRouter(ABC):
         """
         Get a read-only filtered view of the topology containing only active nodes and edges.
         """
+        graph = topology.graph
 
         def filter_node(node: str) -> bool:
-            return str(topology.get_node(node).get("status", "up")).lower() != "down"
+            return str(graph.nodes[node].get("status", "up")).lower() != "down"
 
         def filter_edge(u: str, v: str) -> bool:
-            return str(topology.get_edge(u, v).get("status", "up")).lower() != "down"
+            return str(graph.edges[u, v].get("status", "up")).lower() != "down"
 
         return nx.subgraph_view(
-            topology.graph,
+            graph,
             filter_node=filter_node,
             filter_edge=filter_edge,
         )

@@ -55,14 +55,15 @@ class DefaultGraphFeatureExtractor(BaseFeatureExtractor):
         nodes = sorted(topology.nodes)
         edges = sorted(topology.edges)
         node_to_idx = {node: idx for idx, node in enumerate(nodes)}
+        graph = topology.graph
 
         # Build node features: [capacity, status, degree]
         node_features = []
         for node in nodes:
-            attrs = topology.get_node(node)
+            attrs = graph.nodes[node]
             cap = float(attrs.get("capacity", 1000.0)) / 1000.0
             status = 1.0 if attrs.get("status", "up").lower() == "up" else 0.0
-            degree = float(len(list(topology.neighbors(node))))
+            degree = float(len(list(graph.successors(node))))
             node_features.append([cap, status, degree])
         node_features_arr = np.array(node_features, dtype=np.float32)
 
@@ -71,7 +72,7 @@ class DefaultGraphFeatureExtractor(BaseFeatureExtractor):
         edge_features = []
         for src, dst in edges:
             edge_index.append([node_to_idx[src], node_to_idx[dst]])
-            attrs = topology.get_edge(src, dst)
+            attrs = graph.edges[src, dst]
             bw = float(attrs.get("bandwidth", 1000.0)) / 1000.0
             lat = float(attrs.get("latency", 5.0)) / 100.0
             util = float(attrs.get("utilization", 0.0))

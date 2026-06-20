@@ -116,8 +116,9 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         # Store original edge attributes for training-mode perturbation
         self._original_edge_attrs: dict[tuple[str, str], dict[str, float]] = {}
         if self.training_mode:
+            graph = self.topology.graph
             for src, dst in self.edges:
-                attrs = self.topology.get_edge(src, dst)
+                attrs = graph.edges[src, dst]
                 self._original_edge_attrs[(src, dst)] = {
                     "utilization": float(attrs.get("utilization", 0.0)),
                     "latency": float(attrs.get("latency", 5.0)),
@@ -202,8 +203,9 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         self._randomize_edge_attributes()
 
         # Pick active nodes for source and destination
+        graph = self.topology.graph
         up_nodes = [
-            n for n in self.nodes if self.topology.get_node(n).get("status", "up").lower() == "up"
+            n for n in self.nodes if graph.nodes[n].get("status", "up").lower() == "up"
         ]
 
         if len(up_nodes) < 2:
@@ -232,7 +234,8 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
 
     def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
         """Advance the routing packet by selecting the next hop."""
-        neighbors = sorted(list(self.topology.neighbors(self.current_node)))
+        graph = self.topology.graph
+        neighbors = sorted(list(graph.successors(self.current_node)))
         terminated = False
         truncated = False
         info: dict[str, Any] = {}
@@ -249,8 +252,8 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         edge = (self.current_node, next_node)
 
         # 2. Check if next link or node is down
-        node_down = self.topology.get_node(next_node).get("status", "up").lower() == "down"
-        edge_down = self.topology.get_edge(*edge).get("status", "up").lower() == "down"
+        node_down = graph.nodes[next_node].get("status", "up").lower() == "down"
+        edge_down = graph.edges[edge].get("status", "up").lower() == "down"
 
         if node_down or edge_down:
             # Heavy penalty for hitting a failure, end episode
@@ -260,7 +263,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             return self._get_obs(), reward, terminated, truncated, info
 
         # 3. Retrieve link metrics
-        edge_attr = self.topology.get_edge(*edge)
+        edge_attr = graph.edges[edge]
         latency = float(edge_attr.get("latency", 5.0))
         bandwidth = float(edge_attr.get("bandwidth", 1000.0))
         loss = float(edge_attr.get("packet_loss", 0.0))
@@ -311,8 +314,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         fairness_weight = self.reward_params.get("fairness", 2.0)
         if fairness_weight > 0 and self.num_edges > 0:
             remaining_caps = []
-            for src, dst in self.edges:
-                attrs = self.topology.get_edge(src, dst)
+            for _, _, attrs in graph.edges(data=True):
                 util = float(attrs.get("utilization", 0.0))
                 remaining_caps.append(max(0.0, 1.0 - util))
             remaining = np.array(remaining_caps, dtype=np.float64)
@@ -361,8 +363,9 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         # 3. Node attributes (capacity + status)
         node_caps = []
         node_stats = []
+        graph = self.topology.graph
         for node in self.nodes:
-            attrs = self.topology.get_node(node)
+            attrs = graph.nodes[node]
             node_caps.append(
                 float(attrs.get("capacity", 1000.0)) / 1000.0
             )  # simple scale normalization
@@ -379,7 +382,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         edge_stats = []
 
         for src, dst in self.edges:
-            attrs = self.topology.get_edge(src, dst)
+            attrs = graph.edges[src, dst]
             edge_bws.append(float(attrs.get("bandwidth", 1000.0)) / 1000.0)
             edge_lats.append(float(attrs.get("latency", 5.0)) / 100.0)
             edge_utils.append(float(attrs.get("utilization", 0.0)))

@@ -152,10 +152,10 @@ class ConfigParser:
                 node_updates["capacity"] = max(iface_bw)
 
             if node_updates:
-                topology.get_node(node_id)
                 # Only update extra/custom attrs — avoid overwriting validated fields
+                graph = topology.graph
                 for k, v in node_updates.items():
-                    topology._graph.nodes[node_id][k] = v
+                    graph.nodes[node_id][k] = v
 
             # Apply interface states to edges
             for iface in dev.interfaces:
@@ -256,8 +256,8 @@ class ConfigParser:
         iface: InterfaceConfig  # type: ignore[no-redef]
 
         # Walk outgoing edges and update those whose stored interface name matches
-        for neighbor in list(topology.neighbors(node_id)):
-            edge = topology.get_edge(node_id, neighbor)
+        graph = topology.graph
+        for neighbor, edge in graph[node_id].items():
             edge_iface = edge.get("interface", "")
             if edge_iface == iface.name:
                 if iface.state.value == "down":
@@ -274,9 +274,9 @@ class ConfigParser:
 
         ospf: OSPFConfig  # type: ignore[no-redef]
 
+        graph = topology.graph
         for ospf_iface in ospf.interfaces:
-            for neighbor in list(topology.neighbors(node_id)):
-                edge = topology.get_edge(node_id, neighbor)
+            for neighbor, edge in graph[node_id].items():
                 edge_iface = edge.get("interface", "")
                 if edge_iface == ospf_iface.interface_name:
                     topology.update_edge(

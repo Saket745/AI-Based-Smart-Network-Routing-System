@@ -138,8 +138,9 @@ class FailureInjector:
                     src, dst = event["src"], event["dst"]
                     mult = event["multiplier"]
                     dur = event["duration"]
+                    graph = topology.graph
                     try:
-                        edge_data = topology.get_edge(src, dst)
+                        edge_data = graph.edges[src, dst]
                         orig_lat = float(edge_data.get("latency", 5.0))
 
                         # Store original latency if not already tracked
