@@ -320,16 +320,45 @@ class AnomalyDetector:
                 save_dict["model"] = self.model
                 joblib.dump(save_dict, path)
 
-    def load(self, path: str) -> None:
-        """Load model configuration and weights."""
+    def load(self, path: str, allow_unsafe: bool = False) -> None:
+        """
+        Load model configuration and weights.
+
+        Args:
+            path: Path to the model file.
+            allow_unsafe: If True, allows insecure deserialization (pickle/joblib).
+                         Defaults to False.
+
+        Raises:
+            ModelError: If loading fails or insecure file is detected with allow_unsafe=False.
+        """
         if not os.path.exists(path):
             raise ModelError(f"Model file not found: {path}")
 
         try:
             if path.endswith(".pt") or path.endswith(".pth"):
-                load_dict = torch.load(path, map_location=torch.device("cpu"), weights_only=False)
+                try:
+                    load_dict = torch.load(
+                        path,
+                        map_location=torch.device("cpu"),
+                        weights_only=not allow_unsafe,
+                    )
+                except Exception as e:
+                    if not allow_unsafe:
+                        raise ModelError(
+                            "Failed to load PyTorch model securely. Set allow_unsafe=True "
+                            f"if you trust the source. Error: {e}"
+                        ) from e
+                    raise
             else:
+                if not allow_unsafe:
+                    raise ModelError(
+                        "Insecure model file detected (joblib/pickle). Loading is blocked for "
+                        "security. Set allow_unsafe=True if you trust the source."
+                    )
                 load_dict = joblib.load(path)
+        except ModelError:
+            raise
         except Exception as e:
             raise ModelError(f"Failed to load model from {path}: {e}") from e
 

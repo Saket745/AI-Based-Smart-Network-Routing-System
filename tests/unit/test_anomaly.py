@@ -89,7 +89,7 @@ def test_anomaly_detector_isolation_forest(
         detector.save(model_path)
 
         new_detector = AnomalyDetector()
-        new_detector.load(model_path)
+        new_detector.load(model_path, allow_unsafe=True)
 
         assert new_detector.model_type == "isolation_forest"
         assert new_detector.is_trained
@@ -123,7 +123,7 @@ def test_anomaly_detector_autoencoder(
         detector.save(model_path)
 
         new_detector = AnomalyDetector()
-        new_detector.load(model_path)
+        new_detector.load(model_path, allow_unsafe=True)
 
         assert new_detector.model_type == "autoencoder"
         assert new_detector.is_trained

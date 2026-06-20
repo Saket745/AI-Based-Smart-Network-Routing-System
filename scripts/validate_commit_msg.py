@@ -47,6 +47,11 @@ def validate_message(msg: str) -> list[str]:
         first_line.startswith("Merge branch")
         or first_line.startswith("Merge pull request")
         or first_line.startswith("Merge remote-tracking branch")
+        or first_line.startswith("Revert \"")
+        or first_line.lower().startswith("wip")
+        or first_line.lower().startswith("temp")
+        or first_line.startswith("fixup!")
+        or first_line.startswith("squash!")
         or re.match(r"^Merge [0-9a-fA-F]{7,40} into [0-9a-fA-F]{7,40}$", first_line)
     ):
         return []
