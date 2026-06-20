@@ -77,13 +77,14 @@ class RLRouter(BaseRouter):
         if self._training_nodes is None or self._training_edges is None:
             return False, "No training topology metadata available"
 
-        live_nodes = set(sorted(topology.nodes))
+        graph = topology.graph
+        live_nodes = set(graph.nodes)
         train_nodes = set(self._training_nodes)
 
         added_nodes = live_nodes - train_nodes
         removed_nodes = train_nodes - live_nodes
 
-        live_edges = set(sorted(topology.edges))
+        live_edges = set(graph.edges)
         train_edges = set(self._training_edges)
 
         added_edges = live_edges - train_edges

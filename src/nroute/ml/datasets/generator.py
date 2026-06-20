@@ -70,8 +70,8 @@ class DatasetGenerator:
         def tick_callback(tick: int, sim: SimulationEngine) -> None:
             # Gather node details
             nodes_data = []
-            for node in sim.topology.nodes:
-                attrs = sim.topology.get_node(node)
+            graph = sim.topology.graph
+            for node, attrs in graph.nodes(data=True):
                 nodes_data.append(
                     {
                         "id": node,
@@ -84,8 +84,7 @@ class DatasetGenerator:
 
             # Gather edge details
             edges_data = []
-            for u, v in sim.topology.edges:
-                attrs = sim.topology.get_edge(u, v)
+            for u, v, attrs in graph.edges(data=True):
                 edges_data.append(
                     {
                         "source": u,

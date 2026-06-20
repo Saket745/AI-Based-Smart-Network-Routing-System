@@ -147,13 +147,18 @@ def _print_topology_summary(topo: Topology, title: str = "Topology Summary") -> 
         stats_table.add_row("Avg Degree", f"{sum(degrees) / len(degrees):.1f}")
 
     # Count node statuses
-    up_nodes = sum(1 for n in topo.nodes if topo.get_node(n).get("status") == "up")
+    graph = topo.graph
+    up_nodes = sum(
+        1 for _, d in graph.nodes(data=True) if str(d.get("status", "up")).lower() == "up"
+    )
     down_nodes = topo.node_count - up_nodes
     stats_table.add_row("Nodes Up", str(up_nodes))
     stats_table.add_row("Nodes Down", str(down_nodes))
 
     # Count edge statuses
-    up_edges = sum(1 for u, v in topo.edges if topo.get_edge(u, v).get("status") == "up")
+    up_edges = sum(
+        1 for _, _, d in graph.edges(data=True) if str(d.get("status", "up")).lower() == "up"
+    )
     down_edges = topo.edge_count - up_edges
     stats_table.add_row("Links Up", str(up_edges))
     stats_table.add_row("Links Down", str(down_edges))
@@ -162,8 +167,8 @@ def _print_topology_summary(topo: Topology, title: str = "Topology Summary") -> 
 
     # Node type breakdown
     node_types: dict[str, int] = {}
-    for n in topo.nodes:
-        ntype = topo.get_node(n).get("type", "unknown")
+    for _, d in graph.nodes(data=True):
+        ntype = d.get("type", "unknown")
         node_types[ntype] = node_types.get(ntype, 0) + 1
 
     if node_types:

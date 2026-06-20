@@ -167,16 +167,17 @@ class SimulationEngine:
                     v = path[hop_idx + 1]
 
                     # Check if the edge or target node is down
+                    graph = self.topology.graph
                     edge_down = False
                     try:
-                        edge_data = self.topology.get_edge(u, v)
+                        edge_data = graph.edges[u, v]
                         edge_down = edge_data.get("status", "up") == "down"
                     except Exception:
                         edge_down = True
 
                     node_down = False
                     try:
-                        node_data = self.topology.get_node(v)
+                        node_data = graph.nodes[v]
                         node_down = node_data.get("status", "up") == "down"
                     except Exception:
                         node_down = True
@@ -199,7 +200,7 @@ class SimulationEngine:
 
                     # Forward across edge u -> v
                     try:
-                        edge_data = self.topology.get_edge(u, v)
+                        edge_data = graph.edges[u, v]
                         loss_prob = float(edge_data.get("packet_loss", 0.0))
                         edge_latency = float(edge_data.get("latency", 5.0))
                     except Exception:
@@ -264,8 +265,8 @@ class SimulationEngine:
         Recalculate link utilization metrics based on current active flows.
         """
         # 1. Reset all edges to 0 utilization
-        for u, v in self.topology.edges:
-            self.topology.update_edge(u, v, utilization=0.0)
+        for _, _, edge_data in self.topology.graph.edges(data=True):
+            edge_data["utilization"] = 0.0
 
         # 2. Accumulate bandwidth demands of in-flight flows on their active link
         # Flow bandwidth demand = (bytes * 8) / (duration * 1e6) in Mbps.
@@ -285,13 +286,12 @@ class SimulationEngine:
                 link_demands[(u, v)] += mbps
 
         # 3. Update edge utilization ratios in topology
+        graph = self.topology.graph
         for (u, v), demand in link_demands.items():
-            try:
-                edge_data = self.topology.get_edge(u, v)
+            if graph.has_edge(u, v):
+                edge_data = graph.edges[u, v]
                 bandwidth = float(edge_data.get("bandwidth", 1000.0))
                 util = demand / bandwidth if bandwidth > 0.0 else 0.0
                 # Clamp to [0.0, 1.0] for topology validation rules
                 util = min(1.0, max(0.0, util))
-                self.topology.update_edge(u, v, utilization=util)
-            except Exception:
-                pass
+                edge_data["utilization"] = util
