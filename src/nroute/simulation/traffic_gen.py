@@ -94,7 +94,7 @@ class TrafficGenerator:
         if len(nodes) < 2:
             return []
 
-        flows = []
+        flows: list[FlowRecord] = []
         while len(flows) < self.n_flows_per_tick:
             remaining = self.n_flows_per_tick - len(flows)
             batch_size = max(remaining, 5)
@@ -124,7 +124,7 @@ class TrafficGenerator:
         if len(nodes) < 2:
             return []
 
-        flows = []
+        flows: list[FlowRecord] = []
         while len(flows) < self.n_flows_per_tick:
             # Sample sources and destinations independently using capacities as weights.
             # This is mathematically equivalent to the gravity model after rejecting src == dst.
@@ -196,7 +196,7 @@ class TrafficGenerator:
         if len(nodes) < 2:
             return []
 
-        flows = []
+        flows: list[FlowRecord] = []
         while len(flows) < count:
             remaining = count - len(flows)
             batch_size = max(remaining, 5)
