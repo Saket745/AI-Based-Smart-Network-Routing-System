@@ -48,8 +48,10 @@ def test_configure_logging_idempotent() -> None:
 
     # Reset only the structlog defaults, NOT _configured — simulate second call
     structlog.reset_defaults()
-    with patch("logging.basicConfig") as mock_logging_config, \
-         patch("structlog.configure") as mock_structlog_config:
+    with (
+        patch("logging.basicConfig") as mock_logging_config,
+        patch("structlog.configure") as mock_structlog_config,
+    ):
         configure_logging(verbose=True)  # Should be guarded and return immediately
         mock_logging_config.assert_not_called()
         mock_structlog_config.assert_not_called()
@@ -88,9 +90,10 @@ def test_get_logger_can_log_without_error() -> None:
 def test_configure_logging_calls_internal_configs() -> None:
     """Verify that internal configuration functions are called with expected parameters."""
     _reset_logging_state()
-    with patch("logging.basicConfig") as mock_logging_config, \
-         patch("structlog.configure") as mock_structlog_config:
-
+    with (
+        patch("logging.basicConfig") as mock_logging_config,
+        patch("structlog.configure") as mock_structlog_config,
+    ):
         configure_logging(verbose=True, json_format=True)
 
         # Verify stdlib logging config
