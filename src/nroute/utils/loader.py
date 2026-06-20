@@ -58,16 +58,19 @@ def load_custom_class(import_str: str, expected_superclass: type | None = None) 
         # Construct a unique module name based on file path
         module_name = f"nroute.dynamic.{file_path.stem}_{hash(str(file_path)) & 0xFFFFFFFF}"
 
-        try:
-            spec = importlib.util.spec_from_file_location(module_name, file_path)
-            if spec is None or spec.loader is None:
-                raise ImportError(f"Could not load spec for Python file: {file_path}")
+        if module_name in sys.modules:
+            module = sys.modules[module_name]
+        else:
+            try:
+                spec = importlib.util.spec_from_file_location(module_name, file_path)
+                if spec is None or spec.loader is None:
+                    raise ImportError(f"Could not load spec for Python file: {file_path}")
 
-            module = importlib.util.module_from_spec(spec)
-            sys.modules[module_name] = module
-            spec.loader.exec_module(module)
-        except Exception as e:
-            raise ImportError(f"Failed to execute module from file '{file_path}': {e}") from e
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module
+                spec.loader.exec_module(module)
+            except Exception as e:
+                raise ImportError(f"Failed to execute module from file '{file_path}': {e}") from e
     else:
         # Load as a standard Python module path
         try:
