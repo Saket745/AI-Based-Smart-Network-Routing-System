@@ -37,7 +37,7 @@ def detect_cmd() -> None:
     "--allow-unsafe",
     is_flag=True,
     default=False,
-    help="Allow insecure deserialization (pickle/joblib) of models.",
+    help="Allow loading insecure model files (joblib/pickle).",
 )
 def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
     """Detect anomalies in network traffic data."""

@@ -41,13 +41,7 @@ def predict_cmd() -> None:
     show_default=True,
     help="Congestion probability threshold for flagging.",
 )
-@click.option(
-    "--allow-unsafe",
-    is_flag=True,
-    default=False,
-    help="Allow insecure deserialization (pickle/joblib) of models.",
-)
-def congestion(topo_path: str, model_path: str, threshold: float, allow_unsafe: bool) -> None:
+def congestion(topo_path: str, model_path: str, threshold: float) -> None:
     """Predict per-link congestion probabilities."""
     import pandas as pd
 
@@ -61,7 +55,7 @@ def congestion(topo_path: str, model_path: str, threshold: float, allow_unsafe: 
 
     try:
         predictor = CongestionPredictor()
-        predictor.load(model_path, allow_unsafe=allow_unsafe)
+        predictor.load(model_path)
     except ModelError as e:
         console.print(f"[red]x Failed to load model:[/red] {e}")
         raise SystemExit(1) from e
@@ -170,19 +164,8 @@ def congestion(topo_path: str, model_path: str, threshold: float, allow_unsafe: 
     show_default=True,
     help="Congestion probability threshold for flagging.",
 )
-@click.option(
-    "--allow-unsafe",
-    is_flag=True,
-    default=False,
-    help="Allow insecure deserialization (pickle/joblib) of models.",
-)
 def predict_gnn(
-    topo_path: str,
-    model_type: str,
-    model_dir: str,
-    version: str,
-    threshold: float,
-    allow_unsafe: bool,
+    topo_path: str, model_type: str, model_dir: str, version: str, threshold: float
 ) -> None:
     """Predict link congestion and latency using trained GNN models."""
     import torch
@@ -214,7 +197,7 @@ def predict_gnn(
     # 2. Load model state via ModelStore
     try:
         store = ModelStore(base_dir=model_dir)
-        store.load_model(model, name=model_type.lower(), version=version, allow_unsafe=allow_unsafe)
+        store.load_model(model, name=model_type.lower(), version=version)
     except Exception as e:
         console.print(f"[red]x Failed to load model {model_type} (version {version}):[/red] {e}")
         raise SystemExit(1) from e

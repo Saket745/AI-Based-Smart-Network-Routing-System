@@ -6,7 +6,6 @@ import json
 import os
 import tempfile
 import zipfile
-from typing import Any
 
 import joblib
 import numpy as np
@@ -127,7 +126,7 @@ def test_congestion_predictor_security(dummy_dataset: tuple[pd.DataFrame, np.nda
     _df, _labels = dummy_dataset
 
     class Malicious:
-        def __reduce__(self) -> Any:
+        def __reduce__(self):
             return (os.system, ("touch VULNERABLE",))
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -164,7 +163,7 @@ def test_congestion_predictor_security(dummy_dataset: tuple[pd.DataFrame, np.nda
                 pass
 
             @property
-            def is_trained(self) -> bool:
+            def is_trained(self):
                 return True
 
         predictor_custom = CongestionPredictor(model_type="custom", custom_model=CustomNoSave())

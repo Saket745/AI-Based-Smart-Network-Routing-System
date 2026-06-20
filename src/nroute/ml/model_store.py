@@ -78,9 +78,7 @@ class ModelStore:
         except Exception as e:
             raise ModelError(f"Failed to save model {name} (version {version}): {e}") from e
 
-    def load_model(
-        self, model: Any, name: str, version: str | None = None, allow_unsafe: bool = False
-    ) -> str:
+    def load_model(self, model: Any, name: str, version: str | None = None) -> str:
         """
         Load a model from the store and verify its checksum integrity.
 
@@ -88,8 +86,6 @@ class ModelStore:
             model: The predictor or detector instance to populate (has load() method).
             name: The name of the model to load.
             version: The version to load. If None, loads the latest version by timestamp.
-            allow_unsafe: If True, allows insecure deserialization if the model's load()
-                         method supports it.
 
         Returns:
             The loaded model's file path as a string.
@@ -150,15 +146,7 @@ class ModelStore:
             )
 
         try:
-            # Check if load() accepts allow_unsafe
-            import inspect
-
-            sig = inspect.signature(model.load)
-            if "allow_unsafe" in sig.parameters:
-                model.load(str(model_path), allow_unsafe=allow_unsafe)
-            else:
-                model.load(str(model_path))
-
+            model.load(str(model_path))
             logger.info(
                 "Model loaded and verified",
                 name=name,

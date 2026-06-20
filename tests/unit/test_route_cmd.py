@@ -2,13 +2,23 @@
 
 from __future__ import annotations
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
 
-from nroute.cli.route_cmd import route_cmd
+import nroute.cli.route_cmd
 from nroute.exceptions import RoutingError
+
+# In Python 3.10+, nroute.cli.route_cmd might refer to the Click group
+# because of how it's imported in nroute/cli/__init__.py.
+# We explicitly get the module from sys.modules to patch its attributes.
+import nroute.cli.route_cmd as route_cmd_mod
+if not isinstance(route_cmd_mod, type(sys)):
+    route_cmd_mod = sys.modules["nroute.cli.route_cmd"]
+
+route_cmd = route_cmd_mod.route_cmd
 
 
 @pytest.fixture
@@ -42,296 +52,276 @@ def mock_topology() -> MagicMock:
 class TestRouteComputeCLI:
     """Tests for `nroute route compute` command."""
 
-    @patch("nroute.cli.route_cmd.Topology.load")
-    @patch("nroute.cli.route_cmd.get_router")
-    @patch("nroute.cli.route_cmd.RouteMetrics.from_path")
     def test_compute_success(
         self,
-        mock_metrics_cls: MagicMock,
-        mock_get_router: MagicMock,
-        mock_topo_load: MagicMock,
         runner: CliRunner,
         topo_file: str,
         mock_topology: MagicMock,
     ) -> None:
         """Test successful route computation with default algorithm."""
-        mock_topo_load.return_value = mock_topology
-        mock_router = MagicMock()
-        mock_router.compute_path.return_value = ["A", "B"]
-        mock_get_router.return_value = mock_router
+        with patch.object(route_cmd_mod.Topology, "load", return_value=mock_topology), \
+             patch.object(route_cmd_mod, "get_router") as mock_get_router, \
+             patch.object(route_cmd_mod.RouteMetrics, "from_path") as mock_metrics_from_path:
 
-        mock_metrics = MagicMock()
-        mock_metrics.total_hops = 1
-        mock_metrics.total_latency = 10.5
-        mock_metrics.bottleneck_bandwidth = 1000.0
-        mock_metrics.bottleneck_utilization = 0.25
-        mock_metrics_cls.return_value = mock_metrics
+            mock_router = MagicMock()
+            mock_router.compute_path.return_value = ["A", "B"]
+            mock_get_router.return_value = mock_router
 
-        result = runner.invoke(
-            route_cmd,
-            [
-                "compute",
-                "--topology",
-                topo_file,
-                "--source",
-                "A",
-                "--destination",
-                "B",
-            ],
-        )
+            mock_metrics = MagicMock()
+            mock_metrics.total_hops = 1
+            mock_metrics.total_latency = 10.5
+            mock_metrics.bottleneck_bandwidth = 1000.0
+            mock_metrics.bottleneck_utilization = 0.25
+            mock_metrics_from_path.return_value = mock_metrics
 
-        assert result.exit_code == 0
-        assert "Route: A -> B" in result.output
-        assert "Path: A -> B" in result.output
-        assert "10.50 ms" in result.output
-        assert "1000 Mbps" in result.output
-        mock_get_router.assert_called_once_with("dijkstra", topology=mock_topology)
+            result = runner.invoke(
+                route_cmd,
+                [
+                    "compute",
+                    "--topology",
+                    topo_file,
+                    "--source",
+                    "A",
+                    "--destination",
+                    "B",
+                ],
+            )
 
-    @patch("nroute.cli.route_cmd.Topology.load")
+            assert result.exit_code == 0
+            assert "Route: A -> B" in result.output
+            assert "Path: A -> B" in result.output
+            assert "10.50 ms" in result.output
+            assert "1000 Mbps" in result.output
+            mock_get_router.assert_called_once_with("dijkstra", topology=mock_topology)
+
     def test_compute_topology_load_fail(
-        self, mock_topo_load: MagicMock, runner: CliRunner, topo_file: str
+        self, runner: CliRunner, topo_file: str
     ) -> None:
         """Test failure when topology cannot be loaded."""
-        mock_topo_load.side_effect = Exception("File not found")
+        with patch.object(route_cmd_mod.Topology, "load", side_effect=Exception("File not found")):
+            result = runner.invoke(
+                route_cmd,
+                [
+                    "compute",
+                    "--topology",
+                    topo_file,
+                    "--source",
+                    "A",
+                    "--destination",
+                    "B",
+                ],
+            )
 
-        result = runner.invoke(
-            route_cmd,
-            [
-                "compute",
-                "--topology",
-                topo_file,
-                "--source",
-                "A",
-                "--destination",
-                "B",
-            ],
-        )
+            assert result.exit_code != 0
+            assert "Failed to load topology" in result.output
 
-        assert result.exit_code != 0
-        assert "Failed to load topology" in result.output
-
-    @patch("nroute.cli.route_cmd.Topology.load")
     def test_compute_invalid_nodes(
         self,
-        mock_topo_load: MagicMock,
         runner: CliRunner,
         topo_file: str,
         mock_topology: MagicMock,
     ) -> None:
         """Test failure when source or destination nodes are missing."""
-        mock_topo_load.return_value = mock_topology
+        with patch.object(route_cmd_mod.Topology, "load", return_value=mock_topology):
+            # Invalid source
+            result = runner.invoke(
+                route_cmd,
+                [
+                    "compute",
+                    "--topology",
+                    topo_file,
+                    "--source",
+                    "Z",
+                    "--destination",
+                    "B",
+                ],
+            )
+            assert result.exit_code == 1
+            assert "Source node 'Z' not found" in result.output
 
-        # Invalid source
-        result = runner.invoke(
-            route_cmd,
-            [
-                "compute",
-                "--topology",
-                topo_file,
-                "--source",
-                "Z",
-                "--destination",
-                "B",
-            ],
-        )
-        assert result.exit_code == 1
-        assert "Source node 'Z' not found" in result.output
+            # Invalid destination
+            result = runner.invoke(
+                route_cmd,
+                [
+                    "compute",
+                    "--topology",
+                    topo_file,
+                    "--source",
+                    "A",
+                    "--destination",
+                    "Z",
+                ],
+            )
+            assert result.exit_code == 1
+            assert "Destination node 'Z' not found" in result.output
 
-        # Invalid destination
-        result = runner.invoke(
-            route_cmd,
-            [
-                "compute",
-                "--topology",
-                topo_file,
-                "--source",
-                "A",
-                "--destination",
-                "Z",
-            ],
-        )
-        assert result.exit_code == 1
-        assert "Destination node 'Z' not found" in result.output
-
-    @patch("nroute.cli.route_cmd.Topology.load")
-    @patch("nroute.cli.route_cmd.get_router")
     def test_compute_routing_error(
         self,
-        mock_get_router: MagicMock,
-        mock_topo_load: MagicMock,
         runner: CliRunner,
         topo_file: str,
         mock_topology: MagicMock,
     ) -> None:
         """Test handling of RoutingError."""
-        mock_topo_load.return_value = mock_topology
-        mock_router = MagicMock()
-        mock_router.compute_path.side_effect = RoutingError("No path found")
-        mock_get_router.return_value = mock_router
+        with patch.object(route_cmd_mod.Topology, "load", return_value=mock_topology), \
+             patch.object(route_cmd_mod, "get_router") as mock_get_router:
 
-        result = runner.invoke(
-            route_cmd,
-            [
-                "compute",
-                "--topology",
-                topo_file,
-                "--source",
-                "A",
-                "--destination",
-                "B",
-            ],
-        )
+            mock_router = MagicMock()
+            mock_router.compute_path.side_effect = RoutingError("No path found")
+            mock_get_router.return_value = mock_router
 
-        assert result.exit_code != 0
-        assert "Routing error: No path found" in result.output
+            result = runner.invoke(
+                route_cmd,
+                [
+                    "compute",
+                    "--topology",
+                    topo_file,
+                    "--source",
+                    "A",
+                    "--destination",
+                    "B",
+                ],
+            )
 
-    @patch("nroute.cli.route_cmd.Topology.load")
-    @patch("nroute.utils.loader.load_custom_class")
-    @patch("nroute.cli.route_cmd.RouteMetrics.from_path")
+            assert result.exit_code != 0
+            assert "Routing error: No path found" in result.output
+
     def test_compute_custom_router(
         self,
-        mock_metrics_cls: MagicMock,
-        mock_load_custom: MagicMock,
-        mock_topo_load: MagicMock,
         runner: CliRunner,
         topo_file: str,
         mock_topology: MagicMock,
     ) -> None:
         """Test route computation with a custom router class."""
-        mock_topo_load.return_value = mock_topology
+        with patch.object(route_cmd_mod.Topology, "load", return_value=mock_topology), \
+             patch("nroute.utils.loader.load_custom_class") as mock_load_custom, \
+             patch.object(route_cmd_mod.RouteMetrics, "from_path") as mock_metrics_from_path:
 
-        class FakeRouter:
-            def __init__(self, topology=None):
-                self.topology = topology
+            class FakeRouter:
+                def __init__(self, topology=None):
+                    self.topology = topology
 
-            def compute_path(self, topo, s, d, weight=None):
-                return [s, d]
+                def compute_path(self, topo, s, d, weight=None):
+                    return [s, d]
 
-        mock_load_custom.return_value = FakeRouter
-        mock_metrics = MagicMock()
-        mock_metrics.total_hops = 1
-        mock_metrics.total_latency = 5.0
-        mock_metrics.bottleneck_bandwidth = 500.0
-        mock_metrics.bottleneck_utilization = 0.5
-        mock_metrics_cls.return_value = mock_metrics
+            mock_load_custom.return_value = FakeRouter
+            mock_metrics = MagicMock()
+            mock_metrics.total_hops = 1
+            mock_metrics.total_latency = 5.0
+            mock_metrics.bottleneck_bandwidth = 500.0
+            mock_metrics.bottleneck_utilization = 0.5
+            mock_metrics_from_path.return_value = mock_metrics
 
-        result = runner.invoke(
-            route_cmd,
-            [
-                "compute",
-                "--topology",
-                topo_file,
-                "--algorithm",
-                "custom",
-                "--custom-router",
-                "my_mod.MyRouter",
-                "--source",
-                "A",
-                "--destination",
-                "B",
-            ],
-        )
+            result = runner.invoke(
+                route_cmd,
+                [
+                    "compute",
+                    "--topology",
+                    topo_file,
+                    "--algorithm",
+                    "custom",
+                    "--custom-router",
+                    "my_mod.MyRouter",
+                    "--source",
+                    "A",
+                    "--destination",
+                    "B",
+                ],
+            )
 
-        assert result.exit_code == 0
-        assert "Path: A -> B" in result.output
-        mock_load_custom.assert_called_once()
+            assert result.exit_code == 0
+            assert "Path: A -> B" in result.output
+            mock_load_custom.assert_called_once()
 
-    @patch("nroute.cli.route_cmd.Topology.load")
     def test_compute_custom_without_option(
-        self, mock_topo_load: MagicMock, runner: CliRunner, topo_file: str
+        self, runner: CliRunner, topo_file: str
     ) -> None:
         """Test failure when algorithm is 'custom' but --custom-router is missing."""
-        mock_topo_load.return_value = MagicMock(nodes=["A", "B"])
-        result = runner.invoke(
-            route_cmd,
-            [
-                "compute",
-                "--topology",
-                topo_file,
-                "--algorithm",
-                "custom",
-                "--source",
-                "A",
-                "--destination",
-                "B",
-            ],
-        )
+        with patch.object(route_cmd_mod.Topology, "load", return_value=MagicMock(nodes=["A", "B"])):
+            result = runner.invoke(
+                route_cmd,
+                [
+                    "compute",
+                    "--topology",
+                    topo_file,
+                    "--algorithm",
+                    "custom",
+                    "--source",
+                    "A",
+                    "--destination",
+                    "B",
+                ],
+            )
 
-        assert result.exit_code != 0
-        assert "Option '--custom-router' is required" in result.output
+            assert result.exit_code != 0
+            assert "Option '--custom-router' is required" in result.output
 
-    @patch("nroute.cli.route_cmd.Topology.load")
-    @patch("nroute.cli.route_cmd.get_router")
     def test_compute_general_exception(
         self,
-        mock_get_router: MagicMock,
-        mock_topo_load: MagicMock,
         runner: CliRunner,
         topo_file: str,
         mock_topology: MagicMock,
     ) -> None:
         """Test handling of general exceptions during computation."""
-        mock_topo_load.return_value = mock_topology
-        mock_router = MagicMock()
-        mock_router.compute_path.side_effect = Exception("Unknown error")
-        mock_get_router.return_value = mock_router
+        with patch.object(route_cmd_mod.Topology, "load", return_value=mock_topology), \
+             patch.object(route_cmd_mod, "get_router") as mock_get_router:
 
-        result = runner.invoke(
-            route_cmd,
-            [
-                "compute",
-                "--topology",
-                topo_file,
-                "--source",
-                "A",
-                "--destination",
-                "B",
-            ],
-        )
+            mock_router = MagicMock()
+            mock_router.compute_path.side_effect = Exception("Unknown error")
+            mock_get_router.return_value = mock_router
 
-        assert result.exit_code == 1
-        assert "Failed to compute route: Unknown error" in result.output
+            result = runner.invoke(
+                route_cmd,
+                [
+                    "compute",
+                    "--topology",
+                    topo_file,
+                    "--source",
+                    "A",
+                    "--destination",
+                    "B",
+                ],
+            )
 
-    @patch("nroute.cli.route_cmd.Topology.load")
-    @patch("nroute.cli.route_cmd.get_router")
-    @patch("nroute.cli.route_cmd.RouteMetrics.from_path")
+            assert result.exit_code == 1
+            assert "Failed to compute route: Unknown error" in result.output
+
     def test_compute_hop_breakdown_error(
         self,
-        mock_metrics_cls: MagicMock,
-        mock_get_router: MagicMock,
-        mock_topo_load: MagicMock,
         runner: CliRunner,
         topo_file: str,
         mock_topology: MagicMock,
     ) -> None:
         """Test that hop breakdown handles edge data retrieval errors gracefully."""
-        mock_topo_load.return_value = mock_topology
-        mock_router = MagicMock()
-        mock_router.compute_path.return_value = ["A", "B"]
-        mock_get_router.return_value = mock_router
+        with patch.object(route_cmd_mod.Topology, "load", return_value=mock_topology), \
+             patch.object(route_cmd_mod, "get_router") as mock_get_router, \
+             patch.object(route_cmd_mod.RouteMetrics, "from_path") as mock_metrics_from_path:
 
-        mock_metrics = MagicMock()
-        mock_metrics.total_hops = 1
-        mock_metrics.total_latency = 10.0
-        mock_metrics.bottleneck_bandwidth = 100.0
-        mock_metrics.bottleneck_utilization = 0.1
-        mock_metrics_cls.return_value = mock_metrics
+            mock_router = MagicMock()
+            mock_router.compute_path.return_value = ["A", "B"]
+            mock_get_router.return_value = mock_router
 
-        # Make topo.get_edge fail for the breakdown
-        mock_topology.get_edge.side_effect = Exception("Edge error")
+            mock_metrics = MagicMock()
+            mock_metrics.total_hops = 1
+            mock_metrics.total_latency = 10.0
+            mock_metrics.bottleneck_bandwidth = 100.0
+            mock_metrics.bottleneck_utilization = 0.1
+            mock_metrics_from_path.return_value = mock_metrics
 
-        result = runner.invoke(
-            route_cmd,
-            [
-                "compute",
-                "--topology",
-                topo_file,
-                "--source",
-                "A",
-                "--destination",
-                "B",
-            ],
-        )
+            # Make topo.get_edge fail for the breakdown
+            mock_topology.get_edge.side_effect = Exception("Edge error")
 
-        assert result.exit_code == 0
-        assert "?" in result.output  # Should show '?' for latency/bandwidth/etc.
+            result = runner.invoke(
+                route_cmd,
+                [
+                    "compute",
+                    "--topology",
+                    topo_file,
+                    "--source",
+                    "A",
+                    "--destination",
+                    "B",
+                ],
+            )
+
+            assert result.exit_code == 0
+            assert "?" in result.output  # Should show '?' for latency/bandwidth/etc.
