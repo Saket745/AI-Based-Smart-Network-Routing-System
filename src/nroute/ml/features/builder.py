@@ -67,8 +67,8 @@ class FeatureBuilder:
             congestion_score = queue_len / capacity_raw if capacity_raw > 0 else 0.0
 
             # Topological metrics
-            btw_cent = float(betweenness.get(node, 0.0))
-            cls_cent = float(closeness.get(node, 0.0))
+            btw_cent = betweenness.get(node, 0.0)
+            cls_cent = closeness.get(node, 0.0)
 
             node_features.append(
                 [
