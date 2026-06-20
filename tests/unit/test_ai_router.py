@@ -157,9 +157,10 @@ def test_ai_router_train_all(small_graph_data: dict[str, Any]) -> None:
     feat_anom = pd.DataFrame({"feat1": [1, 2, 3]})
 
     # Mock the underlying trainers to avoid actual ML training overhead
-    with patch.object(router.congestion_predictor, "train") as mock_train_cong, patch.object(
-        router.anomaly_detector, "fit"
-    ) as mock_fit_anom:
+    with (
+        patch.object(router.congestion_predictor, "train") as mock_train_cong,
+        patch.object(router.anomaly_detector, "fit") as mock_fit_anom,
+    ):
         mock_train_cong.return_value = {"accuracy": 0.9}
 
         results = router.train(
@@ -180,16 +181,18 @@ def test_ai_router_save_load(tmp_path: Any) -> None:
     router = AIRouter()
     save_path = str(tmp_path / "ai_model")
 
-    with patch.object(router.congestion_predictor, "save") as mock_save_cong, patch.object(
-        router.anomaly_detector, "save"
-    ) as mock_save_anom:
+    with (
+        patch.object(router.congestion_predictor, "save") as mock_save_cong,
+        patch.object(router.anomaly_detector, "save") as mock_save_anom,
+    ):
         router.save(save_path)
         mock_save_cong.assert_called_with(f"{save_path}.congestion")
         mock_save_anom.assert_called_with(f"{save_path}.anomaly")
 
-    with patch.object(router.congestion_predictor, "load") as mock_load_cong, patch.object(
-        router.anomaly_detector, "load"
-    ) as mock_load_anom:
+    with (
+        patch.object(router.congestion_predictor, "load") as mock_load_cong,
+        patch.object(router.anomaly_detector, "load") as mock_load_anom,
+    ):
         # Mock load state
         def side_effect_cong(*args: Any, **kwargs: Any) -> None:
             router.congestion_predictor.is_trained = True
@@ -251,18 +254,18 @@ def test_ai_router_predict_methods(small_graph_data: dict[str, Any]) -> None:
 
     tm = TrafficMatrix(flows=[])
 
-    with patch(
-        "nroute.routing.ai.extract_congestion_features"
-    ) as mock_feat_cong, patch.object(
-        router.congestion_predictor, "predict"
-    ) as mock_pred_cong:
+    with (
+        patch("nroute.routing.ai.extract_congestion_features") as mock_feat_cong,
+        patch.object(router.congestion_predictor, "predict") as mock_pred_cong,
+    ):
         router.predict_congestion(topo, [])
         mock_feat_cong.assert_called_once()
         mock_pred_cong.assert_called_once()
 
-    with patch("nroute.routing.ai.extract_anomaly_features") as mock_feat_anom, patch.object(
-        router.anomaly_detector, "detect"
-    ) as mock_det_anom:
+    with (
+        patch("nroute.routing.ai.extract_anomaly_features") as mock_feat_anom,
+        patch.object(router.anomaly_detector, "detect") as mock_det_anom,
+    ):
         router.detect_anomalies(tm)
         mock_feat_anom.assert_called_once()
         mock_det_anom.assert_called_once()
