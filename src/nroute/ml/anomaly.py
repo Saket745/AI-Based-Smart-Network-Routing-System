@@ -293,7 +293,9 @@ class AnomalyDetector:
         if not self.is_trained:
             raise ModelError("Cannot save an untrained model.")
 
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        dirname = os.path.dirname(path)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
 
         save_dict = {
             "model_type": self.model_type,

@@ -6,6 +6,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 from nroute.core.topology import Topology
+from nroute.exceptions import TopologyError
 from nroute.routing.dijkstra import DijkstraRouter
 from nroute.simulation.engine import SimulationEngine
 from nroute.simulation.traffic_gen import TrafficGenerator
@@ -59,3 +60,65 @@ def test_live_console_basic_logging() -> None:
     engine.topology.set_node_up("A")
     console_viz.update_events(tick=1)
     assert any("Node A recovered (UP)" in event for event in console_viz.event_log)
+
+
+def test_live_console_event_handling() -> None:
+    """Verify LiveSimulationConsole handles various simulation events."""
+    topo = Topology()
+    topo.add_node("A", type="router")
+    topo.add_node("B", type="router")
+    topo.add_edge("A", "B", bandwidth=1000, latency=5)
+
+    router = DijkstraRouter()
+    traffic = TrafficGenerator(model="uniform", n_flows_per_tick=1)
+    engine = SimulationEngine(topo, router, traffic)
+
+    console_viz = LiveSimulationConsole(engine, duration_ticks=5, delay=0.0)
+
+    # Test flow completion logging
+    mock_flow = MagicMock()
+    mock_flow.source = "A"
+    mock_flow.destination = "B"
+    mock_flow.bytes = 1000
+    mock_flow.duration = 0.005
+    engine.last_tick_completed_flows = [mock_flow]
+
+    # Test flow drop logging
+    engine.last_tick_dropped_flows = [(mock_flow, "TTL Exceeded")]
+
+    # Test reroute logging
+    engine.last_tick_reroute_count = 1
+
+    console_viz.update_events(tick=2)
+    assert any("Flow A ➔ B completed" in event for event in console_viz.event_log)
+    assert any("Flow A ➔ B DROPPED" in event for event in console_viz.event_log)
+    assert any("Mid-flow rerouting triggered" in event for event in console_viz.event_log)
+
+    # Test event log rotation
+    for i in range(100):
+        console_viz.log_event(f"Event {i}")
+    assert len(console_viz.event_log) == 50
+
+
+def test_live_console_error_handling() -> None:
+    """Verify LiveSimulationConsole handles and logs topology access errors."""
+    topo = Topology()
+    topo.add_node("A", type="router")
+    topo.add_node("B", type="router")
+    topo.add_edge("A", "B", bandwidth=1000, latency=5)
+
+    router = DijkstraRouter()
+    traffic = TrafficGenerator(model="uniform", n_flows_per_tick=1)
+    engine = SimulationEngine(topo, router, traffic)
+
+    console_viz = LiveSimulationConsole(engine, duration_ticks=5, delay=0.0)
+
+    # Mock get_edge and get_node to raise TopologyError
+    with (
+        patch.object(engine.topology, "get_edge", side_effect=TopologyError("Edge error")),
+        patch.object(engine.topology, "get_node", side_effect=TopologyError("Node error")),
+        patch("nroute.visualization.live_console.logger") as mock_logger,
+    ):
+        console_viz.update_events(tick=0)
+        # Verify errors were logged
+        assert mock_logger.error.called
