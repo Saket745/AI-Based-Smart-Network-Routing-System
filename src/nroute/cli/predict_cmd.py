@@ -41,7 +41,13 @@ def predict_cmd() -> None:
     show_default=True,
     help="Congestion probability threshold for flagging.",
 )
-def congestion(topo_path: str, model_path: str, threshold: float) -> None:
+@click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading of unsafe models (joblib/pickle).",
+)
+def congestion(topo_path: str, model_path: str, threshold: float, allow_unsafe: bool) -> None:
     """Predict per-link congestion probabilities."""
     import pandas as pd
 
@@ -55,7 +61,7 @@ def congestion(topo_path: str, model_path: str, threshold: float) -> None:
 
     try:
         predictor = CongestionPredictor()
-        predictor.load(model_path)
+        predictor.load(model_path, allow_unsafe=allow_unsafe)
     except ModelError as e:
         console.print(f"[red]x Failed to load model:[/red] {e}")
         raise SystemExit(1) from e
