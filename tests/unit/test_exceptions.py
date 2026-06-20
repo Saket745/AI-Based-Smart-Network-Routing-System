@@ -74,8 +74,7 @@ def test_subclass_inheritance() -> None:
     with pytest.raises(NRouteError):
         raise TopologyError("topology failed")
 
-    try:
+    with pytest.raises(NRouteError) as exc_info:
         raise ValidationError("invalid")
-    except NRouteError as e:
-        assert isinstance(e, ValidationError)
-        assert e.message == "invalid"
+    assert isinstance(exc_info.value, ValidationError)
+    assert exc_info.value.message == "invalid"
