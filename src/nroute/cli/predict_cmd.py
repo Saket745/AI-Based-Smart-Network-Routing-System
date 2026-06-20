@@ -45,7 +45,7 @@ def predict_cmd() -> None:
     "--allow-unsafe",
     is_flag=True,
     default=False,
-    help="Allow insecure deserialization (pickle/joblib) of models.",
+    help="Allow loading of unsafe models (joblib/pickle).",
 )
 def congestion(topo_path: str, model_path: str, threshold: float, allow_unsafe: bool) -> None:
     """Predict per-link congestion probabilities."""
@@ -174,7 +174,7 @@ def congestion(topo_path: str, model_path: str, threshold: float, allow_unsafe: 
     "--allow-unsafe",
     is_flag=True,
     default=False,
-    help="Allow insecure deserialization (pickle/joblib) of models.",
+    help="Allow loading of unsafe models (joblib/pickle).",
 )
 def predict_gnn(
     topo_path: str,
