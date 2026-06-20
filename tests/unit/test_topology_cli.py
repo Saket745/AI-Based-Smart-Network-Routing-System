@@ -118,15 +118,11 @@ class TestTopologyGenerateCLI:
         mock_topology.save.assert_called_once_with(str(out_file))
 
     @patch("nroute.cli.topology_cmd.TopologyGenerator.random")
-    def test_generate_topology_error(
-        self, mock_random: MagicMock, runner: CliRunner
-    ) -> None:
+    def test_generate_topology_error(self, mock_random: MagicMock, runner: CliRunner) -> None:
         """Test handling of TopologyError during generation."""
         mock_random.side_effect = TopologyError("Generation failed")
 
-        result = runner.invoke(
-            topology_cmd, ["generate", "--type", "random"], obj={"seed": 1}
-        )
+        result = runner.invoke(topology_cmd, ["generate", "--type", "random"], obj={"seed": 1})
 
         assert result.exit_code != 0
         assert "Topology error: Generation failed" in result.output
@@ -157,9 +153,7 @@ class TestTopologyShowCLI:
         mock_load.assert_called_once_with(topo_file)
 
     @patch("nroute.cli.topology_cmd.Topology.load")
-    def test_show_load_fail(
-        self, mock_load: MagicMock, runner: CliRunner, topo_file: str
-    ) -> None:
+    def test_show_load_fail(self, mock_load: MagicMock, runner: CliRunner, topo_file: str) -> None:
         """Test failure when topology file cannot be loaded."""
         mock_load.side_effect = Exception("Invalid JSON")
 
