@@ -14,17 +14,20 @@ to isolate root failures.
 
 from __future__ import annotations
 
+import contextlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
-from nroute.core.topology import Topology
 from nroute.exceptions import SimulationError
 from nroute.utils.logging import get_logger
+
+if TYPE_CHECKING:
+    from nroute.core.topology import Topology
 
 logger = get_logger(__name__)
 
@@ -121,32 +124,36 @@ class RCAResult:
 # Maps event_type substrings to categories and severities
 _TYPE_RULES: list[tuple[list[str], EventCategory, EventSeverity]] = [
     # Routing events (Priority 1)
-    (["bgp_session_down", "bgp_withdrawal", "bgp_down", "bgp_flap"],
-     EventCategory.ROUTING, EventSeverity.CRITICAL),
-    (["ospf_adjacency_loss", "ospf_nbr_down", "ospf_neighbor_down"],
-     EventCategory.ROUTING, EventSeverity.CRITICAL),
-    (["ospf_recalculation", "ospf_spf", "ospf_route_change"],
-     EventCategory.ROUTING, EventSeverity.ERROR),
-    (["ecmp_change", "route_change", "routing_table_change"],
-     EventCategory.ROUTING, EventSeverity.WARNING),
+    (
+        ["bgp_session_down", "bgp_withdrawal", "bgp_down", "bgp_flap"],
+        EventCategory.ROUTING,
+        EventSeverity.CRITICAL,
+    ),
+    (
+        ["ospf_adjacency_loss", "ospf_nbr_down", "ospf_neighbor_down"],
+        EventCategory.ROUTING,
+        EventSeverity.CRITICAL,
+    ),
+    (
+        ["ospf_recalculation", "ospf_spf", "ospf_route_change"],
+        EventCategory.ROUTING,
+        EventSeverity.ERROR,
+    ),
+    (
+        ["ecmp_change", "route_change", "routing_table_change"],
+        EventCategory.ROUTING,
+        EventSeverity.WARNING,
+    ),
     # Interface events (Priority 2)
-    (["link_down", "interface_down", "port_down"],
-     EventCategory.INTERFACE, EventSeverity.CRITICAL),
-    (["link_up", "interface_up", "port_up"],
-     EventCategory.INTERFACE, EventSeverity.INFO),
-    (["interface_flap", "link_flap"],
-     EventCategory.INTERFACE, EventSeverity.ERROR),
-    (["crc_error", "crc_errors", "frame_errors"],
-     EventCategory.INTERFACE, EventSeverity.WARNING),
-    (["port_disabled"],
-     EventCategory.INTERFACE, EventSeverity.WARNING),
+    (["link_down", "interface_down", "port_down"], EventCategory.INTERFACE, EventSeverity.CRITICAL),
+    (["link_up", "interface_up", "port_up"], EventCategory.INTERFACE, EventSeverity.INFO),
+    (["interface_flap", "link_flap"], EventCategory.INTERFACE, EventSeverity.ERROR),
+    (["crc_error", "crc_errors", "frame_errors"], EventCategory.INTERFACE, EventSeverity.WARNING),
+    (["port_disabled"], EventCategory.INTERFACE, EventSeverity.WARNING),
     # Syslog events (Priority 3)
-    (["syslog_critical"],
-     EventCategory.SYSLOG, EventSeverity.CRITICAL),
-    (["syslog_error"],
-     EventCategory.SYSLOG, EventSeverity.ERROR),
-    (["syslog_warning"],
-     EventCategory.SYSLOG, EventSeverity.WARNING),
+    (["syslog_critical"], EventCategory.SYSLOG, EventSeverity.CRITICAL),
+    (["syslog_error"], EventCategory.SYSLOG, EventSeverity.ERROR),
+    (["syslog_warning"], EventCategory.SYSLOG, EventSeverity.WARNING),
 ]
 
 
@@ -186,9 +193,7 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
             elif p.suffix.lower() == ".json":
                 raw = json.load(f)
             else:
-                raise SimulationError(
-                    f"Unsupported events file extension '{p.suffix}'."
-                )
+                raise SimulationError(f"Unsupported events file extension '{p.suffix}'.")
     except Exception as exc:
         if isinstance(exc, SimulationError):
             raise
@@ -202,9 +207,7 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
                     raw = raw[key]
                     break
             else:
-                raise SimulationError(
-                    "Events file must be a list or contain an 'events' key."
-                )
+                raise SimulationError("Events file must be a list or contain an 'events' key.")
         else:
             raise SimulationError("Events file must be a list of event records.")
 
@@ -222,8 +225,12 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
                 interface=str(item.get("interface", "")),
                 peer_node=str(item.get("peer_node", "")),
                 event_type=str(item.get("event_type", "")),
-                category=EventCategory(cat) if cat in EventCategory.__members__.values() else EventCategory.UNKNOWN,
-                severity=EventSeverity(sev) if sev in EventSeverity.__members__.values() else EventSeverity.INFO,
+                category=EventCategory(cat)
+                if cat in EventCategory.__members__.values()
+                else EventCategory.UNKNOWN,
+                severity=EventSeverity(sev)
+                if sev in EventSeverity.__members__.values()
+                else EventSeverity.INFO,
                 message=str(item.get("message", "")),
                 raw=item,
             )
@@ -295,10 +302,7 @@ class RCACorrelator:
             if evt.priority < root_candidate.priority:
                 root_candidate = evt
                 break
-            if (
-                evt.priority == root_candidate.priority
-                and evt.timestamp < root_candidate.timestamp
-            ):
+            if evt.priority == root_candidate.priority and evt.timestamp < root_candidate.timestamp:
                 root_candidate = evt
 
         result.root_cause = root_candidate
@@ -316,15 +320,11 @@ class RCACorrelator:
 
         # Expand to topology neighbours of the failing link
         if root_node and root_node in self.topology.nodes:
-            try:
+            with contextlib.suppress(Exception):
                 downstream_nodes.update(self.topology.neighbors(root_node))
-            except Exception:
-                pass
         if root_peer and root_peer in self.topology.nodes:
-            try:
+            with contextlib.suppress(Exception):
                 downstream_nodes.update(self.topology.neighbors(root_peer))
-            except Exception:
-                pass
 
         for evt in sorted_events:
             if evt is root_candidate:

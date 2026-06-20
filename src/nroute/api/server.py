@@ -15,14 +15,12 @@ Designed for SPA consumption with CORS enabled.
 
 from __future__ import annotations
 
-import json
 import tempfile
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from nroute.core.openconfig import ConfigChange
@@ -102,7 +100,7 @@ def load_topology(req: TopologyLoadRequest) -> dict[str, Any]:
             "edges": topo.edge_count,
         }
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/topology")
@@ -111,23 +109,19 @@ def get_topology() -> dict[str, Any]:
     engine = get_engine()
     try:
         return engine.topology.to_dict()
-    except RuntimeError:
-        raise HTTPException(
-            status_code=400, detail="No topology loaded."
-        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail="No topology loaded.") from exc
 
 
 @app.post("/api/config/ingest")
-async def ingest_config(file: UploadFile = File(...)) -> dict[str, Any]:
+async def ingest_config(file: UploadFile = File(...)) -> dict[str, Any]:  # noqa: B008
     """Upload and ingest a device config file."""
     engine = get_engine()
     content = await file.read()
 
     # Write to a temp file for the parser
     suffix = Path(file.filename or "config.yaml").suffix
-    with tempfile.NamedTemporaryFile(
-        mode="wb", suffix=suffix, delete=False
-    ) as tmp:
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=suffix, delete=False) as tmp:
         tmp.write(content)
         tmp_path = tmp.name
 
@@ -138,7 +132,7 @@ async def ingest_config(file: UploadFile = File(...)) -> dict[str, Any]:
             "devices_applied": hostnames,
         }
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
@@ -152,9 +146,9 @@ def simulate_impact(req: ImpactRequest) -> dict[str, Any]:
         result = engine.simulate_change(change, weight=req.weight)
         return result.to_dict()
     except RuntimeError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/rca")
@@ -179,8 +173,12 @@ def run_rca(req: RCARequest) -> dict[str, Any]:
             interface=str(item.get("interface", "")),
             peer_node=str(item.get("peer_node", "")),
             event_type=str(item.get("event_type", "")),
-            category=EventCategory(cat) if cat in [e.value for e in EventCategory] else EventCategory.UNKNOWN,
-            severity=EventSeverity(sev) if sev in [e.value for e in EventSeverity] else EventSeverity.INFO,
+            category=EventCategory(cat)
+            if cat in [e.value for e in EventCategory]
+            else EventCategory.UNKNOWN,
+            severity=EventSeverity(sev)
+            if sev in [e.value for e in EventSeverity]
+            else EventSeverity.INFO,
             message=str(item.get("message", "")),
             raw=item,
         )
@@ -190,7 +188,7 @@ def run_rca(req: RCARequest) -> dict[str, Any]:
         result = engine.diagnose(events)
         return result.to_dict()
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/reachability")
@@ -201,7 +199,7 @@ def get_reachability() -> dict[str, Any]:
         reach = engine.compute_reachability()
         return {k: sorted(v) for k, v in reach.items()}
     except RuntimeError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/audit")

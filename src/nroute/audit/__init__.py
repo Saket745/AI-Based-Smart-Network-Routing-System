@@ -250,8 +250,6 @@ class AuditTrail:
             "latest_timestamp": (
                 max(r.timestamp for r in self._records) if self._records else None
             ),
-            "unique_actors": sorted(
-                set(r.actor for r in self._records)
-            ),
+            "unique_actors": sorted(set(r.actor for r in self._records)),
             "error_count": sum(1 for r in self._records if not r.success),
         }

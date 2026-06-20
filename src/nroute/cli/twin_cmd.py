@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -218,10 +219,7 @@ def reachability_cmd(
         click.echo(f"Reachability matrix written to {output}")
     else:
         total_pairs = sum(len(v) for v in serializable.values())
-        click.echo(
-            f"Reachability: {len(serializable)} nodes, "
-            f"{total_pairs} reachable pairs"
-        )
+        click.echo(f"Reachability: {len(serializable)} nodes, {total_pairs} reachable pairs")
         click.echo(json.dumps(serializable, indent=2))
 
 
@@ -257,7 +255,7 @@ def audit_cmd(
     action: str | None,
 ) -> None:
     """View or export the audit trail."""
-    records: list[dict] = []
+    records: list[dict[str, Any]] = []
     try:
         with open(log, encoding="utf-8") as f:
             for line in f:

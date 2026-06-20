@@ -13,7 +13,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # ── Enums ────────────────────────────────────────────────────
 
 
@@ -160,7 +159,9 @@ class DeviceConfig(BaseModel):
     """
 
     hostname: str = Field(..., description="Device hostname / node-id")
-    vendor: str = Field(default="generic", description="Vendor hint (cisco, arista, juniper, generic)")
+    vendor: str = Field(
+        default="generic", description="Vendor hint (cisco, arista, juniper, generic)"
+    )
     interfaces: list[InterfaceConfig] = Field(default_factory=list)
     ospf: OSPFConfig | None = Field(default=None)
     bgp: BGPConfig | None = Field(default=None)
@@ -190,15 +191,9 @@ class ConfigChange(BaseModel):
     )
     link_changes: list[dict[str, Any]] = Field(
         default_factory=list,
-        description=(
-            "Edge-level overrides: "
-            "[{'src': 'R1', 'dst': 'R2', 'status': 'down'}, ...]"
-        ),
+        description=("Edge-level overrides: [{'src': 'R1', 'dst': 'R2', 'status': 'down'}, ...]"),
     )
     node_changes: list[dict[str, Any]] = Field(
         default_factory=list,
-        description=(
-            "Node-level overrides: "
-            "[{'id': 'R3', 'status': 'down'}, ...]"
-        ),
+        description=("Node-level overrides: [{'id': 'R3', 'status': 'down'}, ...]"),
     )

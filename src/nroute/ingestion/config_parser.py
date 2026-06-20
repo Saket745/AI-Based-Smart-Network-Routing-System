@@ -13,14 +13,16 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
 from nroute.core.openconfig import ConfigChange, DeviceConfig
-from nroute.core.topology import Topology
 from nroute.exceptions import IngestionError
 from nroute.utils.logging import get_logger
+
+if TYPE_CHECKING:
+    from nroute.core.topology import Topology
 
 logger = get_logger(__name__)
 
@@ -145,16 +147,12 @@ class ConfigParser:
                     node_updates[k] = v
 
             # Derive aggregate bandwidth from interfaces
-            iface_bw = [
-                iface.bandwidth
-                for iface in dev.interfaces
-                if iface.state.value == "up"
-            ]
+            iface_bw = [iface.bandwidth for iface in dev.interfaces if iface.state.value == "up"]
             if iface_bw:
                 node_updates["capacity"] = max(iface_bw)
 
             if node_updates:
-                node_data = topology.get_node(node_id)
+                topology.get_node(node_id)
                 # Only update extra/custom attrs — avoid overwriting validated fields
                 for k, v in node_updates.items():
                     topology._graph.nodes[node_id][k] = v
@@ -212,9 +210,7 @@ class ConfigParser:
                 logger.warning("Link change target missing", src=src, dst=dst)
                 continue
             update_attrs = {
-                k: v
-                for k, v in link_change.items()
-                if k not in {"src", "dst", "source", "target"}
+                k: v for k, v in link_change.items() if k not in {"src", "dst", "source", "target"}
             }
             if update_attrs:
                 modified.update_edge(src, dst, **update_attrs)
@@ -229,22 +225,16 @@ class ConfigParser:
         if isinstance(raw, list):
             items = raw
         elif isinstance(raw, dict):
-            if "devices" in raw:
-                items = raw["devices"]
-            else:
-                items = [raw]
+            items = raw.get("devices", [raw])
         else:
             raise IngestionError(
-                f"Config file {source} must be a dict, list, or "
-                "contain a top-level 'devices' key."
+                f"Config file {source} must be a dict, list, or contain a top-level 'devices' key."
             )
 
         configs: list[DeviceConfig] = []
         for idx, item in enumerate(items):
             if not isinstance(item, dict):
-                raise IngestionError(
-                    f"Config entry #{idx} in {source} is not a dict."
-                )
+                raise IngestionError(f"Config entry #{idx} in {source} is not a dict.")
             try:
                 configs.append(DeviceConfig.model_validate(item))
             except Exception as exc:
@@ -275,9 +265,7 @@ class ConfigParser:
                 elif iface.state.value == "up":
                     topology.set_link_up(node_id, neighbor)
                 if iface.bandwidth > 0:
-                    topology.update_edge(
-                        node_id, neighbor, bandwidth=iface.bandwidth
-                    )
+                    topology.update_edge(node_id, neighbor, bandwidth=iface.bandwidth)
 
     @staticmethod
     def _apply_ospf(topology: Topology, node_id: str, ospf: Any) -> None:

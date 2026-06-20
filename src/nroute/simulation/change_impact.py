@@ -4,7 +4,7 @@ Provides two simulation modes:
 
 * **Mode A — Analytical Engine** (default for change-impact analysis):
   Computes static reachability, ECMP paths, and steady-state load sharing
-  using graph algorithms.  Targets 1,000–10,000 nodes with millisecond
+  using graph algorithms.  Targets 1,000-10,000 nodes with millisecond
   response time.
 
 * **Mode B — Packet Engine** is the existing tick-based
@@ -17,17 +17,20 @@ analytical metrics on both states.
 
 from __future__ import annotations
 
+import itertools
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 
-from nroute.core.openconfig import ConfigChange
-from nroute.core.topology import Topology
 from nroute.exceptions import SimulationError
 from nroute.ingestion.config_parser import ConfigParser
 from nroute.utils.logging import get_logger
+
+if TYPE_CHECKING:
+    from nroute.core.openconfig import ConfigChange
+    from nroute.core.topology import Topology
 
 logger = get_logger(__name__)
 
@@ -138,9 +141,7 @@ class AnalyticalEngine:
         g = topology.graph
 
         active_nodes = [
-            n
-            for n, d in g.nodes(data=True)
-            if str(d.get("status", "up")).lower() != "down"
+            n for n, d in g.nodes(data=True) if str(d.get("status", "up")).lower() != "down"
         ]
         sub = g.subgraph(active_nodes).copy()
 
@@ -167,9 +168,7 @@ class AnalyticalEngine:
         for src in graph.nodes:
             try:
                 src_paths = nx.single_source_dijkstra_path(graph, src, weight=weight)
-                paths[src] = {
-                    dst: list(path) for dst, path in src_paths.items() if dst != src
-                }
+                paths[src] = {dst: list(path) for dst, path in src_paths.items() if dst != src}
             except nx.NetworkXError:
                 paths[src] = {}
         return paths
@@ -240,21 +239,15 @@ class ChangeImpactSimulator:
         try:
             modified = ConfigParser.apply_change(self.baseline, change)
         except Exception as exc:
-            raise SimulationError(
-                f"Failed to apply config change: {exc}"
-            ) from exc
+            raise SimulationError(f"Failed to apply config change: {exc}") from exc
 
         # Analytical graphs
         before_g = AnalyticalEngine.get_active_graph(self.baseline)
         after_g = AnalyticalEngine.get_active_graph(modified)
 
         # Compute all-pairs shortest paths
-        before_paths = AnalyticalEngine.compute_all_pairs_shortest_paths(
-            before_g, weight=weight
-        )
-        after_paths = AnalyticalEngine.compute_all_pairs_shortest_paths(
-            after_g, weight=weight
-        )
+        before_paths = AnalyticalEngine.compute_all_pairs_shortest_paths(before_g, weight=weight)
+        after_paths = AnalyticalEngine.compute_all_pairs_shortest_paths(after_g, weight=weight)
 
         # Collect all node pairs from the union of both graphs
         all_nodes = sorted(set(before_g.nodes) | set(after_g.nodes))
@@ -291,9 +284,7 @@ class ChangeImpactSimulator:
                 if ap:
                     delta.after_path = ap
                     delta.after_hops = len(ap) - 1
-                    delta.after_latency = AnalyticalEngine.compute_path_latency(
-                        after_g, ap, weight
-                    )
+                    delta.after_latency = AnalyticalEngine.compute_path_latency(after_g, ap, weight)
                     latencies_after.append(delta.after_latency)
                 else:
                     blast.unreachable_pairs_after += 1
@@ -311,8 +302,8 @@ class ChangeImpactSimulator:
                     delta.path_changed = True
                     blast.path_changed_pairs += 1
                     # Track edges that differ
-                    before_edges = set(zip(bp[:-1], bp[1:]))
-                    after_edges = set(zip(ap[:-1], ap[1:]))
+                    before_edges = set(itertools.pairwise(bp))
+                    after_edges = set(itertools.pairwise(ap))
                     blast.affected_edges.update(before_edges.symmetric_difference(after_edges))
                     blast.affected_nodes.update(set(bp) ^ set(ap))
 

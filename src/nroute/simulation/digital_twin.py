@@ -15,10 +15,9 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from nroute.audit import AuditAction, AuditTrail
-from nroute.core.openconfig import ConfigChange
 from nroute.core.topology import Topology
 from nroute.ingestion.config_parser import ConfigParser
 from nroute.simulation.change_impact import (
@@ -33,6 +32,9 @@ from nroute.simulation.rca import (
     load_events,
 )
 from nroute.utils.logging import get_logger
+
+if TYPE_CHECKING:
+    from nroute.core.openconfig import ConfigChange
 
 logger = get_logger(__name__)
 
@@ -59,9 +61,7 @@ class TopologySnapshot:
             "edge_count": self.edge_count,
             "active_nodes": self.active_nodes,
             "active_edges": self.active_edges,
-            "reachability_pairs": sum(
-                len(v) for v in self.reachability_matrix.values()
-            ),
+            "reachability_pairs": sum(len(v) for v in self.reachability_matrix.values()),
             "metadata": self.metadata,
         }
 
@@ -292,8 +292,7 @@ class DigitalTwinEngine:
             "down_nodes": down_nodes,
             "down_edges": [list(e) for e in down_edges],
             "is_strongly_connected": (
-                graph.number_of_nodes() > 0
-                and __import__("networkx").is_strongly_connected(graph)
+                graph.number_of_nodes() > 0 and __import__("networkx").is_strongly_connected(graph)
             ),
             "audit_summary": self._audit.summary(),
         }
@@ -342,9 +341,7 @@ class DigitalTwinEngine:
             )
 
         if result.affected_nodes:
-            lines.append(
-                f"  Blast radius: {len(result.affected_nodes)} node(s) affected."
-            )
+            lines.append(f"  Blast radius: {len(result.affected_nodes)} node(s) affected.")
 
         lines.append(
             "  If this change is NOT applied, these flows continue "

@@ -45,7 +45,6 @@ from nroute.simulation.rca import (
     load_events,
 )
 
-
 # ── Fixtures ─────────────────────────────────────────────────
 
 
@@ -178,9 +177,7 @@ class TestConfigParser:
         assert "R5" in sample_topology.nodes
 
     def test_apply_change_creates_copy(self, sample_topology: Topology) -> None:
-        change = ConfigChange(
-            link_changes=[{"src": "R1", "dst": "R2", "status": "down"}]
-        )
+        change = ConfigChange(link_changes=[{"src": "R1", "dst": "R2", "status": "down"}])
         modified = ConfigParser.apply_change(sample_topology, change)
         # Original unchanged
         assert sample_topology.get_edge("R1", "R2")["status"] == "up"
@@ -279,9 +276,7 @@ class TestChangeImpactSimulator:
         assert result.newly_unreachable_pairs > 0
 
     def test_to_dict_serializable(self, sample_topology: Topology) -> None:
-        change = ConfigChange(
-            link_changes=[{"src": "R1", "dst": "R2", "status": "down"}]
-        )
+        change = ConfigChange(link_changes=[{"src": "R1", "dst": "R2", "status": "down"}])
         sim = ChangeImpactSimulator(sample_topology)
         result = sim.simulate(change)
         d = result.to_dict()
@@ -464,9 +459,7 @@ class TestDigitalTwinEngine:
         # Audit trail
         assert len(twin.audit.records) >= 2
 
-    def test_diagnose_from_file(
-        self, sample_topology: Topology, tmp_dir: Path
-    ) -> None:
+    def test_diagnose_from_file(self, sample_topology: Topology, tmp_dir: Path) -> None:
         topo_path = tmp_dir / "topology.json"
         sample_topology.save(topo_path)
 
@@ -487,3 +480,73 @@ class TestDigitalTwinEngine:
         twin.load_topology(topo_path)
         result = twin.diagnose(events_file)
         assert result.root_cause is not None
+
+    def test_topology_not_loaded_raises(self) -> None:
+        twin = DigitalTwinEngine()
+        with pytest.raises(RuntimeError, match="No topology loaded"):
+            _ = twin.topology
+
+    def test_set_topology_and_snapshots(self, sample_topology: Topology) -> None:
+        twin = DigitalTwinEngine()
+        twin.set_topology(sample_topology)
+        assert twin.topology == sample_topology
+        snaps = twin.snapshots
+        assert len(snaps) == 1
+        assert snaps[0].metadata["label"] == "programmatic_set"
+        snap_dict = snaps[0].to_dict()
+        assert snap_dict["node_count"] == 4
+        assert snap_dict["edge_count"] == 4
+
+    def test_simulate_change_from_file_and_no_impact_counterfactual(
+        self, sample_topology: Topology, tmp_dir: Path
+    ) -> None:
+        topo_path = tmp_dir / "topology.json"
+        sample_topology.save(topo_path)
+
+        twin = DigitalTwinEngine()
+        twin.load_topology(topo_path)
+
+        # 1. No impact change (no-op)
+        noop_change = ConfigChange(description="noop")
+        res_noop = twin.simulate_change(noop_change)
+        assert res_noop.newly_unreachable_pairs == 0
+        assert res_noop.path_changed_pairs == 0
+
+        # 2. Change from file
+        change_data = {
+            "description": "Shut R1-R2 from file",
+            "link_changes": [{"src": "R1", "dst": "R2", "status": "down"}],
+        }
+        change_file = tmp_dir / "change.json"
+        with open(change_file, "w") as f:
+            json.dump(change_data, f)
+
+        res_file = twin.simulate_change(change_file)
+        assert res_file.path_changed_pairs > 0
+
+    def test_compute_shortest_paths(self, sample_topology: Topology) -> None:
+        twin = DigitalTwinEngine()
+        twin.set_topology(sample_topology)
+        paths = twin.compute_shortest_paths()
+        assert "R4" in paths.get("R1", {})
+
+    def test_ingest_config(self, sample_topology: Topology, tmp_dir: Path) -> None:
+        import yaml
+
+        config_data = {
+            "hostname": "R1",
+            "vendor": "cisco",
+            "interfaces": [
+                {"name": "Gi0/1", "bandwidth": 2000.0},
+            ],
+        }
+        config_file = tmp_dir / "device.yaml"
+        with open(config_file, "w") as f:
+            yaml.dump(config_data, f)
+
+        twin = DigitalTwinEngine()
+        twin.set_topology(sample_topology)
+        hostnames = twin.ingest_config(config_file)
+        assert hostnames == ["R1"]
+        edge = twin.topology.get_edge("R1", "R2")
+        assert edge["bandwidth"] == 2000.0
