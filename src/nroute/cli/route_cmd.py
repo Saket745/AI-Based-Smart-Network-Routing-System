@@ -68,6 +68,12 @@ def route_cmd() -> None:
     default=None,
     help="Import target for custom router in path/to/file.py:ClassName format (requires -a custom).",
 )
+@click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading custom routers from local Python files (security risk).",
+)
 def compute(
     topo_path: str,
     algorithm: str,
@@ -75,6 +81,7 @@ def compute(
     destination: str,
     weight: str,
     custom_router: str | None,
+    allow_unsafe: bool,
 ) -> None:
     """Compute the optimal route between two nodes."""
     try:
@@ -102,11 +109,13 @@ def compute(
             from nroute.routing.base import BaseRouter
             from nroute.utils.loader import load_custom_class
 
-            router_cls = load_custom_class(custom_router, expected_superclass=BaseRouter)
+            router_cls = load_custom_class(
+                custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
+            )
             sig = inspect.signature(router_cls)
             router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         else:
-            router = get_router(algorithm, topology=topo)
+            router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
         path = router.compute_path(topo, source, destination, weight=weight)
     except RoutingError as e:
         console.print(f"[red]x Routing error:[/red] {e}")
