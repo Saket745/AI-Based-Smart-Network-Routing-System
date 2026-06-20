@@ -33,7 +33,13 @@ def detect_cmd() -> None:
     required=True,
     help="Path to a trained anomaly detection model.",
 )
-def anomalies(traffic_path: str, model_path: str) -> None:
+@click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading insecure model files (joblib/pickle).",
+)
+def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
     """Detect anomalies in network traffic data."""
     import pandas as pd
 
@@ -47,7 +53,7 @@ def anomalies(traffic_path: str, model_path: str) -> None:
 
     try:
         detector = AnomalyDetector()
-        detector.load(model_path)
+        detector.load(model_path, allow_unsafe=allow_unsafe)
     except ModelError as e:
         console.print(f"[red]x Failed to load model:[/red] {e}")
         raise SystemExit(1) from e
