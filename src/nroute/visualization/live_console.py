@@ -89,9 +89,7 @@ class LiveSimulationConsole:
                 if edge_data.get("status") == "down":
                     current_down_links.add((u, v))
             except (KeyError, TopologyError) as e:
-                logger.error(
-                    "Error retrieving edge status", edge=(u, v), error=str(e), tick=tick
-                )
+                logger.error("Error retrieving edge status", edge=(u, v), error=str(e), tick=tick)
 
         current_down_nodes = set()
         for node in self.engine.topology.nodes:
