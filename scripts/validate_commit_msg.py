@@ -10,23 +10,26 @@ from pathlib import Path
 
 # Conventional commit types
 VALID_TYPES = {
-    "feat",  # New feature
-    "fix",  # Bug fix
-    "docs",  # Documentation changes
-    "style",  # Formatting, missing semi-colons, etc (no code changes)
-    "refactor",  # Refactoring production code (e.g. renaming a variable)
-    "perf",  # Code changes that improve performance
-    "test",  # Adding missing tests or correcting existing tests
-    "build",  # Build system/dependency changes
-    "ci",  # CI configurations and scripts
-    "chore",  # Maintenance tasks
-    "revert",  # Revert a previous commit
+    "feat", "feature",  # New feature
+    "fix", "bugfix",    # Bug fix
+    "docs",             # Documentation changes
+    "style",            # Formatting, missing semi-colons, etc (no code changes)
+    "refactor",         # Refactoring production code (e.g. renaming a variable)
+    "perf", "performance", # Code changes that improve performance
+    "test",             # Adding missing tests or correcting existing tests
+    "build",            # Build system/dependency changes
+    "ci",               # CI configurations and scripts
+    "chore",            # Maintenance tasks
+    "revert",           # Revert a previous commit
+    "security",         # Security fixes
 }
 
 # Regex to match conventional commits header
 # Pattern: type(scope)!: Description
+# Updated to allow optional emojis and case-insensitivity for types
+# Pattern: [Emoji] type(scope)!: Description
 CONVENTIONAL_REGEX = re.compile(
-    r"^(?P<type>[a-z]+)(?:\((?P<scope>[a-zA-Z0-9_\-\/]+)\))?(?P<breaking>!)?:\s+(?P<desc>.+)$"
+    r"^(?:\W+\s*)?(?P<type>[a-zA-Z]+)(?:\((?P<scope>[a-zA-Z0-9_\-\/]+)\))?(?P<breaking>!)?:?\s+(?P<desc>.+)$"
 )
 
 
@@ -67,7 +70,7 @@ def validate_message(msg: str) -> list[str]:
         return errors
 
     # Check commit type
-    commit_type = match.group("type")
+    commit_type = match.group("type").lower()
     if commit_type not in VALID_TYPES:
         errors.append(
             f"Commit type '{commit_type}' is invalid.\n"
