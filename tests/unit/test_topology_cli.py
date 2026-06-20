@@ -76,7 +76,7 @@ class TestTopologyGenerateCLI:
         elif topo_type == "fat-tree":
             mock_gen.fat_tree.return_value = mock_topology
 
-        args = ["generate", "--type", topo_type, "--nodes", str(nodes)] + extra_args
+        args = ["generate", "--type", topo_type, "--nodes", str(nodes), *extra_args]
         result = runner.invoke(topology_cmd, args, obj={"seed": 42})
 
         assert result.exit_code == 0
