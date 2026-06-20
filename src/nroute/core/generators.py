@@ -97,6 +97,108 @@ class TopologyGenerator:
 
             graph.nodes[node].update(node_attrs)
 
+    @staticmethod
+    def _add_fat_tree_core_layer(graph: nx.DiGraph, k: int) -> list[str]:
+        """Add core switches to the Fat-Tree graph."""
+        num_core = (k // 2) ** 2
+        core_nodes = []
+        for i in range(num_core):
+            core_id = f"core_{i}"
+            graph.add_node(core_id, type="switch", capacity=40000.0, status="up", location="core")
+            core_nodes.append(core_id)
+        return core_nodes
+
+    @staticmethod
+    def _add_fat_tree_pod(
+        graph: nx.DiGraph, k: int, pod_idx: int, core_nodes: list[str], **default_attrs: Any
+    ) -> None:
+        """Add a single pod (switches and hosts) and its connections to the Fat-Tree graph."""
+        num_agg_per_pod = k // 2
+        num_edge_per_pod = k // 2
+        num_hosts_per_edge = k // 2
+
+        agg_nodes = []
+        edge_nodes = []
+
+        # Add Aggregation Switches
+        for agg in range(num_agg_per_pod):
+            agg_id = f"pod_{pod_idx}_agg_{agg}"
+            graph.add_node(
+                agg_id, type="switch", capacity=10000.0, status="up", location=f"pod_{pod_idx}"
+            )
+            agg_nodes.append(agg_id)
+
+        # Add Edge Switches and Hosts
+        for edge in range(num_edge_per_pod):
+            edge_id = f"pod_{pod_idx}_edge_{edge}"
+            graph.add_node(
+                edge_id, type="switch", capacity=10000.0, status="up", location=f"pod_{pod_idx}"
+            )
+            edge_nodes.append(edge_id)
+
+            # Add Hosts and connect to Edge Switch
+            for host in range(num_hosts_per_edge):
+                host_id = f"pod_{pod_idx}_host_{edge}_{host}"
+                graph.add_node(
+                    host_id, type="host", capacity=1000.0, status="up", location=f"pod_{pod_idx}"
+                )
+
+                # Connect Host <--> Edge Switch (bidirectional)
+                host_bw = default_attrs.get("host_bandwidth", 1000.0)
+                host_lat = default_attrs.get("host_latency", 0.5)
+
+                for u, v in [(host_id, edge_id), (edge_id, host_id)]:
+                    graph.add_edge(
+                        u,
+                        v,
+                        bandwidth=host_bw,
+                        latency=host_lat,
+                        jitter=0.01,
+                        packet_loss=0.0,
+                        utilization=0.0,
+                        status="up",
+                        weight=host_lat,
+                    )
+
+        # Connect Edge <--> Aggregation Switches inside Pod
+        pod_bw = default_attrs.get("pod_bandwidth", 10000.0)
+        pod_lat = default_attrs.get("pod_latency", 1.0)
+        for edge_id in edge_nodes:
+            for agg_id in agg_nodes:
+                for u, v in [(edge_id, agg_id), (agg_id, edge_id)]:
+                    graph.add_edge(
+                        u,
+                        v,
+                        bandwidth=pod_bw,
+                        latency=pod_lat,
+                        jitter=0.05,
+                        packet_loss=0.0,
+                        utilization=0.0,
+                        status="up",
+                        weight=pod_lat,
+                    )
+
+        # Connect Aggregation <--> Core Switches
+        core_bw = default_attrs.get("core_bandwidth", 40000.0)
+        core_lat = default_attrs.get("core_latency", 2.0)
+        stride = k // 2
+        for j, agg_id in enumerate(agg_nodes):
+            start_core_idx = j * stride
+            for offset in range(stride):
+                core_id = core_nodes[start_core_idx + offset]
+                for u, v in [(agg_id, core_id), (core_id, agg_id)]:
+                    graph.add_edge(
+                        u,
+                        v,
+                        bandwidth=core_bw,
+                        latency=core_lat,
+                        jitter=0.1,
+                        packet_loss=0.001,
+                        utilization=0.0,
+                        status="up",
+                        weight=core_lat,
+                    )
+
     @classmethod
     def random(
         cls, n_nodes: int, edge_prob: float, seed: int | None = None, **default_attrs: Any
@@ -219,140 +321,14 @@ class TopologyGenerator:
 
         graph = nx.DiGraph()
 
-        # 1. Define layers
-        num_core = (k // 2) ** 2
-        num_pods = k
-        num_agg_per_pod = k // 2
-        num_edge_per_pod = k // 2
-        num_hosts_per_edge = k // 2
+        # 1. Add Core switches
+        core_nodes = cls._add_fat_tree_core_layer(graph, k)
 
-        # 2. Add Core switches
-        core_nodes = []
-        for i in range(num_core):
-            core_id = f"core_{i}"
-            graph.add_node(core_id, type="switch", capacity=40000.0, status="up", location="core")
-            core_nodes.append(core_id)
+        # 2. Add pod switches and hosts
+        for pod_idx in range(k):
+            cls._add_fat_tree_pod(graph, k, pod_idx, core_nodes, **default_attrs)
 
-        # 3. Add pod switches and hosts
-        for pod in range(num_pods):
-            agg_nodes = []
-            edge_nodes = []
-
-            # Add Aggregation Switches
-            for agg in range(num_agg_per_pod):
-                agg_id = f"pod_{pod}_agg_{agg}"
-                graph.add_node(
-                    agg_id, type="switch", capacity=10000.0, status="up", location=f"pod_{pod}"
-                )
-                agg_nodes.append(agg_id)
-
-            # Add Edge Switches
-            for edge in range(num_edge_per_pod):
-                edge_id = f"pod_{pod}_edge_{edge}"
-                graph.add_node(
-                    edge_id, type="switch", capacity=10000.0, status="up", location=f"pod_{pod}"
-                )
-                edge_nodes.append(edge_id)
-
-                # Add Hosts and connect to Edge Switch
-                for host in range(num_hosts_per_edge):
-                    host_id = f"pod_{pod}_host_{edge}_{host}"
-                    graph.add_node(
-                        host_id, type="host", capacity=1000.0, status="up", location=f"pod_{pod}"
-                    )
-
-                    # Connect Host <--> Edge Switch (bidirectional)
-                    # Host link attributes: 1000 Mbps, 0.5ms latency, minimal loss
-                    host_bw = default_attrs.get("host_bandwidth", 1000.0)
-                    host_lat = default_attrs.get("host_latency", 0.5)
-
-                    graph.add_edge(
-                        host_id,
-                        edge_id,
-                        bandwidth=host_bw,
-                        latency=host_lat,
-                        jitter=0.01,
-                        packet_loss=0.0,
-                        utilization=0.0,
-                        status="up",
-                        weight=host_lat,
-                    )
-                    graph.add_edge(
-                        edge_id,
-                        host_id,
-                        bandwidth=host_bw,
-                        latency=host_lat,
-                        jitter=0.01,
-                        packet_loss=0.0,
-                        utilization=0.0,
-                        status="up",
-                        weight=host_lat,
-                    )
-
-            # Connect Edge <--> Aggregation Switches inside Pod (complete bipartite between edge and agg)
-            # Pod link attributes: 10 Gbps (10000 Mbps), 1.0ms latency
-            pod_bw = default_attrs.get("pod_bandwidth", 10000.0)
-            pod_lat = default_attrs.get("pod_latency", 1.0)
-            for edge_id in edge_nodes:
-                for agg_id in agg_nodes:
-                    graph.add_edge(
-                        edge_id,
-                        agg_id,
-                        bandwidth=pod_bw,
-                        latency=pod_lat,
-                        jitter=0.05,
-                        packet_loss=0.0,
-                        utilization=0.0,
-                        status="up",
-                        weight=pod_lat,
-                    )
-                    graph.add_edge(
-                        agg_id,
-                        edge_id,
-                        bandwidth=pod_bw,
-                        latency=pod_lat,
-                        jitter=0.05,
-                        packet_loss=0.0,
-                        utilization=0.0,
-                        status="up",
-                        weight=pod_lat,
-                    )
-
-            # Connect Aggregation <--> Core Switches
-            # Core link attributes: 40 Gbps (40000 Mbps), 2.0ms latency
-            # Each of the k/2 aggregation switches is connected to k/2 core switches.
-            # Specifically, agg switch 'j' connects to core switches index [j * (k/2) + c] for c in 0..k/2
-            core_bw = default_attrs.get("core_bandwidth", 40000.0)
-            core_lat = default_attrs.get("core_latency", 2.0)
-            for j, agg_id in enumerate(agg_nodes):
-                stride = k // 2
-                start_core_idx = j * stride
-                for offset in range(stride):
-                    core_id = core_nodes[start_core_idx + offset]
-                    graph.add_edge(
-                        agg_id,
-                        core_id,
-                        bandwidth=core_bw,
-                        latency=core_lat,
-                        jitter=0.1,
-                        packet_loss=0.001,
-                        utilization=0.0,
-                        status="up",
-                        weight=core_lat,
-                    )
-                    graph.add_edge(
-                        core_id,
-                        agg_id,
-                        bandwidth=core_bw,
-                        latency=core_lat,
-                        jitter=0.1,
-                        packet_loss=0.001,
-                        utilization=0.0,
-                        status="up",
-                        weight=core_lat,
-                    )
-
-        # 4. Fill in any missing or customized attributes
+        # 3. Fill in any missing or customized attributes
         for src, dst in graph.edges:
             # Overwrite default parameters if specifically provided in kwargs
             for k_attr, v_attr in default_attrs.items():
