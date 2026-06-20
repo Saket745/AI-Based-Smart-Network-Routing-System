@@ -63,8 +63,10 @@ def test_nroute_error_inheritance() -> None:
     with pytest.raises(NRouteError):
         raise NRouteError("test")
 
-    with pytest.raises(Exception):
-        raise NRouteError("test")
+    # B017: Do not assert blind exception: `Exception`
+    # We already verify it's an Exception in test_exception_subclasses
+    # and via isinstance check if needed.
+    assert isinstance(NRouteError("test"), Exception)
 
 
 def test_subclass_inheritance() -> None:
