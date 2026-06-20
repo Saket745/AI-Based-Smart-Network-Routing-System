@@ -1,0 +1,2 @@
+bytes_per_second,packets_per_second,flow_count,avg_packet_size,src_ip_entropy,dst_port_entropy,utilization,latency_avg
+5000.0,50.0,5,500.0,3.0,2.5,0.2,5.0
