@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import pytest
-import numpy as np
 from nroute.utils.random import SeededRandom, get_rng
+
 
 def test_seeded_random_initialization() -> None:
     """Test that SeededRandom can be initialized with and without a seed."""
@@ -17,6 +16,7 @@ def test_seeded_random_initialization() -> None:
     assert rng2.seed is None
     assert rng2.random is not None
     assert rng2.np_rng is not None
+
 
 def test_seeded_random_reproducibility() -> None:
     """Test that the same seed produces the same sequence of numbers."""
@@ -50,6 +50,7 @@ def test_seeded_random_reproducibility() -> None:
     # Test np_rng reproducibility
     assert rng1.np_rng.random() == rng2.np_rng.random()
 
+
 def test_seeded_random_different_seeds() -> None:
     """Test that different seeds produce different sequences."""
     rng1 = SeededRandom(seed=42)
@@ -61,12 +62,14 @@ def test_seeded_random_different_seeds() -> None:
     results2 = [rng2.random_float() for _ in range(10)]
     assert results1 != results2
 
+
 def test_randint() -> None:
     """Test randint produces values in the correct range."""
     rng = SeededRandom(seed=42)
     for _ in range(100):
         val = rng.randint(5, 10)
         assert 5 <= val <= 10
+
 
 def test_random_float() -> None:
     """Test random_float produces values in [0.0, 1.0)."""
@@ -75,6 +78,7 @@ def test_random_float() -> None:
         val = rng.random_float()
         assert 0.0 <= val < 1.0
 
+
 def test_uniform() -> None:
     """Test uniform produces values in the correct range."""
     rng = SeededRandom(seed=42)
@@ -82,12 +86,14 @@ def test_uniform() -> None:
         val = rng.uniform(2.5, 7.5)
         assert 2.5 <= val <= 7.5
 
+
 def test_choice() -> None:
     """Test choice selects from the sequence."""
     rng = SeededRandom(seed=42)
     seq = [10, 20, 30]
     for _ in range(50):
         assert rng.choice(seq) in seq
+
 
 def test_choices() -> None:
     """Test choices selects multiple elements with replacement."""
@@ -98,6 +104,7 @@ def test_choices() -> None:
     for item in result:
         assert item in seq
 
+
 def test_shuffle() -> None:
     """Test shuffle reorders the list in-place."""
     rng = SeededRandom(seed=42)
@@ -107,6 +114,7 @@ def test_shuffle() -> None:
     assert sorted(shuffled) == original
     # Very unlikely to be identical after shuffle for 20 elements
     assert shuffled != original
+
 
 def test_get_rng() -> None:
     """Test get_rng factory function."""
