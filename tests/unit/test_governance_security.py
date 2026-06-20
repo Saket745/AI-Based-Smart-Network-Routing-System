@@ -32,6 +32,7 @@ def test_anomaly_detector_secure_loading_enforcement():
         with contextlib.suppress(ModelError, KeyError):
             detector.load(path, allow_unsafe=True)
 
+
 def test_congestion_predictor_secure_loading_enforcement():
     """Verify that CongestionPredictor blocks insecure files by default."""
     # CongestionPredictor already has some logic, but let's ensure our changes didn't break it
