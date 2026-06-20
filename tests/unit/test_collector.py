@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from nroute.core.metrics import SimulationMetrics, MetricsCollectionResult
+from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
 from nroute.core.topology import Topology
 from nroute.core.traffic import FlowRecord
 from nroute.simulation.collector import MetricsCollector
@@ -107,10 +107,22 @@ def test_record_tick_packet_loss(small_graph_data: dict[str, Any]) -> None:
     topo = _get_topo(small_graph_data)
 
     flow_completed = FlowRecord(
-        source="A", destination="B", bytes=500, packets=10, duration=0.01, protocol="UDP", timestamp=0.0
+        source="A",
+        destination="B",
+        bytes=500,
+        packets=10,
+        duration=0.01,
+        protocol="UDP",
+        timestamp=0.0,
     )
     flow_dropped = FlowRecord(
-        source="A", destination="C", bytes=500, packets=30, duration=0.01, protocol="UDP", timestamp=0.0
+        source="A",
+        destination="C",
+        bytes=500,
+        packets=30,
+        duration=0.01,
+        protocol="UDP",
+        timestamp=0.0,
     )
 
     metrics = collector.record_tick(
@@ -135,10 +147,22 @@ def test_record_tick_multiple_flows(small_graph_data: dict[str, Any]) -> None:
     topo = _get_topo(small_graph_data)
 
     flow1 = FlowRecord(
-        source="A", destination="B", bytes=1000, packets=10, duration=0.01, protocol="TCP", timestamp=0.0
+        source="A",
+        destination="B",
+        bytes=1000,
+        packets=10,
+        duration=0.01,
+        protocol="TCP",
+        timestamp=0.0,
     )
     flow2 = FlowRecord(
-        source="B", destination="D", bytes=2000, packets=20, duration=0.02, protocol="TCP", timestamp=0.0
+        source="B",
+        destination="D",
+        bytes=2000,
+        packets=20,
+        duration=0.02,
+        protocol="TCP",
+        timestamp=0.0,
     )
 
     metrics = collector.record_tick(
@@ -245,7 +269,7 @@ def test_record_tick_missing_utilization(small_graph_data: dict[str, Any]) -> No
     # Mock get_edge to fail for one specific edge
     original_get_edge = topo.get_edge
 
-    def side_effect(u, v):
+    def side_effect(u: str, v: str) -> dict[str, Any]:
         if u == "A" and v == "B":
             raise Exception("Edge error")
         return original_get_edge(u, v)
@@ -272,6 +296,7 @@ def test_get_results() -> None:
     collector = MetricsCollector()
     # Mocking record_tick instead of full setup for speed
     from unittest.mock import MagicMock
+
     mock_topo = MagicMock(spec=Topology)
     mock_topo.edges = []
 
