@@ -8,7 +8,7 @@ Thank you for contributing to the AI-Based Smart Network Routing System! This do
 
 We follow a structured trunk-based development workflow:
 
-* **`main`**: Production-ready, stable releases only. Direct commits are blocked; integration is strictly via approved Pull Requests.
+* **`main`**: Production-ready, stable releases only. Direct commits are blocked; integration is strictly via approved Pull Requests. **Enforced Policy: Squash and Merge**. This ensures a clean, linear history on the main branch.
 * **`dev`**: Integration branch for active feature development. Must maintain passing tests at all times.
 * **Supporting Branches**: Create short-lived branches off `dev` using these naming conventions:
   - `feature/*` — New functionality
