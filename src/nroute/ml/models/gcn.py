@@ -154,4 +154,4 @@ class GCNModel(nn.Module):
 
     def load(self, path: str) -> None:
         """Load the model state dict from a file."""
-        self.load_state_dict(torch.load(path, map_location="cpu"))
+        self.load_state_dict(torch.load(path, map_location="cpu", weights_only=True))
