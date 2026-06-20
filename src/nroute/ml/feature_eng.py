@@ -39,16 +39,10 @@ def extract_congestion_features(
 
     from contextlib import suppress
 
-    for u, v in topology.edges:
-        try:
-            edge_data = topology.get_edge(u, v)
-            bandwidth = float(edge_data.get("bandwidth", 1000.0))
-            latency = float(edge_data.get("latency", 5.0))
-            current_util = float(edge_data.get("utilization", 0.0))
-        except Exception:
-            bandwidth = 1000.0
-            latency = 5.0
-            current_util = 0.0
+    for u, v, edge_data in topology.graph.edges(data=True):
+        bandwidth = float(edge_data.get("bandwidth", 1000.0))
+        latency = float(edge_data.get("latency", 5.0))
+        current_util = float(edge_data.get("utilization", 0.0))
 
         # Construct lags
         lags = []
@@ -65,9 +59,8 @@ def extract_congestion_features(
         # Average utilization of successor/neighbor edges
         neighbor_utils = []
         with suppress(Exception):
-            for w in topology.neighbors(v):
-                with suppress(Exception):
-                    neighbor_utils.append(float(topology.get_edge(v, w).get("utilization", 0.0)))
+            for _, neighbor_data in topology.graph[v].items():
+                neighbor_utils.append(float(neighbor_data.get("utilization", 0.0)))
         neighbor_util_avg = sum(neighbor_utils) / len(neighbor_utils) if neighbor_utils else 0.0
 
         feature_dict = {
@@ -177,10 +170,7 @@ def create_congestion_labels(topology: Topology, threshold: float = 0.85) -> np.
         NumPy array of binary labels (1 for congested, 0 for normal) matching edge order.
     """
     labels = []
-    for u, v in topology.edges:
-        try:
-            util = float(topology.get_edge(u, v).get("utilization", 0.0))
-        except Exception:
-            util = 0.0
+    for _, _, edge_data in topology.graph.edges(data=True):
+        util = float(edge_data.get("utilization", 0.0))
         labels.append(1 if util >= threshold else 0)
     return np.array(labels)
