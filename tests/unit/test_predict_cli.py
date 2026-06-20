@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-import pathlib
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
+
+if TYPE_CHECKING:
+    import pathlib
 
 import pandas as pd
 import pytest
