@@ -168,9 +168,13 @@ class AnalyticalEngine:
         for src in graph.nodes:
             try:
                 src_paths = nx.single_source_dijkstra_path(graph, src, weight=weight)
-                paths[src] = {dst: list(path) for dst, path in src_paths.items() if dst != src}
+                paths[str(src)] = {
+                    str(dst): [str(n) for n in path]
+                    for dst, path in src_paths.items()
+                    if dst != src
+                }
             except nx.NetworkXError:
-                paths[src] = {}
+                paths[str(src)] = {}
         return paths
 
     @staticmethod
@@ -199,7 +203,7 @@ class AnalyticalEngine:
         reach: dict[str, set[str]] = {}
         for src in graph.nodes:
             descendants = nx.descendants(graph, src)
-            reach[src] = descendants
+            reach[str(src)] = {str(d) for d in descendants}
         return reach
 
 
