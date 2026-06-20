@@ -358,7 +358,9 @@ class CongestionPredictor:
                         return
                     else:
                         # Fallback for other zipped models if any
-                        raise ModelError(f"Unsupported model type in zip archive: {self.model_type}")
+                        raise ModelError(
+                            f"Unsupported model type in zip archive: {self.model_type}"
+                        )
             else:
                 # Legacy or other format
                 if not allow_unsafe:
