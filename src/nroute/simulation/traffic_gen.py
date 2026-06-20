@@ -101,7 +101,7 @@ class TrafficGenerator:
             srcs = self.rng.choices(nodes, k=batch_size)
             dsts = self.rng.choices(nodes, k=batch_size)
 
-            for src, dst in zip(srcs, dsts):
+            for src, dst in zip(srcs, dsts, strict=True):
                 if src != dst:
                     flows.append(self._create_flow(src, dst, tick))
                     if len(flows) == self.n_flows_per_tick:
@@ -133,7 +133,7 @@ class TrafficGenerator:
             srcs = self.rng.choices(nodes, weights=capacities, k=batch_size)
             dsts = self.rng.choices(nodes, weights=capacities, k=batch_size)
 
-            for src, dst in zip(srcs, dsts):
+            for src, dst in zip(srcs, dsts, strict=True):
                 if src != dst:
                     flows.append(self._create_flow(src, dst, tick))
                     if len(flows) == self.n_flows_per_tick:
@@ -203,7 +203,7 @@ class TrafficGenerator:
             srcs = self.rng.choices(nodes, k=batch_size)
             dsts = self.rng.choices(nodes, k=batch_size)
 
-            for src, dst in zip(srcs, dsts):
+            for src, dst in zip(srcs, dsts, strict=True):
                 if src != dst:
                     flows.append(self._create_flow(src, dst, tick, bytes_multiplier=bytes_mult))
                     if len(flows) == count:
