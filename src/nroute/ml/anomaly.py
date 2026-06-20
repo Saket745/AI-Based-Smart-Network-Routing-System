@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import os
+import tempfile
+import zipfile
 from typing import Any, cast
 
 import joblib
@@ -293,32 +296,67 @@ class AnomalyDetector:
         if not self.is_trained:
             raise ModelError("Cannot save an untrained model.")
 
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        if os.path.dirname(path):
+            os.makedirs(os.path.dirname(path), exist_ok=True)
 
-        save_dict = {
+        # Base metadata (JSON-safe primitives only)
+        metadata = {
             "model_type": self.model_type,
             "is_trained": self.is_trained,
             "contamination": self.contamination,
-            "feature_means": self.feature_means,
-            "feature_stds": self.feature_stds,
+            "serialization_version": "2.0",
         }
 
+        # Convert numpy arrays to lists for JSON or tensors for torch.save
+        feature_means = self.feature_means.tolist() if self.feature_means is not None else None
+        feature_stds = self.feature_stds.tolist() if self.feature_stds is not None else None
+
         if self.model_type == "isolation_forest":
-            save_dict["model"] = self.model
-            joblib.dump(save_dict, path)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                # Save metadata
+                meta_path = os.path.join(tmpdir, "metadata.json")
+                metadata.update(
+                    {
+                        "feature_means": feature_means,
+                        "feature_stds": feature_stds,
+                    }
+                )
+                with open(meta_path, "w") as f:
+                    json.dump(metadata, f)
+
+                # Save Isolation Forest model
+                model_path = os.path.join(tmpdir, "model.joblib")
+                joblib.dump(self.model, model_path)
+
+                # Zip them together
+                with zipfile.ZipFile(path, "w") as zf:
+                    zf.write(meta_path, "metadata.json")
+                    zf.write(model_path, "model.joblib")
+
         elif self.model_type == "autoencoder":
-            save_dict["reconstruction_threshold"] = self.reconstruction_threshold
-            save_dict["state_dict"] = self.model.state_dict()
-            save_dict["input_dim"] = (
-                self.feature_means.shape[0] if self.feature_means is not None else 8
-            )
+            save_dict = {
+                "metadata": metadata,
+                "reconstruction_threshold": self.reconstruction_threshold,
+                "state_dict": self.model.state_dict(),
+                "input_dim": self.feature_means.shape[0] if self.feature_means is not None else 8,
+                # Store as tensors to allow weights_only=True
+                "feature_means": (
+                    torch.from_numpy(self.feature_means) if self.feature_means is not None else None
+                ),
+                "feature_stds": (
+                    torch.from_numpy(self.feature_stds) if self.feature_stds is not None else None
+                ),
+            }
             torch.save(save_dict, path)
+
         elif self.model_type == "custom":
             if hasattr(self.model, "save"):
                 self.model.save(path)
             else:
-                save_dict["model"] = self.model
-                joblib.dump(save_dict, path)
+                raise ModelError(
+                    f"Custom model of type {type(self.model)} does not implement a 'save' method. "
+                    "Secure serialization for arbitrary custom objects is not supported by default."
+                )
 
     def load(self, path: str, allow_unsafe: bool = False) -> None:
         """
@@ -337,31 +375,100 @@ class AnomalyDetector:
 
         try:
             if path.endswith(".pt") or path.endswith(".pth"):
-                try:
-                    load_dict = torch.load(
-                        path,
-                        map_location=torch.device("cpu"),
-                        weights_only=not allow_unsafe,
-                    )
-                except Exception as e:
-                    if not allow_unsafe:
-                        raise ModelError(
-                            "Failed to load PyTorch model securely. Set allow_unsafe=True "
-                            f"if you trust the source. Error: {e}"
-                        ) from e
-                    raise
+                self._load_pytorch(path, allow_unsafe)
+            elif zipfile.is_zipfile(path):
+                self._load_zip(path, allow_unsafe)
             else:
-                if not allow_unsafe:
-                    raise ModelError(
-                        "Insecure model file detected (joblib/pickle). Loading is blocked for "
-                        "security. Set allow_unsafe=True if you trust the source."
-                    )
-                load_dict = joblib.load(path)
+                self._load_legacy_joblib(path, allow_unsafe)
         except ModelError:
             raise
         except Exception as e:
             raise ModelError(f"Failed to load model from {path}: {e}") from e
 
+    def _load_pytorch(self, path: str, allow_unsafe: bool) -> None:
+        """Load PyTorch format model."""
+        try:
+            load_dict = torch.load(
+                path,
+                map_location=torch.device("cpu"),
+                weights_only=not allow_unsafe,
+            )
+        except Exception as e:
+            if not allow_unsafe:
+                raise ModelError(
+                    "Failed to load PyTorch model securely. Set allow_unsafe=True "
+                    f"if you trust the source. Error: {e}"
+                ) from e
+            raise
+
+        if "metadata" in load_dict:
+            metadata = load_dict["metadata"]
+            self.model_type = metadata["model_type"]
+            self.is_trained = metadata["is_trained"]
+            self.contamination = metadata.get("contamination", 0.05)
+
+            if self.model_type == "autoencoder":
+                input_dim = load_dict["input_dim"]
+                self.model = AutoencoderNet(input_dim)
+                self.model.load_state_dict(load_dict["state_dict"])
+                self.reconstruction_threshold = load_dict["reconstruction_threshold"]
+                self.model.eval()
+
+            means = load_dict.get("feature_means")
+            stds = load_dict.get("feature_stds")
+            self.feature_means = means.numpy() if means is not None else None
+            self.feature_stds = stds.numpy() if stds is not None else None
+        else:
+            # Legacy PyTorch format
+            self.model_type = load_dict["model_type"]
+            self.is_trained = load_dict["is_trained"]
+            self.contamination = load_dict.get("contamination", 0.05)
+            self.feature_means = load_dict.get("feature_means")
+            self.feature_stds = load_dict.get("feature_stds")
+
+            if self.model_type == "autoencoder":
+                input_dim = load_dict["input_dim"]
+                self.model = AutoencoderNet(input_dim)
+                self.model.load_state_dict(load_dict["state_dict"])
+                self.reconstruction_threshold = load_dict["reconstruction_threshold"]
+                self.model.eval()
+
+    def _load_zip(self, path: str, allow_unsafe: bool) -> None:
+        """Load new Zip-based format."""
+        with zipfile.ZipFile(path, "r") as zf:
+            with zf.open("metadata.json") as f:
+                metadata = json.load(f)
+
+            self.model_type = metadata["model_type"]
+            self.is_trained = metadata["is_trained"]
+            self.contamination = metadata.get("contamination", 0.05)
+
+            means = metadata.get("feature_means")
+            stds = metadata.get("feature_stds")
+            self.feature_means = np.array(means) if means is not None else None
+            self.feature_stds = np.array(stds) if stds is not None else None
+
+            if self.model_type == "isolation_forest":
+                if not allow_unsafe:
+                    raise ModelError(
+                        "Insecure model file detected (joblib/pickle) inside archive. "
+                        "Loading is blocked for security. Set allow_unsafe=True if you trust the source."
+                    )
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    zf.extract("model.joblib", tmpdir)
+                    model_path = os.path.join(tmpdir, "model.joblib")
+                    self.model = joblib.load(model_path)
+            else:
+                raise ModelError(f"Unsupported model type in zip archive: {self.model_type}")
+
+    def _load_legacy_joblib(self, path: str, allow_unsafe: bool) -> None:
+        """Load legacy joblib/pickle format."""
+        if not allow_unsafe:
+            raise ModelError(
+                "Insecure model file detected (joblib/pickle). Loading is blocked for "
+                "security. Set allow_unsafe=True if you trust the source."
+            )
+        load_dict = joblib.load(path)
         self.model_type = load_dict["model_type"]
         self.is_trained = load_dict["is_trained"]
         self.contamination = load_dict.get("contamination", 0.05)
@@ -370,14 +477,5 @@ class AnomalyDetector:
 
         if self.model_type == "isolation_forest":
             self.model = load_dict["model"]
-        elif self.model_type == "autoencoder":
-            input_dim = load_dict["input_dim"]
-            self.model = AutoencoderNet(input_dim)
-            self.model.load_state_dict(load_dict["state_dict"])
-            self.reconstruction_threshold = load_dict["reconstruction_threshold"]
-            self.model.eval()
         elif self.model_type == "custom":
-            if "model" in load_dict:
-                self.model = load_dict["model"]
-            else:
-                pass
+            self.model = load_dict.get("model")
