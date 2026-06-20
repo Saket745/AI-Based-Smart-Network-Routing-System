@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import pytest
@@ -11,6 +10,9 @@ from pydantic import ValidationError
 from nroute.core.metrics import MetricsCollectionResult, RouteMetrics, SimulationMetrics
 from nroute.core.topology import Topology
 from nroute.exceptions import SimulationError
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _get_topo(small_graph_data: dict[str, Any]) -> Topology:
