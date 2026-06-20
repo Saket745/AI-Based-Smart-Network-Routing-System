@@ -118,8 +118,11 @@ class TrafficGenerator:
         capacities = []
         for node_id, attrs in node_data:
             nodes.append(node_id)
-            cap = attrs.get("capacity", 1000.0)
-            capacities.append(max(1.0, float(cap)))
+            try:
+                cap = attrs.get("capacity", 1000.0)
+                capacities.append(max(1.0, float(cap)))
+            except (ValueError, TypeError):
+                capacities.append(1000.0)
 
         if len(nodes) < 2:
             return []
@@ -145,6 +148,9 @@ class TrafficGenerator:
         Generate flows where 80% of traffic targets a set of hotspot nodes.
         """
         nodes = topology.nodes
+        if len(nodes) < 2:
+            return []
+
         hotspots: list[str] = self.kwargs.get("hotspot_nodes", [])
 
         # If no hotspots specified, select top 20% capacity nodes as hotspots
