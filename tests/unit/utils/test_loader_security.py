@@ -1,7 +1,12 @@
+from __future__ import annotations
+
 import tempfile
 from pathlib import Path
+
 import pytest
+
 from nroute.utils.loader import load_custom_class
+
 
 def test_load_custom_class_security() -> None:
     """Test security restrictions in load_custom_class."""
@@ -18,6 +23,7 @@ def test_load_custom_class_security() -> None:
         # Should succeed with allow_unsafe=True
         cls = load_custom_class(import_str, allow_unsafe=True)
         assert cls.__name__ == "TestClass"
+
 
 def test_load_custom_class_module_still_works() -> None:
     """Test that loading from standard modules still works without allow_unsafe."""
