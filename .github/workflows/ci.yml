@@ -22,6 +22,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
 
       - name: Install tools
         run: pip install -e ".[dev]" types-PyYAML
@@ -38,13 +39,23 @@ jobs:
       - name: Validate Repository Structure
         run: python scripts/validate_repository.py
 
+      - name: Validate Branch Name
+        if: github.event_name == 'pull_request'
+        run: python scripts/validate_branch_name.py "${{ github.head_ref }}"
+
       - name: Validate Commit Messages (Conventional Commits)
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Validate PR Title (Primary check for Squash & Merge)
+            PR_TITLE="${{ github.event.pull_request.title }}"
+            echo "Validating PR Title: $PR_TITLE"
+            python scripts/validate_commit_msg.py "$PR_TITLE"
+
+            # Optional: Still check individual commits but don't fail if they are WIP
             git fetch origin ${{ github.base_ref }} --depth=50
             for commit in $(git log --format=%H origin/${{ github.base_ref }}..HEAD); do
               commit_msg=$(git log --format=%B -n 1 $commit)
-              python scripts/validate_commit_msg.py "$commit_msg"
+              python scripts/validate_commit_msg.py "$commit_msg" || echo "Intermediate commit does not match CC, but PR Title is the authority."
             done
           else
             commit_msg=$(git log --format=%B -n 1 HEAD)
@@ -66,6 +77,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: "pip"
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
@@ -101,6 +113,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
 
       - name: Install pip-audit
         run: pip install pip-audit
