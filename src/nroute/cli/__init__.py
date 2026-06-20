@@ -11,6 +11,7 @@ from nroute.cli.route_cmd import route_cmd
 from nroute.cli.simulate_cmd import simulate_cmd
 from nroute.cli.topology_cmd import topology_cmd
 from nroute.cli.train_cmd import train_cmd
+from nroute.cli.twin_cmd import twin_cmd
 
 
 @click.group(
@@ -62,3 +63,4 @@ cli.add_command(simulate_cmd, "simulate")
 cli.add_command(train_cmd, "train")
 cli.add_command(predict_cmd, "predict")
 cli.add_command(detect_cmd, "detect")
+cli.add_command(twin_cmd, "twin")
