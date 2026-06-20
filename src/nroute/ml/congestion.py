@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import inspect
+import json
 import os
+import tempfile
+import zipfile
 from typing import Any, cast
 
 import joblib
@@ -250,57 +253,149 @@ class CongestionPredictor:
         return pd.DataFrame({"congested": congested, "probability": probs}, index=link_ids)
 
     def save(self, path: str) -> None:
-        """Save the trained model weights and type information."""
+        """
+        Save the trained model weights and type information using secure serialization.
+
+        Args:
+            path: Path where the model should be saved.
+        """
         if not self.is_trained:
             raise ModelError("Cannot save an untrained model.")
 
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        if os.path.dirname(path):
+            os.makedirs(os.path.dirname(path), exist_ok=True)
 
-        # Pack model weights and type info
-        save_dict = {
+        # Base metadata (JSON-safe primitives only)
+        metadata = {
             "model_type": self.model_type,
             "is_trained": self.is_trained,
+            "serialization_version": "2.0",
         }
 
         if self.model_type == "xgboost":
-            save_dict["model"] = self.model
-            joblib.dump(save_dict, path)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                # Save metadata
+                meta_path = os.path.join(tmpdir, "metadata.json")
+                with open(meta_path, "w") as f:
+                    json.dump(metadata, f)
+
+                # Save XGBoost model natively as JSON
+                model_path = os.path.join(tmpdir, "model.json")
+                self.model.save_model(model_path)
+
+                # Zip them together
+                with zipfile.ZipFile(path, "w") as zf:
+                    zf.write(meta_path, "metadata.json")
+                    zf.write(model_path, "model.json")
+
         elif self.model_type == "lstm":
-            save_dict["state_dict"] = self.model.state_dict()
+            # torch.load(..., weights_only=True) allows state_dict and basic types
+            save_dict = {
+                "metadata": metadata,
+                "state_dict": self.model.state_dict(),
+            }
             torch.save(save_dict, path)
+
         elif self.model_type == "custom":
             if hasattr(self.model, "save"):
                 self.model.save(path)
             else:
-                save_dict["model"] = self.model
-                joblib.dump(save_dict, path)
+                # For custom models without a save method, we refuse to use joblib
+                # by default to avoid insecure serialization.
+                raise ModelError(
+                    f"Custom model of type {type(self.model)} does not implement a 'save' method. "
+                    "Secure serialization for arbitrary custom objects is not supported by default."
+                )
 
-    def load(self, path: str) -> None:
-        """Load model weights and type information from file."""
+    def load(self, path: str, allow_unsafe: bool = False) -> None:
+        """
+        Load model weights and type information from file.
+
+        Args:
+            path: Path to the model file.
+            allow_unsafe: If True, allows insecure deserialization (pickle/joblib) for legacy models.
+                         Defaults to False.
+
+        Raises:
+            ModelError: If loading fails or insecure file is detected with allow_unsafe=False.
+        """
         if not os.path.exists(path):
             raise ModelError(f"Model file not found: {path}")
 
+        # Attempt to detect if it's a new format (zip for xgboost/legacy-compatible, or pt)
         try:
-            # Try loading via torch first if file is PyTorch model, otherwise joblib
             if path.endswith(".pt") or path.endswith(".pth"):
-                load_dict = torch.load(path, map_location=torch.device("cpu"), weights_only=False)
+                # Use weights_only=True for PyTorch to prevent arbitrary code execution
+                try:
+                    load_dict = torch.load(
+                        path,
+                        map_location=torch.device("cpu"),
+                        weights_only=not allow_unsafe,
+                    )
+                except Exception as e:
+                    if not allow_unsafe:
+                        raise ModelError(
+                            "Failed to load PyTorch model securely. The file might be in a legacy "
+                            "format or contain unsafe objects. Set allow_unsafe=True if you trust "
+                            f"the source. Error: {e}"
+                        ) from e
+                    raise
+            elif zipfile.is_zipfile(path):
+                # New XGBoost format
+                with zipfile.ZipFile(path, "r") as zf:
+                    with zf.open("metadata.json") as f:
+                        metadata = json.load(f)
+
+                    self.model_type = metadata["model_type"]
+                    self.is_trained = metadata["is_trained"]
+
+                    if self.model_type == "xgboost":
+                        with tempfile.TemporaryDirectory() as tmpdir:
+                            zf.extract("model.json", tmpdir)
+                            model_path = os.path.join(tmpdir, "model.json")
+                            self.model = xgb.XGBClassifier()
+                            self.model.load_model(model_path)
+                        return
+                    else:
+                        # Fallback for other zipped models if any
+                        raise ModelError(f"Unsupported model type in zip archive: {self.model_type}")
             else:
+                # Legacy or other format
+                if not allow_unsafe:
+                    raise ModelError(
+                        "Insecure model file detected (joblib/pickle). Loading is blocked for "
+                        "security. Set allow_unsafe=True if you trust the source."
+                    )
                 load_dict = joblib.load(path)
+
+            # Process load_dict (for PyTorch or Legacy)
+            if "metadata" in load_dict:
+                # New PyTorch format
+                metadata = load_dict["metadata"]
+                self.model_type = metadata["model_type"]
+                self.is_trained = metadata["is_trained"]
+                if self.model_type == "lstm":
+                    self.model = PyTorchLSTM(input_dim=1, hidden_dim=32, num_layers=2)
+                    self.model.load_state_dict(load_dict["state_dict"])
+                    self.model.eval()
+            else:
+                # Legacy format
+                self.model_type = load_dict["model_type"]
+                self.is_trained = load_dict["is_trained"]
+
+                if self.model_type == "xgboost":
+                    self.model = load_dict["model"]
+                elif self.model_type == "lstm":
+                    self.model = PyTorchLSTM(input_dim=1, hidden_dim=32, num_layers=2)
+                    self.model.load_state_dict(load_dict["state_dict"])
+                    self.model.eval()
+                elif self.model_type == "custom":
+                    if "model" in load_dict:
+                        self.model = load_dict["model"]
+                    elif hasattr(self.model, "load"):
+                        self.model.load(path)
+
+        except ModelError:
+            raise
         except Exception as e:
             raise ModelError(f"Failed to load model from {path}: {e}") from e
-
-        self.model_type = load_dict["model_type"]
-        self.is_trained = load_dict["is_trained"]
-
-        if self.model_type == "xgboost":
-            self.model = load_dict["model"]
-        elif self.model_type == "lstm":
-            self.model = PyTorchLSTM(input_dim=1, hidden_dim=32, num_layers=2)
-            self.model.load_state_dict(load_dict["state_dict"])
-            self.model.eval()
-        elif self.model_type == "custom":
-            if "model" in load_dict:
-                self.model = load_dict["model"]
-            else:
-                # Expecting custom model object loading to be handled by user if not serialized
-                pass
