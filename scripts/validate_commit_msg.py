@@ -39,16 +39,17 @@ def validate_message(msg: str) -> list[str]:
     if not msg:
         return ["Commit message cannot be empty."]
 
+    # Get the first line (header) of the commit message
+    first_line = msg.splitlines()[0].strip() if msg.splitlines() else ""
+
     # Ignore standard git merge or auto-generated commits
     if (
-        msg.startswith("Merge branch")
-        or msg.startswith("Merge pull request")
-        or msg.startswith("Merge remote-tracking branch")
+        first_line.startswith("Merge branch")
+        or first_line.startswith("Merge pull request")
+        or first_line.startswith("Merge remote-tracking branch")
+        or re.match(r"^Merge [0-9a-fA-F]{7,40} into [0-9a-fA-F]{7,40}$", first_line)
     ):
         return []
-
-    # Get the first line (header) of the commit message
-    first_line = msg.splitlines()[0].strip()
 
     match = CONVENTIONAL_REGEX.match(first_line)
     if not match:
