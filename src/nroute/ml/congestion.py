@@ -15,7 +15,6 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import xgboost as xgb
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -70,6 +69,8 @@ class CongestionPredictor:
         self.is_trained = False
 
         if self.model_type == "xgboost":
+            import xgboost as xgb
+
             self.model = xgb.XGBClassifier(
                 n_estimators=100,
                 max_depth=3,
@@ -350,6 +351,8 @@ class CongestionPredictor:
                     self.is_trained = metadata["is_trained"]
 
                     if self.model_type == "xgboost":
+                        import xgboost as xgb
+
                         with tempfile.TemporaryDirectory() as tmpdir:
                             zf.extract("model.json", tmpdir)
                             model_path = os.path.join(tmpdir, "model.json")
@@ -358,7 +361,9 @@ class CongestionPredictor:
                         return
                     else:
                         # Fallback for other zipped models if any
-                        raise ModelError(f"Unsupported model type in zip archive: {self.model_type}")
+                        raise ModelError(
+                            f"Unsupported model type in zip archive: {self.model_type}"
+                        )
             else:
                 # Legacy or other format
                 if not allow_unsafe:

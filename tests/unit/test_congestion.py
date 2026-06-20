@@ -123,7 +123,7 @@ def test_congestion_predictor_mismatched_inputs(
 
 def test_congestion_predictor_security(dummy_dataset: tuple[pd.DataFrame, np.ndarray]) -> None:
     """Test security aspects of model loading."""
-    df, labels = dummy_dataset
+    _df, _labels = dummy_dataset
 
     class Malicious:
         def __reduce__(self):
@@ -148,7 +148,10 @@ def test_congestion_predictor_security(dummy_dataset: tuple[pd.DataFrame, np.nda
 
         # 3. Test malicious PyTorch payload rejection
         malicious_pt_path = os.path.join(tmpdir, "malicious.pt")
-        malicious_data = {"metadata": {"model_type": "lstm", "is_trained": True}, "payload": Malicious()}
+        malicious_data = {
+            "metadata": {"model_type": "lstm", "is_trained": True},
+            "payload": Malicious(),
+        }
         torch.save(malicious_data, malicious_pt_path)
 
         with pytest.raises(ModelError, match="Failed to load PyTorch model securely"):
@@ -156,8 +159,9 @@ def test_congestion_predictor_security(dummy_dataset: tuple[pd.DataFrame, np.nda
 
         # 4. Test custom model without save method
         class CustomNoSave:
-            def train(self, f, l):
+            def train(self, features: pd.DataFrame, labels: np.ndarray) -> None:
                 pass
+
             @property
             def is_trained(self):
                 return True
