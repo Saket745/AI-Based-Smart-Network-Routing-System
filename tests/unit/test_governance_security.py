@@ -32,6 +32,7 @@ def test_anomaly_detector_secure_loading_enforcement():
             # We expect failure later since it's not a real model, but the security block is bypassed
             detector.load(path, allow_unsafe=True)
 
+
 def test_congestion_predictor_secure_loading_enforcement():
     """Verify that CongestionPredictor blocks insecure files by default."""
     # CongestionPredictor already has some logic, but let's ensure our changes didn't break it
