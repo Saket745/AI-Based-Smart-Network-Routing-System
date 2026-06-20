@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import pytest
@@ -10,6 +10,9 @@ from pydantic import ValidationError
 
 from nroute.core.traffic import FlowRecord, TrafficMatrix
 from nroute.exceptions import IngestionError
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_flow_record_validation() -> None:
