@@ -37,9 +37,9 @@ spec:
       restartPolicy: Never
       volumes:
       - name: data-volume
-        hostPath:
-          path: /mnt/data
+        configMap:
+          name: nroute-topology-config
       - name: output-volume
-        hostPath:
-          path: /mnt/output
+        persistentVolumeClaim:
+          claimName: nroute-output-pvc
   backoffLimit: 2
