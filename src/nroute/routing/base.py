@@ -43,7 +43,7 @@ class BaseRouter(ABC):
         Raises:
             RoutingError: If no path exists or computation fails.
         """
-        pass
+        raise NotImplementedError
 
     def compute_routes(
         self,

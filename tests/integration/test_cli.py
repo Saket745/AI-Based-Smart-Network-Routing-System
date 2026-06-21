@@ -389,7 +389,15 @@ class TestPredictCLI:
         # 2. Run prediction
         result = runner.invoke(
             cli,
-            ["predict", "congestion", "--topology", topo_file, "--model", model_path],
+            [
+                "predict",
+                "congestion",
+                "--topology",
+                topo_file,
+                "--model",
+                model_path,
+                "--allow-unsafe",
+            ],
             catch_exceptions=False,
         )
         assert result.exit_code == 0
@@ -436,7 +444,7 @@ class TestDetectCLI:
                 "flow_count": [5, 100],
                 "avg_packet_size": [500.0, 1500.0],
                 "src_ip_entropy": [3.0, 0.5],
-                "dst_port_entropy": [2.5, 0.2],
+                "dst_ip_entropy": [2.5, 0.2],
                 "utilization": [0.2, 0.95],
                 "latency_avg": [5.0, 150.0],
             }
@@ -446,7 +454,15 @@ class TestDetectCLI:
         # 3. Run detection
         result = runner.invoke(
             cli,
-            ["detect", "anomalies", "--traffic", str(traffic_csv), "--model", model_path],
+            [
+                "detect",
+                "anomalies",
+                "--traffic",
+                str(traffic_csv),
+                "--model",
+                model_path,
+                "--allow-unsafe",
+            ],
             catch_exceptions=False,
         )
         assert result.exit_code == 0

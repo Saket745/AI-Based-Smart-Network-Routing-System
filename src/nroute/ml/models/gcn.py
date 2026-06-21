@@ -152,6 +152,12 @@ class GCNModel(nn.Module):
         """Save the model state dict to a file."""
         torch.save(self.state_dict(), path)
 
-    def load(self, path: str) -> None:
-        """Load the model state dict from a file."""
-        self.load_state_dict(torch.load(path, map_location="cpu", weights_only=True))
+    def load(self, path: str, allow_unsafe: bool = False) -> None:
+        """
+        Load the model state dict from a file.
+
+        Args:
+            path: Path to the model checkpoint.
+            allow_unsafe: If True, allows insecure deserialization. Defaults to False.
+        """
+        self.load_state_dict(torch.load(path, map_location="cpu", weights_only=not allow_unsafe))
