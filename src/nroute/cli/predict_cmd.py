@@ -41,7 +41,13 @@ def predict_cmd() -> None:
     show_default=True,
     help="Congestion probability threshold for flagging.",
 )
-def congestion(topo_path: str, model_path: str, threshold: float) -> None:
+@click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading of legacy joblib/pickle models (Insecure).",
+)
+def congestion(topo_path: str, model_path: str, threshold: float, allow_unsafe: bool) -> None:
     """Predict per-link congestion probabilities."""
     import pandas as pd
 
@@ -55,7 +61,7 @@ def congestion(topo_path: str, model_path: str, threshold: float) -> None:
 
     try:
         predictor = CongestionPredictor()
-        predictor.load(model_path)
+        predictor.load(model_path, allow_unsafe=allow_unsafe)
     except ModelError as e:
         console.print(f"[red]x Failed to load model:[/red] {e}")
         raise SystemExit(1) from e
@@ -164,8 +170,19 @@ def congestion(topo_path: str, model_path: str, threshold: float) -> None:
     show_default=True,
     help="Congestion probability threshold for flagging.",
 )
+@click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading of models with insecure weights (Insecure).",
+)
 def predict_gnn(
-    topo_path: str, model_type: str, model_dir: str, version: str, threshold: float
+    topo_path: str,
+    model_type: str,
+    model_dir: str,
+    version: str,
+    threshold: float,
+    allow_unsafe: bool,
 ) -> None:
     """Predict link congestion and latency using trained GNN models."""
     import torch
@@ -197,7 +214,7 @@ def predict_gnn(
     # 2. Load model state via ModelStore
     try:
         store = ModelStore(base_dir=model_dir)
-        store.load_model(model, name=model_type.lower(), version=version)
+        store.load_model(model, name=model_type.lower(), version=version, allow_unsafe=allow_unsafe)
     except Exception as e:
         console.print(f"[red]x Failed to load model {model_type} (version {version}):[/red] {e}")
         raise SystemExit(1) from e
