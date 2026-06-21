@@ -263,9 +263,10 @@ class SimulationEngine:
         """
         Recalculate link utilization metrics based on current active flows.
         """
-        # 1. Reset all edges to 0 utilization
-        for u, v in self.topology.edges:
-            self.topology.update_edge(u, v, utilization=0.0)
+        # 1. Reset all edges to 0 utilization directly in networkx graph for performance
+        g = self.topology.graph
+        for u, v in g.edges:
+            g.edges[u, v]["utilization"] = 0.0
 
         # 2. Accumulate bandwidth demands of in-flight flows on their active link
         # Flow bandwidth demand = (bytes * 8) / (duration * 1e6) in Mbps.

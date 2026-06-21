@@ -15,13 +15,16 @@ Designed for SPA consumption with CORS enabled.
 
 from __future__ import annotations
 
+import asyncio
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from nroute.core.openconfig import ConfigChange
 from nroute.simulation.digital_twin import DigitalTwinEngine
@@ -45,12 +48,24 @@ app.add_middleware(
 # Global engine instance (per-process)
 _engine: DigitalTwinEngine | None = None
 
+# Thread pool for offloading CPU-bound simulation / graph operations
+_executor = ThreadPoolExecutor(max_workers=4)
+
 
 def get_engine() -> DigitalTwinEngine:
     global _engine
     if _engine is None:
         _engine = DigitalTwinEngine(audit_log="./output/audit_trail.ndjson")
     return _engine
+
+
+async def _run_in_executor(func: Any, *args: Any, **kwargs: Any) -> Any:
+    """Run a blocking function in the thread pool executor.
+
+    Prevents CPU-bound graph computations from blocking the ASGI event loop.
+    """
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_executor, partial(func, *args, **kwargs))
 
 
 # ── Request / Response Models ────────────────────────────────
@@ -65,19 +80,40 @@ class ImpactRequest(BaseModel):
     weight: str = "latency"
 
 
+class NetworkEventInput(BaseModel):
+    """Pydantic schema for a single network event in the RCA endpoint.
+
+    Enforces type validation at the API boundary instead of raw dict parsing.
+    """
+
+    event_id: str = ""
+    timestamp: float = 0.0
+    node_id: str = ""
+    interface: str = ""
+    peer_node: str = ""
+    event_type: str = ""
+    category: str = Field(
+        default="unknown", description="Event category: routing, interface, syslog, unknown"
+    )
+    severity: str = Field(
+        default="info", description="Event severity: critical, error, warning, info"
+    )
+    message: str = ""
+
+
 class RCARequest(BaseModel):
-    events: list[dict[str, Any]]
+    events: list[NetworkEventInput]
 
 
 # ── Endpoints ────────────────────────────────────────────────
 
 
 @app.get("/api/health")
-def health() -> dict[str, Any]:
+async def health() -> dict[str, Any]:
     """Return network health summary."""
     engine = get_engine()
     try:
-        return engine.health_summary()
+        return cast("dict[str, Any]", await _run_in_executor(engine.health_summary))
     except RuntimeError:
         return {
             "status": "no_topology",
@@ -86,14 +122,14 @@ def health() -> dict[str, Any]:
 
 
 @app.post("/api/topology/load")
-def load_topology(req: TopologyLoadRequest) -> dict[str, Any]:
+async def load_topology(req: TopologyLoadRequest) -> dict[str, Any]:
     """Load a topology from a file path."""
     engine = get_engine()
     p = Path(req.path)
     if not p.is_file():
         raise HTTPException(status_code=404, detail=f"File not found: {req.path}")
     try:
-        topo = engine.load_topology(p)
+        topo = await _run_in_executor(engine.load_topology, p)
         return {
             "status": "ok",
             "nodes": topo.node_count,
@@ -104,11 +140,11 @@ def load_topology(req: TopologyLoadRequest) -> dict[str, Any]:
 
 
 @app.get("/api/topology")
-def get_topology() -> dict[str, Any]:
+async def get_topology() -> dict[str, Any]:
     """Return the current topology as JSON."""
     engine = get_engine()
     try:
-        return engine.topology.to_dict()
+        return cast("dict[str, Any]", await _run_in_executor(engine.topology.to_dict))
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail="No topology loaded.") from exc
 
@@ -126,7 +162,7 @@ async def ingest_config(file: UploadFile = File(...)) -> dict[str, Any]:  # noqa
         tmp_path = tmp.name
 
     try:
-        hostnames = engine.ingest_config(tmp_path)
+        hostnames = await _run_in_executor(engine.ingest_config, tmp_path)
         return {
             "status": "ok",
             "devices_applied": hostnames,
@@ -138,13 +174,13 @@ async def ingest_config(file: UploadFile = File(...)) -> dict[str, Any]:  # noqa
 
 
 @app.post("/api/impact")
-def simulate_impact(req: ImpactRequest) -> dict[str, Any]:
+async def simulate_impact(req: ImpactRequest) -> dict[str, Any]:
     """Simulate a change and return blast-radius report."""
     engine = get_engine()
     try:
         change = ConfigChange.model_validate(req.change)
-        result = engine.simulate_change(change, weight=req.weight)
-        return result.to_dict()
+        result = await _run_in_executor(engine.simulate_change, change, weight=req.weight)
+        return cast("dict[str, Any]", result.to_dict())
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -152,7 +188,7 @@ def simulate_impact(req: ImpactRequest) -> dict[str, Any]:
 
 
 @app.post("/api/rca")
-def run_rca(req: RCARequest) -> dict[str, Any]:
+async def run_rca(req: RCARequest) -> dict[str, Any]:
     """Run root-cause analysis on provided events."""
     from nroute.simulation.rca import (
         EventCategory,
@@ -164,46 +200,46 @@ def run_rca(req: RCARequest) -> dict[str, Any]:
     engine = get_engine()
     events: list[NetworkEvent] = []
     for idx, item in enumerate(req.events):
-        cat = item.get("category", "unknown")
-        sev = item.get("severity", "info")
+        cat = item.category
+        sev = item.severity
         evt = NetworkEvent(
-            event_id=str(item.get("event_id", f"evt_{idx}")),
-            timestamp=float(item.get("timestamp", idx)),
-            node_id=str(item.get("node_id", "")),
-            interface=str(item.get("interface", "")),
-            peer_node=str(item.get("peer_node", "")),
-            event_type=str(item.get("event_type", "")),
+            event_id=item.event_id or f"evt_{idx}",
+            timestamp=item.timestamp if item.timestamp else float(idx),
+            node_id=item.node_id,
+            interface=item.interface,
+            peer_node=item.peer_node,
+            event_type=item.event_type,
             category=EventCategory(cat)
             if cat in [e.value for e in EventCategory]
             else EventCategory.UNKNOWN,
             severity=EventSeverity(sev)
             if sev in [e.value for e in EventSeverity]
             else EventSeverity.INFO,
-            message=str(item.get("message", "")),
-            raw=item,
+            message=item.message,
+            raw=item.model_dump(),
         )
         events.append(classify_event(evt))
 
     try:
-        result = engine.diagnose(events)
-        return result.to_dict()
+        result = await _run_in_executor(engine.diagnose, events)
+        return cast("dict[str, Any]", result.to_dict())
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/reachability")
-def get_reachability() -> dict[str, Any]:
+async def get_reachability() -> dict[str, Any]:
     """Compute pairwise reachability matrix."""
     engine = get_engine()
     try:
-        reach = engine.compute_reachability()
+        reach = await _run_in_executor(engine.compute_reachability)
         return {k: sorted(v) for k, v in reach.items()}
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/audit")
-def get_audit(
+async def get_audit(
     action: str | None = None,
     limit: int | None = None,
 ) -> dict[str, Any]:

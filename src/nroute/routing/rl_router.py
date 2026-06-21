@@ -68,8 +68,18 @@ class RLRouter(BaseRouter):
         if self.algorithm not in {"ppo", "dqn"}:
             raise ValueError(f"Unknown RL algorithm '{algorithm}'. Supported: ppo, dqn.")
 
+    # Maximum fraction of nodes/edges that can differ before the RL
+    # policy is considered incompatible with the live topology.
+    TOPOLOGY_MISMATCH_THRESHOLD: float = 0.10  # 10%
+
     def _check_topology_compatibility(self, topology: Topology) -> tuple[bool, str]:
         """Check if a live topology is compatible with the training topology.
+
+        Uses a threshold-based approach: if the fraction of added/removed
+        nodes and edges is within ``TOPOLOGY_MISMATCH_THRESHOLD``, the
+        topology is considered compatible (with a logged warning).  This
+        allows the RL policy to generalise to slightly modified graphs
+        without immediately falling back to Dijkstra.
 
         Returns:
             Tuple of (is_compatible, reason_string).
@@ -89,7 +99,15 @@ class RLRouter(BaseRouter):
         added_edges = live_edges - train_edges
         removed_edges = train_edges - live_edges
 
-        if added_nodes or removed_nodes or added_edges or removed_edges:
+        # Compute mismatch fractions relative to training topology size
+        total_train_nodes = max(len(train_nodes), 1)
+        total_train_edges = max(len(train_edges), 1)
+
+        node_mismatch = (len(added_nodes) + len(removed_nodes)) / total_train_nodes
+        edge_mismatch = (len(added_edges) + len(removed_edges)) / total_train_edges
+        max_mismatch = max(node_mismatch, edge_mismatch)
+
+        if max_mismatch > self.TOPOLOGY_MISMATCH_THRESHOLD:
             parts = []
             if added_nodes:
                 parts.append(f"added_nodes={added_nodes}")
@@ -99,7 +117,19 @@ class RLRouter(BaseRouter):
                 parts.append(f"added_edges={len(added_edges)}")
             if removed_edges:
                 parts.append(f"removed_edges={len(removed_edges)}")
-            return False, f"Topology mismatch: {', '.join(parts)}"
+            return False, (
+                f"Topology mismatch exceeds {self.TOPOLOGY_MISMATCH_THRESHOLD:.0%} "
+                f"threshold (node: {node_mismatch:.1%}, edge: {edge_mismatch:.1%}): "
+                f"{', '.join(parts)}"
+            )
+
+        # Within threshold — warn but allow inference
+        if max_mismatch > 0:
+            logger.warning(
+                f"Minor topology drift detected (node: {node_mismatch:.1%}, "
+                f"edge: {edge_mismatch:.1%}) — within {self.TOPOLOGY_MISMATCH_THRESHOLD:.0%} "
+                f"threshold, proceeding with RL inference."
+            )
 
         return True, "compatible"
 
@@ -259,15 +289,19 @@ class RLRouter(BaseRouter):
         """
         # 1. Fallback if not trained
         if not self.is_trained or self.model is None:
-            logger.warning("RLRouter is not trained. Using cascade fallback.")
+            if not getattr(self, "_warned_untrained", False):
+                logger.warning("RLRouter is not trained. Using cascade fallback (suppressing future warnings).")
+                self._warned_untrained = True
             return self._cascade_fallback(topology, source, destination, weight=weight)
 
         # 2. Check topology compatibility with training topology
         is_compatible, reason = self._check_topology_compatibility(topology)
         if not is_compatible:
-            logger.warning(
-                f"Topology incompatible with training topology: {reason}. Using cascade fallback."
-            )
+            if not getattr(self, "_warned_incompatible", False):
+                logger.warning(
+                    f"Topology incompatible with training topology: {reason}. Using cascade fallback (suppressing future warnings)."
+                )
+                self._warned_incompatible = True
             return self._cascade_fallback(topology, source, destination, weight=weight)
 
         # 3. Run RL inference step-by-step

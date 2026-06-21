@@ -2,17 +2,23 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: nroute-batch-simulation
+  namespace: nroute
   labels:
     app: nroute
+    app.kubernetes.io/name: nroute
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: manual
 spec:
   template:
     metadata:
       labels:
         app: nroute
+        app.kubernetes.io/name: nroute
+        app.kubernetes.io/version: 0.1.0
     spec:
       containers:
       - name: nroute-cli
-        image: nroute:latest
+        image: ghcr.io/saket745/nroute:0.1.0
         imagePullPolicy: IfNotPresent
         command: ["nroute"]
         args: [

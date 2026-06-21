@@ -12,6 +12,7 @@ Provides a single-entry-point API for both the CLI and the FastAPI server.
 
 from __future__ import annotations
 
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -96,6 +97,7 @@ class DigitalTwinEngine:
         self._topology: Topology | None = None
         self._snapshots: list[TopologySnapshot] = []
         self._audit = AuditTrail(log_file=audit_log)
+        self._lock = threading.RLock()
 
     # ── Properties ───────────────────────────────────────
 
@@ -124,33 +126,35 @@ class DigitalTwinEngine:
         Returns:
             The loaded ``Topology``.
         """
-        p = Path(path)
-        self._topology = Topology.load(p)
+        with self._lock:
+            p = Path(path)
+            self._topology = Topology.load(p)
 
-        self._audit.record(
-            AuditAction.TOPOLOGY_MUTATION,
-            actor="system",
-            source=str(p),
-            explanation=f"Loaded topology from {p.name}",
-            details={
-                "nodes": self._topology.node_count,
-                "edges": self._topology.edge_count,
-            },
-        )
+            self._audit.record(
+                AuditAction.TOPOLOGY_MUTATION,
+                actor="system",
+                source=str(p),
+                explanation=f"Loaded topology from {p.name}",
+                details={
+                    "nodes": self._topology.node_count,
+                    "edges": self._topology.edge_count,
+                },
+            )
 
-        self._take_snapshot(label="initial_load")
-        logger.info(
-            "Topology loaded",
-            path=str(p),
-            nodes=self._topology.node_count,
-            edges=self._topology.edge_count,
-        )
-        return self._topology
+            self._take_snapshot(label="initial_load")
+            logger.info(
+                "Topology loaded",
+                path=str(p),
+                nodes=self._topology.node_count,
+                edges=self._topology.edge_count,
+            )
+            return self._topology
 
     def set_topology(self, topology: Topology) -> None:
         """Programmatically set the topology (e.g. from a generator)."""
-        self._topology = topology
-        self._take_snapshot(label="programmatic_set")
+        with self._lock:
+            self._topology = topology
+            self._take_snapshot(label="programmatic_set")
 
     # ── Config ingestion ─────────────────────────────────
 
@@ -163,24 +167,25 @@ class DigitalTwinEngine:
         Returns:
             List of device hostnames that were applied.
         """
-        configs = ConfigParser.load_device_configs(path)
-        hostnames = [c.hostname for c in configs]
+        with self._lock:
+            configs = ConfigParser.load_device_configs(path)
+            hostnames = [c.hostname for c in configs]
 
-        ConfigParser.apply_device_configs(self.topology, configs)
+            ConfigParser.apply_device_configs(self.topology, configs)
 
-        self._audit.record(
-            AuditAction.CONFIG_CHANGE,
-            actor="system",
-            source=str(path),
-            details={"devices": hostnames},
-            explanation=(
-                f"Ingested {len(configs)} device config(s) from "
-                f"{Path(path).name}: {', '.join(hostnames)}"
-            ),
-        )
+            self._audit.record(
+                AuditAction.CONFIG_CHANGE,
+                actor="system",
+                source=str(path),
+                details={"devices": hostnames},
+                explanation=(
+                    f"Ingested {len(configs)} device config(s) from "
+                    f"{Path(path).name}: {', '.join(hostnames)}"
+                ),
+            )
 
-        self._take_snapshot(label="config_ingestion")
-        return hostnames
+            self._take_snapshot(label="config_ingestion")
+            return hostnames
 
     # ── Change-impact simulation ─────────────────────────
 
@@ -199,30 +204,31 @@ class DigitalTwinEngine:
         Returns:
             A ``BlastRadius`` report.
         """
-        if isinstance(change, (str, Path)):
-            change = ConfigParser.load_change(change)
+        with self._lock:
+            if isinstance(change, (str, Path)):
+                change = ConfigParser.load_change(change)
 
-        sim = ChangeImpactSimulator(self.topology)
-        result = sim.simulate(change, weight=weight)
+            sim = ChangeImpactSimulator(self.topology)
+            result = sim.simulate(change, weight=weight)
 
-        # Build counterfactual narrative
-        counterfactual_text = self._build_counterfactual(result)
+            # Build counterfactual narrative
+            counterfactual_text = self._build_counterfactual(result)
 
-        self._audit.record(
-            AuditAction.CONFIG_CHANGE,
-            actor="system",
-            details=result.to_dict(),
-            explanation=(
-                f"Change-impact simulation: "
-                f"{result.newly_unreachable_pairs} pairs became unreachable, "
-                f"{result.path_changed_pairs} paths changed, "
-                f"computed in {result.computation_ms:.1f} ms."
-            ),
-            counterfactual=counterfactual_text,
-            counterfactual_data=result.to_dict(),
-        )
+            self._audit.record(
+                AuditAction.CONFIG_CHANGE,
+                actor="system",
+                details=result.to_dict(),
+                explanation=(
+                    f"Change-impact simulation: "
+                    f"{result.newly_unreachable_pairs} pairs became unreachable, "
+                    f"{result.path_changed_pairs} paths changed, "
+                    f"computed in {result.computation_ms:.1f} ms."
+                ),
+                counterfactual=counterfactual_text,
+                counterfactual_data=result.to_dict(),
+            )
 
-        return result
+            return result
 
     # ── Root-cause analysis ──────────────────────────────
 
@@ -238,64 +244,69 @@ class DigitalTwinEngine:
         Returns:
             An ``RCAResult`` report.
         """
-        if isinstance(events, (str, Path)):
-            events = load_events(events)
+        with self._lock:
+            if isinstance(events, (str, Path)):
+                events = load_events(events)
 
-        correlator = RCACorrelator(self.topology)
-        result = correlator.diagnose(events)
+            correlator = RCACorrelator(self.topology)
+            result = correlator.diagnose(events)
 
-        self._audit.record(
-            AuditAction.RCA_DIAGNOSIS,
-            actor="system",
-            details=result.to_dict(),
-            explanation=result.root_cause_summary,
-        )
+            self._audit.record(
+                AuditAction.RCA_DIAGNOSIS,
+                actor="system",
+                details=result.to_dict(),
+                explanation=result.root_cause_summary,
+            )
 
-        return result
+            return result
 
     # ── Analytical queries ───────────────────────────────
 
     def compute_reachability(self) -> dict[str, set[str]]:
         """Compute reachability from every node to every other node."""
-        graph = AnalyticalEngine.get_active_graph(self.topology)
-        return AnalyticalEngine.compute_reachability(graph)
+        with self._lock:
+            graph = AnalyticalEngine.get_active_graph(self.topology)
+            return AnalyticalEngine.compute_reachability(graph)
 
     def compute_shortest_paths(
         self,
         weight: str = "latency",
     ) -> dict[str, dict[str, list[str]]]:
         """Compute all-pairs shortest paths on the active graph."""
-        graph = AnalyticalEngine.get_active_graph(self.topology)
-        return AnalyticalEngine.compute_all_pairs_shortest_paths(graph, weight)
+        with self._lock:
+            graph = AnalyticalEngine.get_active_graph(self.topology)
+            return AnalyticalEngine.compute_all_pairs_shortest_paths(graph, weight)
 
     def health_summary(self) -> dict[str, Any]:
         """Return a snapshot of the network's health."""
-        topo = self.topology
-        graph = AnalyticalEngine.get_active_graph(topo)
+        with self._lock:
+            topo = self.topology
+            graph = AnalyticalEngine.get_active_graph(topo)
 
-        down_nodes = [
-            n
-            for n, d in topo.graph.nodes(data=True)
-            if str(d.get("status", "up")).lower() == "down"
-        ]
-        down_edges = [
-            (u, v)
-            for u, v, d in topo.graph.edges(data=True)
-            if str(d.get("status", "up")).lower() == "down"
-        ]
+            down_nodes = [
+                n
+                for n, d in topo.graph.nodes(data=True)
+                if str(d.get("status", "up")).lower() == "down"
+            ]
+            down_edges = [
+                (u, v)
+                for u, v, d in topo.graph.edges(data=True)
+                if str(d.get("status", "up")).lower() == "down"
+            ]
 
-        return {
-            "total_nodes": topo.node_count,
-            "total_edges": topo.edge_count,
-            "active_nodes": graph.number_of_nodes(),
-            "active_edges": graph.number_of_edges(),
-            "down_nodes": down_nodes,
-            "down_edges": [list(e) for e in down_edges],
-            "is_strongly_connected": (
-                graph.number_of_nodes() > 0 and __import__("networkx").is_strongly_connected(graph)
-            ),
-            "audit_summary": self._audit.summary(),
-        }
+            return {
+                "total_nodes": topo.node_count,
+                "total_edges": topo.edge_count,
+                "active_nodes": graph.number_of_nodes(),
+                "active_edges": graph.number_of_edges(),
+                "down_nodes": down_nodes,
+                "down_edges": [list(e) for e in down_edges],
+                "is_strongly_connected": (
+                    graph.number_of_nodes() > 0
+                    and __import__("networkx").is_strongly_connected(graph)
+                ),
+                "audit_summary": self._audit.summary(),
+            }
 
     # ── Snapshot management ──────────────────────────────
 

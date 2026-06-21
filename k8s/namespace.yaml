@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nroute
+  labels:
+    app.kubernetes.io/name: nroute
+    app.kubernetes.io/managed-by: manual

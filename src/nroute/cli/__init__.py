@@ -6,6 +6,7 @@ import click
 
 import nroute
 from nroute.cli.detect_cmd import detect_cmd
+from nroute.cli.export_cmd import export_cmd
 from nroute.cli.predict_cmd import predict_cmd
 from nroute.cli.route_cmd import route_cmd
 from nroute.cli.simulate_cmd import simulate_cmd
@@ -64,3 +65,4 @@ cli.add_command(train_cmd, "train")
 cli.add_command(predict_cmd, "predict")
 cli.add_command(detect_cmd, "detect")
 cli.add_command(twin_cmd, "twin")
+cli.add_command(export_cmd, "export")

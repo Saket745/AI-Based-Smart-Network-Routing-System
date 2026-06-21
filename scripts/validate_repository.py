@@ -57,6 +57,7 @@ IGNORE_DIRS = {
     "__pycache__",
     "build",
     "dist",
+    "graphite-demo",
 }
 
 
