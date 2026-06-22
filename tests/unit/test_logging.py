@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import logging
+import sys
+from unittest.mock import patch
+
 import structlog
 
 from nroute.utils import logging as nroute_logging
@@ -44,7 +48,13 @@ def test_configure_logging_idempotent() -> None:
 
     # Reset only the structlog defaults, NOT _configured — simulate second call
     structlog.reset_defaults()
-    configure_logging(verbose=True)  # Should be guarded and return immediately
+    with (
+        patch("logging.basicConfig") as mock_logging_config,
+        patch("structlog.configure") as mock_structlog_config,
+    ):
+        configure_logging(verbose=True)  # Should be guarded and return immediately
+        mock_logging_config.assert_not_called()
+        mock_structlog_config.assert_not_called()
 
     # _configured must still be True (was already set by first call)
     assert nroute_logging._configured is True
@@ -75,3 +85,41 @@ def test_get_logger_can_log_without_error() -> None:
     logger.info("test info message", key="value")
     logger.debug("test debug message")
     logger.warning("test warning message")
+
+
+def test_configure_logging_calls_internal_configs() -> None:
+    """Verify that internal configuration functions are called with expected parameters."""
+    _reset_logging_state()
+    with (
+        patch("logging.basicConfig") as mock_logging_config,
+        patch("structlog.configure") as mock_structlog_config,
+    ):
+        configure_logging(verbose=True, json_format=True)
+
+        # Verify stdlib logging config
+        mock_logging_config.assert_called_once_with(
+            level=logging.DEBUG,
+            format="%(message)s",
+            stream=sys.stderr,
+        )
+
+        # Verify structlog config
+        assert mock_structlog_config.called
+        _, kwargs = mock_structlog_config.call_args
+
+        processors = kwargs["processors"]
+        assert any(isinstance(p, structlog.processors.JSONRenderer) for p in processors)
+        assert not any(isinstance(p, structlog.dev.ConsoleRenderer) for p in processors)
+        assert kwargs["cache_logger_on_first_use"] is True
+
+
+def test_configure_logging_console_renderer() -> None:
+    """Verify that ConsoleRenderer is used when json_format is False."""
+    _reset_logging_state()
+    with patch("structlog.configure") as mock_structlog_config:
+        configure_logging(verbose=False, json_format=False)
+
+        _, kwargs = mock_structlog_config.call_args
+        processors = kwargs["processors"]
+        assert any(isinstance(p, structlog.dev.ConsoleRenderer) for p in processors)
+        assert not any(isinstance(p, structlog.processors.JSONRenderer) for p in processors)
