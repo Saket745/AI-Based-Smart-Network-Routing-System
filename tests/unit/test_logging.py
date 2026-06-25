@@ -75,3 +75,11 @@ def test_get_logger_can_log_without_error() -> None:
     logger.info("test info message", key="value")
     logger.debug("test debug message")
     logger.warning("test warning message")
+
+
+def test_configure_logging_quiet_and_override() -> None:
+    """configure_logging() supports quiet option and custom log level override."""
+    _reset_logging_state()
+    configure_logging(quiet=True, colors=False, log_level_override="WARNING")
+    assert nroute_logging._configured is True
+

@@ -13,11 +13,11 @@ COPY src/ ./src/
 # Install build dependencies and build package distributions
 RUN pip install --no-cache-dir build && python -m build
 
-# Stage 2: Minimal runtime image
+# Stage 2: Minimal runtime image (Slim variant, no ML/torch)
 FROM python:3.10-slim@sha256:d842ff3e7ab8997a31ff833b378ebfb18ef66699eb3c19b66b2a4729f27d5320
 
 LABEL org.opencontainers.image.source="https://github.com/Saket745/AI-Based-Smart-Network-Routing-System"
-LABEL org.opencontainers.image.description="AI-Based Smart Network Routing System (nroute)"
+LABEL org.opencontainers.image.description="AI-Based Smart Network Routing System (nroute-slim)"
 LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
@@ -33,9 +33,25 @@ COPY --from=builder --chown=nroute:nroute /app/dist/*.whl ./
 # Switch to the non-root user
 USER nroute
 
-# Install the wheel package locally
-RUN pip install --user --no-cache-dir *.whl \
+# Install the wheel package locally WITHOUT resolving dependencies automatically
+# to avoid installing heavy machine learning libraries (torch, stable-baselines3, scikit-learn, xgboost)
+RUN pip install --user --no-cache-dir --no-deps *.whl \
     && rm *.whl
+
+# Manually install ONLY the lightweight, basic dependencies (routing, simulation, CLI, FastAPI server)
+RUN pip install --user --no-cache-dir \
+    "networkx>=3.2" \
+    "numpy>=1.26" \
+    "pandas>=2.1" \
+    "click>=8.1" \
+    "rich>=13.0" \
+    "pydantic>=2.5" \
+    "structlog>=24.1" \
+    "pyyaml>=6.0" \
+    "pyarrow>=14.0" \
+    "fastapi>=0.100" \
+    "python-multipart>=0.0.7" \
+    "uvicorn>=0.22"
 
 # Ensure local user bin is on path (where the wheel installs the entry points)
 ENV PATH="/home/nroute/.local/bin:${PATH}"

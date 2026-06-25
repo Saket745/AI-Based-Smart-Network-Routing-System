@@ -19,6 +19,10 @@ class GeneralConfig(BaseModel):
     log_format: str = Field(default="text", description="json | text")
     seed: int | None = Field(default=None, description="Global random seed")
     output_dir: str = Field(default="./output", description="Default output directory")
+    cors_origins: list[str] = Field(
+        default_factory=lambda: ["*"],
+        description="CORS allowed origins for the API server",
+    )
 
 
 class TopologyConfig(BaseModel):
@@ -125,6 +129,8 @@ def load_config(path: str | Path | None = None) -> NRouteConfig:
             [
                 Path("nroute.yaml"),
                 Path("nroute.yml"),
+                Path("configs/nroute.yaml"),
+                Path("configs/nroute.yml"),
                 Path(os.path.expanduser("~/.nroute/config.yaml")),
                 Path(os.path.expanduser("~/.nroute/config.yml")),
             ]

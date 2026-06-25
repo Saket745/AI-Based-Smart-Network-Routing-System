@@ -14,3 +14,15 @@ services:
       - ./data:/app/data
       - ./models:/app/models
     command: ["train", "--model", "congestion", "-t", "data/sample_topology.json", "-o", "models/congestion_xgb_v1.joblib"]
+
+  nroute-api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./output:/app/output
+      - ./models:/app/models
+    environment:
+      - NROUTE_CORS_ORIGINS=*
+    command: ["api", "start", "--host", "0.0.0.0", "--port", "8000"]

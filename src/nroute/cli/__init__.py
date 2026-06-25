@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import os
+import sys
+
 import click
 
 import nroute
+from nroute.cli.api_cmd import api_cmd
+from nroute.cli.configs_cmd import config_cmd
 from nroute.cli.detect_cmd import detect_cmd
 from nroute.cli.export_cmd import export_cmd
 from nroute.cli.predict_cmd import predict_cmd
@@ -29,6 +34,27 @@ from nroute.cli.twin_cmd import twin_cmd
     help="Enable verbose (DEBUG) logging.",
 )
 @click.option(
+    "--quiet",
+    "-q",
+    is_flag=True,
+    default=False,
+    help="Suppress non-error logs (set logging level to ERROR).",
+)
+@click.option(
+    "--no-color",
+    is_flag=True,
+    default=False,
+    help="Disable colored output.",
+)
+@click.option(
+    "--output-format",
+    "-f",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+    help="Set the output format for commands.",
+)
+@click.option(
     "--config",
     type=click.Path(exists=False),
     default=None,
@@ -41,7 +67,15 @@ from nroute.cli.twin_cmd import twin_cmd
     help="Global random seed for reproducibility.",
 )
 @click.pass_context
-def cli(ctx: click.Context, verbose: bool, config: str | None, seed: int | None) -> None:
+def cli(
+    ctx: click.Context,
+    verbose: bool,
+    quiet: bool,
+    no_color: bool,
+    output_format: str,
+    config: str | None,
+    seed: int | None,
+) -> None:
     """nroute - AI-Based Smart Network Routing System.
 
     Simulate, visualize, and optimize network routing
@@ -50,8 +84,46 @@ def cli(ctx: click.Context, verbose: bool, config: str | None, seed: int | None)
     """
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
+    ctx.obj["quiet"] = quiet
+    ctx.obj["no_color"] = no_color
+    ctx.obj["output_format"] = output_format
     ctx.obj["config"] = config
-    ctx.obj["seed"] = seed
+
+    # Handle NO_COLOR environment variable setting
+    if no_color:
+        os.environ["NO_COLOR"] = "1"
+
+    # Load configuration
+    from nroute.core.config import load_config
+
+    try:
+        cfg = load_config(config)
+    except Exception as exc:
+        click.echo(f"Error loading configuration: {exc}", err=True)
+        sys.exit(1)
+
+    ctx.obj["config_obj"] = cfg
+
+    # Resolve global seed
+    # Precedence: CLI --seed flag, then config file seed
+    resolved_seed = seed if seed is not None else cfg.general.seed
+    ctx.obj["seed"] = resolved_seed
+
+    # Configure global logging
+    from nroute.utils.logging import configure_logging
+
+    # Check if stderr is a TTY. If not, force json format (C4 requirement)
+    json_format = cfg.general.log_format.lower() == "json"
+    if not sys.stderr.isatty():
+        json_format = True
+
+    configure_logging(
+        verbose=verbose,
+        quiet=quiet,
+        json_format=json_format,
+        colors=not no_color,
+        log_level_override=cfg.general.log_level,
+    )
 
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
@@ -66,3 +138,18 @@ cli.add_command(predict_cmd, "predict")
 cli.add_command(detect_cmd, "detect")
 cli.add_command(twin_cmd, "twin")
 cli.add_command(export_cmd, "export")
+cli.add_command(api_cmd, "api")
+cli.add_command(config_cmd, "config")
+
+
+# ── Shell Completion Subcommand ─────────────────────────────
+@cli.command(name="completion", help="Generate shell completion scripts.")
+@click.argument("shell", type=click.Choice(["bash", "zsh", "fish"]))
+def completion(shell: str) -> None:
+    """Generate shell completion scripts for bash, zsh, or fish."""
+    if shell == "bash":
+        click.echo('eval "$(_NROUTE_COMPLETE=bash_source nroute)"')
+    elif shell == "zsh":
+        click.echo('eval "$(_NROUTE_COMPLETE=zsh_source nroute)"')
+    elif shell == "fish":
+        click.echo('eval "$(_NROUTE_COMPLETE=fish_source nroute)"')

@@ -16,3 +16,8 @@ models/*.pt
 models/*.pth
 models/*.zip
 output/
+tests/
+docs/
+experiments/
+graphite-demo/
+

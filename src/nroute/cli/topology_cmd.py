@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import click
@@ -71,7 +72,8 @@ def generate(
 ) -> None:
     """Generate a synthetic network topology."""
     # Inherit global seed if not overridden
-    seed = seed or ctx.obj.get("seed")
+    seed = seed or (ctx.obj.get("seed") if ctx.obj is not None else None)
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
 
     try:
         topo_type_lower = topo_type.lower()
@@ -90,6 +92,25 @@ def generate(
         else:
             raise TopologyError(f"Unknown topology type: {topo_type}")
 
+        if is_json:
+            if output:
+                out_path = Path(output)
+                out_path.parent.mkdir(parents=True, exist_ok=True)
+                topo.save(str(out_path))
+                click.echo(
+                    json.dumps(
+                        {
+                            "status": "success",
+                            "file": str(out_path),
+                            "nodes": topo.node_count,
+                            "edges": topo.edge_count,
+                        }
+                    )
+                )
+            else:
+                click.echo(json.dumps(topo.to_dict(), indent=2))
+            return
+
         if output:
             out_path = Path(output)
             out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -103,6 +124,9 @@ def generate(
             _print_topology_summary(topo, title=f"{topo_type} Topology")
 
     except TopologyError as e:
+        if is_json:
+            click.echo(json.dumps({"error": str(e)}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Topology error:[/red] {e}")
         raise SystemExit(1) from e
 
@@ -116,12 +140,42 @@ def generate(
     required=True,
     help="Path to a topology JSON file.",
 )
-def show(filepath: str) -> None:
+@click.pass_context
+def show(ctx: click.Context, filepath: str) -> None:
     """Display a summary of an existing topology."""
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
     try:
         topo = Topology.load(filepath)
+        if is_json:
+            degrees = [topo.graph.degree(n) for n in topo.graph.nodes]
+            up_nodes = sum(1 for n in topo.nodes if topo.get_node(n).get("status") == "up")
+            up_edges = sum(1 for u, v in topo.edges if topo.get_edge(u, v).get("status") == "up")
+            node_types: dict[str, int] = {}
+            for n in topo.nodes:
+                ntype = topo.get_node(n).get("type", "unknown")
+                node_types[ntype] = node_types.get(ntype, 0) + 1
+
+            out = {
+                "file": filepath,
+                "nodes": topo.node_count,
+                "edges": topo.edge_count,
+                "min_degree": min(degrees) if degrees else 0,
+                "max_degree": max(degrees) if degrees else 0,
+                "avg_degree": sum(degrees) / len(degrees) if degrees else 0.0,
+                "nodes_up": up_nodes,
+                "nodes_down": topo.node_count - up_nodes,
+                "links_up": up_edges,
+                "links_down": topo.edge_count - up_edges,
+                "node_types": node_types,
+            }
+            click.echo(json.dumps(out, indent=2))
+            return
+
         _print_topology_summary(topo, title=f"Topology: {filepath}")
     except Exception as e:
+        if is_json:
+            click.echo(json.dumps({"error": str(e)}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 

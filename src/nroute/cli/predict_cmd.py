@@ -47,15 +47,27 @@ def predict_cmd() -> None:
     default=False,
     help="Allow loading of unsafe models (joblib/pickle).",
 )
-def congestion(topo_path: str, model_path: str, threshold: float, allow_unsafe: bool) -> None:
+@click.pass_context
+def congestion(
+    ctx: click.Context,
+    topo_path: str,
+    model_path: str,
+    threshold: float,
+    allow_unsafe: bool,
+) -> None:
     """Predict per-link congestion probabilities."""
     import pandas as pd
 
     from nroute.ml.congestion import CongestionPredictor
 
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
     try:
         topo = Topology.load(topo_path)
     except Exception as e:
+        if is_json:
+            import json
+            click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
@@ -63,6 +75,10 @@ def congestion(topo_path: str, model_path: str, threshold: float, allow_unsafe: 
         predictor = CongestionPredictor()
         predictor.load(model_path, allow_unsafe=allow_unsafe)
     except ModelError as e:
+        if is_json:
+            import json
+            click.echo(json.dumps({"error": f"Failed to load model: {e}"}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Failed to load model:[/red] {e}")
         raise SystemExit(1) from e
 
@@ -93,8 +109,36 @@ def congestion(topo_path: str, model_path: str, threshold: float, allow_unsafe: 
     try:
         predictions = predictor.predict(features)
     except Exception as e:
+        if is_json:
+            import json
+            click.echo(json.dumps({"error": f"Prediction failed: {e}"}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Prediction failed:[/red] {e}")
         raise SystemExit(1) from e
+
+    if isinstance(predictions, pd.DataFrame):
+        probs = predictions["probability"].tolist()
+    else:
+        probs = predictions if hasattr(predictions, "__iter__") else [predictions]
+
+    if is_json:
+        import json
+        out = {
+            "links": [
+                {
+                    "link": edge_id,
+                    "probability": float(prob),
+                    "status": "CONGESTED"
+                    if float(prob) >= threshold
+                    else ("AT RISK" if float(prob) >= threshold * 0.7 else "NORMAL"),
+                }
+                for edge_id, prob in zip(edge_ids, probs, strict=True)
+            ],
+            "threshold": threshold,
+            "congested_count": sum(1 for p in probs if float(p) >= threshold),
+        }
+        click.echo(json.dumps(out, indent=2))
+        return
 
     # Display results
     console.print()
@@ -176,7 +220,9 @@ def congestion(topo_path: str, model_path: str, threshold: float, allow_unsafe: 
     default=False,
     help="Allow loading of unsafe models (joblib/pickle).",
 )
+@click.pass_context
 def predict_gnn(
+    ctx: click.Context,
     topo_path: str,
     model_type: str,
     model_dir: str,
@@ -192,9 +238,14 @@ def predict_gnn(
     from nroute.ml.models.gcn import GCNModel
     from nroute.ml.models.graphsage import GraphSAGEModel
 
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
     try:
         topo = Topology.load(topo_path)
     except Exception as e:
+        if is_json:
+            import json
+            click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
@@ -216,6 +267,10 @@ def predict_gnn(
         store = ModelStore(base_dir=model_dir)
         store.load_model(model, name=model_type.lower(), version=version, allow_unsafe=allow_unsafe)
     except Exception as e:
+        if is_json:
+            import json
+            click.echo(json.dumps({"error": f"Failed to load model {model_type} (version {version}): {e}"}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Failed to load model {model_type} (version {version}):[/red] {e}")
         raise SystemExit(1) from e
 
@@ -224,6 +279,10 @@ def predict_gnn(
         builder = FeatureBuilder()
         bundle = builder.build_features(topo).to_tensors()
     except Exception as e:
+        if is_json:
+            import json
+            click.echo(json.dumps({"error": f"Feature engineering failed: {e}"}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Feature engineering failed:[/red] {e}")
         raise SystemExit(1) from e
 
@@ -235,6 +294,38 @@ def predict_gnn(
     # Compute probabilities using sigmoid
     probs = torch.sigmoid(logits).tolist()
     predicted_latencies = pred_lat.tolist()
+
+    if is_json:
+        import json
+        edges_sorted = sorted(topo.edges)
+        links_out = []
+        for idx, (u, v) in enumerate(edges_sorted):
+            prob = probs[idx]
+            pred_l = predicted_latencies[idx]
+            edge = topo.get_edge(u, v)
+            true_util = float(edge.get("utilization", 0.0))
+            true_lat = float(edge.get("latency", 0.0))
+            links_out.append(
+                {
+                    "link": f"{u} -> {v}",
+                    "true_utilization": true_util,
+                    "true_latency": true_lat,
+                    "predicted_latency": pred_l * 100.0,
+                    "congestion_probability": prob,
+                    "status": "CONGESTED"
+                    if prob >= threshold
+                    else ("AT RISK" if prob >= threshold * 0.7 else "NORMAL"),
+                }
+            )
+        out = {
+            "model_type": model_type,
+            "version": version,
+            "threshold": threshold,
+            "congested_count": sum(1 for p in probs if p >= threshold),
+            "links": links_out,
+        }
+        click.echo(json.dumps(out, indent=2))
+        return
 
     # Display results
     console.print()

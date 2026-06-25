@@ -39,8 +39,15 @@ def detect_cmd() -> None:
     default=False,
     help="Allow loading of unsafe models (joblib/pickle).",
 )
-def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
+@click.pass_context
+def anomalies(
+    ctx: click.Context,
+    traffic_path: str,
+    model_path: str,
+    allow_unsafe: bool,
+) -> None:
     """Detect anomalies in network traffic data."""
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
     import pandas as pd
 
     from nroute.ml.anomaly import AnomalyDetector
@@ -48,6 +55,10 @@ def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
     try:
         features = pd.read_csv(traffic_path)
     except Exception as e:
+        if is_json:
+            import json
+            click.echo(json.dumps({"error": f"Failed to load traffic data: {e}"}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Failed to load traffic data:[/red] {e}")
         raise SystemExit(1) from e
 
@@ -55,14 +66,45 @@ def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
         detector = AnomalyDetector()
         detector.load(model_path, allow_unsafe=allow_unsafe)
     except ModelError as e:
+        if is_json:
+            import json
+            click.echo(json.dumps({"error": f"Failed to load model: {e}"}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Failed to load model:[/red] {e}")
         raise SystemExit(1) from e
 
     try:
         results = detector.detect(features)
     except ModelError as e:
+        if is_json:
+            import json
+            click.echo(json.dumps({"error": f"Detection failed: {e}"}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Detection failed:[/red] {e}")
         raise SystemExit(1) from e
+
+    if is_json:
+        import json
+        samples = []
+        for idx, row in results.iterrows():
+            samples.append(
+                {
+                    "sample_id": int(idx),
+                    "anomaly_score": float(row["anomaly_score"]),
+                    "is_anomaly": bool(row["is_anomaly"]),
+                    "anomaly_type": str(row["anomaly_type"]),
+                }
+            )
+
+        type_counts = results[results["is_anomaly"]]["anomaly_type"].value_counts().to_dict()
+        out = {
+            "total_samples": len(results),
+            "anomalies_detected": int(results["is_anomaly"].sum()),
+            "anomaly_type_breakdown": {str(k): int(v) for k, v in type_counts.items()},
+            "samples": samples,
+        }
+        click.echo(json.dumps(out, indent=2))
+        return
 
     # Display results
     console.print()

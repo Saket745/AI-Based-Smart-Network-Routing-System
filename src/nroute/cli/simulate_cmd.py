@@ -128,11 +128,15 @@ def run_sim(
     custom_router: str | None,
 ) -> None:
     """Run a network simulation."""
-    seed = seed or ctx.obj.get("seed")
+    seed = seed or (ctx.obj.get("seed") if ctx.obj is not None else None)
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
 
     try:
         topo = Topology.load(topo_path)
     except Exception as e:
+        if is_json:
+            click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
@@ -191,6 +195,41 @@ def run_sim(
     except Exception as e:
         console.print(f"[red]x Simulation failed:[/red] {e}")
         raise SystemExit(1) from e
+
+    if is_json:
+        total_reroutes = sum(m.reroute_count for m in result.results)
+        avg_loss = (
+            sum(m.packet_loss_rate for m in result.results) / len(result.results)
+            if result.results
+            else 0.0
+        )
+        metrics_data = {
+            "algorithm": algorithm,
+            "duration_ticks": duration,
+            "traffic_model": traffic_model,
+            "seed": seed,
+            "total_throughput": result.total_throughput(),
+            "mean_latency": result.mean_latency(),
+            "avg_packet_loss_rate": avg_loss,
+            "total_reroutes": total_reroutes,
+            "ticks": [
+                {
+                    "tick": m.tick,
+                    "throughput": m.throughput,
+                    "avg_latency": m.avg_latency,
+                    "packet_loss_rate": m.packet_loss_rate,
+                    "reroute_count": m.reroute_count,
+                    "avg_utilization": m.avg_utilization,
+                }
+                for m in result.results
+            ],
+        }
+        click.echo(json.dumps(metrics_data, indent=2))
+        if output:
+            out_path = Path(output)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(json.dumps(metrics_data, indent=2))
+        return
 
     # Display results
     _print_simulation_results(result, algorithm)
@@ -303,24 +342,32 @@ def compare(
     custom_router: str | None,
 ) -> None:
     """Compare multiple routing algorithms on the same topology and traffic."""
-    seed = seed or ctx.obj.get("seed")
+    seed = seed or (ctx.obj.get("seed") if ctx.obj is not None else None)
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
     algo_list = [a.strip() for a in algorithms.split(",") if a.strip()]
 
     if len(algo_list) < 2:
+        if is_json:
+            click.echo(json.dumps({"error": "Please provide at least 2 algorithms to compare."}), err=True)
+            raise SystemExit(1)
         console.print("[red]x Please provide at least 2 algorithms to compare.[/red]")
         raise SystemExit(1)
 
     try:
         topo = Topology.load(topo_path)
     except Exception as e:
+        if is_json:
+            click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
-    console.print(
-        f"\n[cyan]Comparing algorithms:[/cyan] {', '.join(a.upper() for a in algo_list)}\n"
-        f"  Topology: {topo.node_count} nodes, {topo.edge_count} edges\n"
-        f"  Duration: {duration} ticks | Traffic: {traffic_model} ({flows_per_tick} flows/tick)\n"
-    )
+    if not is_json:
+        console.print(
+            f"\n[cyan]Comparing algorithms:[/cyan] {', '.join(a.upper() for a in algo_list)}\n"
+            f"  Topology: {topo.node_count} nodes, {topo.edge_count} edges\n"
+            f"  Duration: {duration} ticks | Traffic: {traffic_model} ({flows_per_tick} flows/tick)\n"
+        )
 
     results: dict[str, Any] = {}
 
@@ -358,6 +405,32 @@ def compare(
         except Exception as e:
             console.print(f"[yellow]⚠ {algo.upper()} failed:[/yellow] {e}")
             results[algo] = None
+
+    if is_json:
+        comparison_data: dict[str, Any] = {}
+        for algo in algo_list:
+            r = results[algo]
+            if r is not None:
+                total_reroutes = sum(m.reroute_count for m in r.results)
+                avg_loss = (
+                    sum(m.packet_loss_rate for m in r.results) / len(r.results)
+                    if r.results
+                    else 0.0
+                )
+                comparison_data[algo] = {
+                    "total_throughput": r.total_throughput(),
+                    "mean_latency": r.mean_latency(),
+                    "avg_packet_loss_rate": avg_loss,
+                    "total_reroutes": total_reroutes,
+                }
+            else:
+                comparison_data[algo] = {"error": "simulation_failed"}
+        click.echo(json.dumps(comparison_data, indent=2))
+        if output:
+            out_path = Path(output)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(json.dumps(comparison_data, indent=2))
+        return
 
     # Build comparison table
     table = Table(

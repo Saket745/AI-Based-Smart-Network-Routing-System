@@ -120,8 +120,7 @@ jobs:
         run: pip install pip-audit
 
       - name: Run security audit
-        run: pip-audit --strict
-        continue-on-error: true
+        run: pip-audit --strict .
 
   docker-build:
     name: Docker Build, Scan & Publish

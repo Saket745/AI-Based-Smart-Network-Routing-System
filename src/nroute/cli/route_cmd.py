@@ -68,7 +68,9 @@ def route_cmd() -> None:
     default=None,
     help="Import target for custom router in path/to/file.py:ClassName format (requires -a custom).",
 )
+@click.pass_context
 def compute(
+    ctx: click.Context,
     topo_path: str,
     algorithm: str,
     source: str,
@@ -77,17 +79,31 @@ def compute(
     custom_router: str | None,
 ) -> None:
     """Compute the optimal route between two nodes."""
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
+
     try:
         topo = Topology.load(topo_path)
     except Exception as e:
+        if is_json:
+            import json
+            click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
     # Validate that source and destination exist
     if source not in topo.nodes:
+        if is_json:
+            import json
+            click.echo(json.dumps({"error": f"Source node '{source}' not found in topology."}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Source node '{source}' not found in topology.[/red]")
         raise SystemExit(1)
     if destination not in topo.nodes:
+        if is_json:
+            import json
+            click.echo(json.dumps({"error": f"Destination node '{destination}' not found in topology."}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Destination node '{destination}' not found in topology.[/red]")
         raise SystemExit(1)
 
@@ -109,14 +125,38 @@ def compute(
             router = get_router(algorithm, topology=topo)
         path = router.compute_path(topo, source, destination, weight=weight)
     except RoutingError as e:
+        if is_json:
+            import json
+            click.echo(json.dumps({"error": f"Routing error: {e}"}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Routing error:[/red] {e}")
         raise SystemExit(1) from e
     except Exception as e:
+        if is_json:
+            import json
+            click.echo(json.dumps({"error": f"Failed to compute route: {e}"}), err=True)
+            raise SystemExit(1)
         console.print(f"[red]x Failed to compute route:[/red] {e}")
         raise SystemExit(1) from e
 
     # Compute route metrics
     metrics = RouteMetrics.from_path(topo, path)
+
+    if is_json:
+        import json
+        out = {
+            "source": source,
+            "destination": destination,
+            "path": path,
+            "metrics": {
+                "hops": metrics.total_hops,
+                "total_latency": metrics.total_latency,
+                "bottleneck_bandwidth": metrics.bottleneck_bandwidth if metrics.bottleneck_bandwidth < float("inf") else None,
+                "bottleneck_utilization": metrics.bottleneck_utilization,
+            }
+        }
+        click.echo(json.dumps(out, indent=2))
+        return
 
     # Display results
     console.print()

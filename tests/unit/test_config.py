@@ -111,3 +111,27 @@ def test_load_config_env_override_bool_true(
     monkeypatch.setenv("NROUTE_EXPORT_INCLUDE_PLOTS", "false")
     cfg = load_config()
     assert cfg.export.include_plots is False
+
+
+def test_load_config_searches_configs_subfolder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """load_config() searches configs/nroute.yaml in the cwd."""
+    monkeypatch.chdir(tmp_path)
+    configs_dir = tmp_path / "configs"
+    configs_dir.mkdir()
+    config_yaml = configs_dir / "nroute.yaml"
+    config_yaml.write_text(
+        textwrap.dedent("""\
+        general:
+          log_level: WARNING
+          cors_origins:
+            - "http://localhost:3000"
+            - "http://localhost:8000"
+        """),
+        encoding="utf-8",
+    )
+    cfg = load_config()
+    assert cfg.general.log_level == "WARNING"
+    assert cfg.general.cors_origins == ["http://localhost:3000", "http://localhost:8000"]
+

@@ -37,9 +37,22 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# Load CORS configuration
+from nroute.core.config import load_config
+try:
+    _cfg = load_config()
+    _cors_origins = _cfg.general.cors_origins
+except Exception:
+    import os
+    _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "*")
+    if _cors_origins_raw == "*":
+        _cors_origins = ["*"]
+    else:
+        _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
