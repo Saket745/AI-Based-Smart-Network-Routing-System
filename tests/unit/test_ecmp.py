@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
@@ -78,6 +80,31 @@ def test_ecmp_deterministic_selection() -> None:
     assert (
         router.compute_path(topo, "A", "D", weight="weight", flow_key="TCP_10.0.0.1_80") == p_flow1
     )
+
+
+def test_ecmp_uses_sha256() -> None:
+    """Verify that ECMPRouter uses SHA-256 and NOT MD5 for flow-based path selection."""
+    topo = Topology()
+    topo.add_node("A")
+    topo.add_node("B")
+    topo.add_node("C")
+    topo.add_node("D")
+    topo.add_edge("A", "B", weight=1.0)
+    topo.add_edge("B", "D", weight=1.0)
+    topo.add_edge("A", "C", weight=1.0)
+    topo.add_edge("C", "D", weight=1.0)
+
+    router = ECMPRouter()
+
+    with patch("nroute.routing.ecmp.hashlib") as mock_hashlib:
+        # Configure the mock to return a real SHA-256 hash object behavior
+        real_sha256 = hashlib.sha256
+        mock_hashlib.sha256.side_effect = real_sha256
+
+        router.compute_path(topo, "A", "D", weight="weight", flow_key="test_flow")
+
+        assert mock_hashlib.sha256.called, "SHA-256 should be used for hashing flow_key"
+        assert not mock_hashlib.md5.called, "MD5 should NOT be used for hashing flow_key"
 
 
 def test_k_shortest_paths() -> None:
