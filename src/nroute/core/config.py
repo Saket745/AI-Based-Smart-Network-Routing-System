@@ -20,7 +20,7 @@ class GeneralConfig(BaseModel):
     seed: int | None = Field(default=None, description="Global random seed")
     output_dir: str = Field(default="./output", description="Default output directory")
     cors_origins: list[str] = Field(
-        default_factory=lambda: ["*"],
+        default_factory=list,
         description="CORS allowed origins for the API server",
     )
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import click
 
 
@@ -33,8 +34,7 @@ general:
   log_format: "text"      # Format of logs: json | text
   seed: null              # Global random seed for reproducibility
   output_dir: "./output"  # Default output directory for metrics and results
-  cors_origins:           # Allowed origins for the Digital Twin API server
-    - "*"
+  cors_origins: []        # Allowed origins for the Digital Twin API server (e.g., ["http://localhost:3000"])
 
 topology:
   default_type: "random"  # Default topology model: random | scale-free | small-world | fat-tree
