@@ -134,4 +134,3 @@ def test_load_config_searches_configs_subfolder(
     cfg = load_config()
     assert cfg.general.log_level == "WARNING"
     assert cfg.general.cors_origins == ["http://localhost:3000", "http://localhost:8000"]
-
