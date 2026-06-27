@@ -102,12 +102,17 @@ def _handle_generate(ctx: click.Context, params: GenerationParams) -> None:
         topo: Topology
 
         if topo_type_lower == "random":
-            topo = TopologyGenerator.random(n_nodes=params.nodes, edge_prob=params.edge_prob, seed=seed)
+            topo = TopologyGenerator.random(
+                n_nodes=params.nodes, edge_prob=params.edge_prob, seed=seed
+            )
         elif topo_type_lower == "scale-free":
             topo = TopologyGenerator.scale_free(n_nodes=params.nodes, seed=seed)
         elif topo_type_lower == "small-world":
             topo = TopologyGenerator.small_world(
-                n_nodes=params.nodes, k_neighbors=params.k, rewire_prob=params.rewire_prob, seed=seed
+                n_nodes=params.nodes,
+                k_neighbors=params.k,
+                rewire_prob=params.rewire_prob,
+                seed=seed,
             )
         elif topo_type_lower == "fat-tree":
             topo = TopologyGenerator.fat_tree(k=params.k, seed=seed)
