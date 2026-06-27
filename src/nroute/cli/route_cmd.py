@@ -124,7 +124,9 @@ def _handle_error(msg: str, is_json: bool, e: Exception | None = None) -> None:
     raise SystemExit(1)
 
 
-def _load_and_validate_topo(topo_path: str, source: str, destination: str, is_json: bool) -> Topology:
+def _load_and_validate_topo(
+    topo_path: str, source: str, destination: str, is_json: bool
+) -> Topology:
     """Load topology and validate source/destination nodes."""
     try:
         topo = Topology.load(topo_path)
@@ -148,7 +150,9 @@ def _init_router(
     """Initialize the appropriate router based on algorithm name."""
     if algorithm.lower() == "custom":
         if not custom_router:
-            raise click.UsageError("Option '--custom-router' is required when using algorithm 'custom'.")
+            raise click.UsageError(
+                "Option '--custom-router' is required when using algorithm 'custom'."
+            )
         import inspect
 
         from nroute.utils.loader import load_custom_class
@@ -162,7 +166,9 @@ def _init_router(
     return get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
 
 
-def _print_json_metrics(source: str, destination: str, path: list[str], metrics: RouteMetrics) -> None:
+def _print_json_metrics(
+    source: str, destination: str, path: list[str], metrics: RouteMetrics
+) -> None:
     """Output route metrics in JSON format."""
     out = {
         "source": source,
@@ -216,7 +222,9 @@ def _print_console_metrics(
 
     # Per-hop breakdown
     if metrics.total_hops > 0:
-        hop_table = Table(title="Hop-by-Hop Breakdown", show_header=True, header_style="bold magenta")
+        hop_table = Table(
+            title="Hop-by-Hop Breakdown", show_header=True, header_style="bold magenta"
+        )
         hop_table.add_column("Hop", style="dim", justify="center")
         hop_table.add_column("From", style="cyan")
         hop_table.add_column("To", style="cyan")
