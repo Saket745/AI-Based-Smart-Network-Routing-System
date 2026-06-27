@@ -420,7 +420,9 @@ def _setup_router(
                 )
         except Exception as e:
             if not is_json:
-                console.print(f"[yellow]! Failed to load model for {algorithm.upper()}:[/yellow] {e}")
+                console.print(
+                    f"[yellow]! Failed to load model for {algorithm.upper()}:[/yellow] {e}"
+                )
 
     return router
 

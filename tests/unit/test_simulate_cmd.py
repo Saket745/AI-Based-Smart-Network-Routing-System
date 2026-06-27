@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,7 +19,7 @@ def runner() -> CliRunner:
 
 
 @pytest.fixture
-def topo_file(tmp_path) -> str:
+def topo_file(tmp_path: Any) -> str:
     """Create a dummy topology file to satisfy click.Path(exists=True)."""
     p = tmp_path / "topo.json"
     p.write_text("{}")
@@ -78,7 +79,9 @@ class TestSimulateCLI:
         assert result.exit_code == 0
         assert "Running simulation: DIJKSTRA" in result.output
         assert "Simulation Results" in result.output
-        mock_get_router.assert_called_once_with("dijkstra", topology=mock_topology, allow_unsafe=False)
+        mock_get_router.assert_called_once_with(
+            "dijkstra", topology=mock_topology, allow_unsafe=False
+        )
 
     @patch("nroute.cli.simulate_cmd.Topology.load")
     @patch("nroute.cli.simulate_cmd.get_router")
@@ -135,9 +138,10 @@ class TestSimulateCLI:
         """Test simulation run with JSON output."""
         mock_topo_load.return_value = mock_topology
 
-        with patch("nroute.cli.simulate_cmd.get_router") as mock_get_router, \
-             patch("nroute.cli.simulate_cmd.SimulationEngine") as mock_engine_cls:
-
+        with (
+            patch("nroute.cli.simulate_cmd.get_router"),
+            patch("nroute.cli.simulate_cmd.SimulationEngine") as mock_engine_cls,
+        ):
             mock_result = MagicMock()
             mock_result.results = []
             mock_result.total_throughput.return_value = 100.0
@@ -148,9 +152,7 @@ class TestSimulateCLI:
 
             # Passing output_format via context obj
             result = runner.invoke(
-                simulate_cmd,
-                ["run", "--topology", topo_file],
-                obj={"output_format": "json"}
+                simulate_cmd, ["run", "--topology", topo_file], obj={"output_format": "json"}
             )
 
             assert result.exit_code == 0
