@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import click
+from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.table import Table
 
@@ -17,6 +20,18 @@ console = Console()
 @click.group(name="route")
 def route_cmd() -> None:
     """Compute and inspect network routes."""
+
+
+class RouteComputeArgs(BaseModel):
+    """Arguments for route computation."""
+
+    allow_unsafe: bool = Field(default=False, description="Allow loading of unsafe models.")
+    topo_path: str = Field(..., description="Path to a topology JSON file.")
+    algorithm: str = Field(default="dijkstra", description="Routing algorithm to use.")
+    source: str = Field(..., description="Source node ID.")
+    destination: str = Field(..., description="Destination node ID.")
+    weight: str = Field(default="latency", description="Edge weight attribute.")
+    custom_router: str | None = Field(default=None, description="Import target for custom router.")
 
 
 @route_cmd.command(name="compute")
@@ -75,21 +90,13 @@ def route_cmd() -> None:
     help="Import target for custom router in path/to/file.py:ClassName format (requires -a custom).",
 )
 @click.pass_context
-def compute(
-    ctx: click.Context,
-    allow_unsafe: bool,
-    topo_path: str,
-    algorithm: str,
-    source: str,
-    destination: str,
-    weight: str,
-    custom_router: str | None,
-) -> None:
+def compute(ctx: click.Context, **kwargs: Any) -> None:
     """Compute the optimal route between two nodes."""
+    args = RouteComputeArgs.model_validate(kwargs)
     is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
 
     try:
-        topo = Topology.load(topo_path)
+        topo = Topology.load(args.topo_path)
     except Exception as e:
         if is_json:
             import json
@@ -100,31 +107,34 @@ def compute(
         raise SystemExit(1) from e
 
     # Validate that source and destination exist
-    if source not in topo.nodes:
+    if args.source not in topo.nodes:
         if is_json:
             import json
 
             click.echo(
-                json.dumps({"error": f"Source node '{source}' not found in topology."}), err=True
-            )
-            raise SystemExit(1) from None
-        console.print(f"[red]x Source node '{source}' not found in topology.[/red]")
-        raise SystemExit(1) from None
-    if destination not in topo.nodes:
-        if is_json:
-            import json
-
-            click.echo(
-                json.dumps({"error": f"Destination node '{destination}' not found in topology."}),
+                json.dumps({"error": f"Source node '{args.source}' not found in topology."}),
                 err=True,
             )
             raise SystemExit(1) from None
-        console.print(f"[red]x Destination node '{destination}' not found in topology.[/red]")
+        console.print(f"[red]x Source node '{args.source}' not found in topology.[/red]")
+        raise SystemExit(1) from None
+    if args.destination not in topo.nodes:
+        if is_json:
+            import json
+
+            click.echo(
+                json.dumps(
+                    {"error": f"Destination node '{args.destination}' not found in topology."}
+                ),
+                err=True,
+            )
+            raise SystemExit(1) from None
+        console.print(f"[red]x Destination node '{args.destination}' not found in topology.[/red]")
         raise SystemExit(1) from None
 
     try:
-        if algorithm.lower() == "custom":
-            if not custom_router:
+        if args.algorithm.lower() == "custom":
+            if not args.custom_router:
                 raise click.UsageError(
                     "Option '--custom-router' is required when using algorithm 'custom'."
                 )
@@ -134,13 +144,13 @@ def compute(
             from nroute.utils.loader import load_custom_class
 
             router_cls = load_custom_class(
-                custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
+                args.custom_router, expected_superclass=BaseRouter, allow_unsafe=args.allow_unsafe
             )
             sig = inspect.signature(router_cls)
             router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         else:
-            router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
-        path = router.compute_path(topo, source, destination, weight=weight)
+            router = get_router(args.algorithm, topology=topo, allow_unsafe=args.allow_unsafe)
+        path = router.compute_path(topo, args.source, args.destination, weight=args.weight)
     except RoutingError as e:
         if is_json:
             import json
@@ -165,8 +175,8 @@ def compute(
         import json
 
         out = {
-            "source": source,
-            "destination": destination,
+            "source": args.source,
+            "destination": args.destination,
             "path": path,
             "metrics": {
                 "hops": metrics.total_hops,
@@ -182,7 +192,7 @@ def compute(
 
     # Display results
     console.print()
-    console.rule(f"[bold cyan]Route: {source} -> {destination}[/bold cyan]")
+    console.rule(f"[bold cyan]Route: {args.source} -> {args.destination}[/bold cyan]")
 
     # Path display
     path_str = " -> ".join(path)
@@ -193,7 +203,7 @@ def compute(
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green", justify="right")
 
-    table.add_row("Algorithm", algorithm.upper())
+    table.add_row("Algorithm", args.algorithm.upper())
     table.add_row("Hops", str(metrics.total_hops))
     table.add_row("Total Latency", f"{metrics.total_latency:.2f} ms")
     table.add_row(

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import click
+from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.table import Table
 
@@ -182,6 +185,19 @@ def congestion(
     )
 
 
+class GNNPredictArgs(BaseModel):
+    """Arguments for GNN congestion prediction."""
+
+    topo_path: str = Field(..., description="Path to a topology JSON file.")
+    model_type: str = Field(default="gcn", description="GNN model type (gcn or graphsage).")
+    model_dir: str = Field(default="models/gnn", description="Directory where GNN models are stored.")
+    version: str = Field(default="1.0.0", description="Version of the model to load.")
+    threshold: float = Field(
+        default=0.85, description="Congestion probability threshold for flagging."
+    )
+    allow_unsafe: bool = Field(default=False, description="Allow loading of unsafe models.")
+
+
 @predict_cmd.command(name="gnn")
 @click.option(
     "--topology",
@@ -225,15 +241,7 @@ def congestion(
     help="Allow loading of unsafe models (joblib/pickle).",
 )
 @click.pass_context
-def predict_gnn(
-    ctx: click.Context,
-    topo_path: str,
-    model_type: str,
-    model_dir: str,
-    version: str,
-    threshold: float,
-    allow_unsafe: bool,
-) -> None:
+def predict_gnn(ctx: click.Context, **kwargs: Any) -> None:
     """Predict link congestion and latency using trained GNN models."""
     import torch
 
@@ -242,9 +250,11 @@ def predict_gnn(
     from nroute.ml.models.gcn import GCNModel
     from nroute.ml.models.graphsage import GraphSAGEModel
 
+    args = GNNPredictArgs.model_validate(kwargs)
+
     is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
     try:
-        topo = Topology.load(topo_path)
+        topo = Topology.load(args.topo_path)
     except Exception as e:
         if is_json:
             import json
@@ -260,7 +270,7 @@ def predict_gnn(
 
     # 1. Instantiate the GNN model structure
     model: torch.nn.Module
-    if model_type.lower() == "gcn":
+    if args.model_type.lower() == "gcn":
         model = GCNModel(node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim)
     else:
         model = GraphSAGEModel(
@@ -269,20 +279,29 @@ def predict_gnn(
 
     # 2. Load model state via ModelStore
     try:
-        store = ModelStore(base_dir=model_dir)
-        store.load_model(model, name=model_type.lower(), version=version, allow_unsafe=allow_unsafe)
+        store = ModelStore(base_dir=args.model_dir)
+        store.load_model(
+            model,
+            name=args.model_type.lower(),
+            version=args.version,
+            allow_unsafe=args.allow_unsafe,
+        )
     except Exception as e:
         if is_json:
             import json
 
             click.echo(
                 json.dumps(
-                    {"error": f"Failed to load model {model_type} (version {version}): {e}"}
+                    {
+                        "error": f"Failed to load model {args.model_type} (version {args.version}): {e}"
+                    }
                 ),
                 err=True,
             )
             raise SystemExit(1) from e
-        console.print(f"[red]x Failed to load model {model_type} (version {version}):[/red] {e}")
+        console.print(
+            f"[red]x Failed to load model {args.model_type} (version {args.version}):[/red] {e}"
+        )
         raise SystemExit(1) from e
 
     # 3. Build graph representation & features
@@ -326,15 +345,15 @@ def predict_gnn(
                     "predicted_latency": pred_l * 100.0,
                     "congestion_probability": prob,
                     "status": "CONGESTED"
-                    if prob >= threshold
-                    else ("AT RISK" if prob >= threshold * 0.7 else "NORMAL"),
+                    if prob >= args.threshold
+                    else ("AT RISK" if prob >= args.threshold * 0.7 else "NORMAL"),
                 }
             )
         out = {
-            "model_type": model_type,
-            "version": version,
-            "threshold": threshold,
-            "congested_count": sum(1 for p in probs if p >= threshold),
+            "model_type": args.model_type,
+            "version": args.version,
+            "threshold": args.threshold,
+            "congested_count": sum(1 for p in probs if p >= args.threshold),
             "links": links_out,
         }
         click.echo(json.dumps(out, indent=2))
@@ -342,7 +361,7 @@ def predict_gnn(
 
     # Display results
     console.print()
-    console.rule(f"[bold cyan]GNN ({model_type.upper()}) Predictions[/bold cyan]")
+    console.rule(f"[bold cyan]GNN ({args.model_type.upper()}) Predictions[/bold cyan]")
 
     table = Table(show_header=True, header_style="bold magenta")
     table.add_column("Link", style="cyan")
@@ -363,11 +382,11 @@ def predict_gnn(
         true_util = float(edge.get("utilization", 0.0))
         true_lat = float(edge.get("latency", 0.0))
 
-        if prob >= threshold:
+        if prob >= args.threshold:
             prob_style = "bold red"
             status = "[bold red]CONGESTED[/bold red]"
             congested_count += 1
-        elif prob >= threshold * 0.7:
+        elif prob >= args.threshold * 0.7:
             prob_style = "yellow"
             status = "[yellow]AT RISK[/yellow]"
         else:
@@ -386,5 +405,5 @@ def predict_gnn(
     console.print(table)
     console.print(
         f"\n  [bold]{congested_count}[/bold] of {len(edges_sorted)} links predicted as congested "
-        f"(threshold: {threshold})\n"
+        f"(threshold: {args.threshold})\n"
     )

@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import click
+from pydantic import BaseModel, Field
 from rich.console import Console
 
 from nroute.core.topology import Topology
@@ -264,6 +265,19 @@ def train_rl(
         raise SystemExit(1) from e
 
 
+class GNNTrainArgs(BaseModel):
+    """Arguments for training a GNN model."""
+
+    topo_path: str = Field(..., description="Path to a topology JSON file.")
+    model_type: str = Field(default="gcn", description="GNN model architecture.")
+    epochs: int = Field(default=10, description="Number of training epochs.")
+    lr: float = Field(default=0.01, description="Learning rate.")
+    hidden_dim: int = Field(default=32, description="Hidden dimension size.")
+    output_dir: str = Field(default="models/gnn", description="Output directory.")
+    dataset_dir: str = Field(default="data/gnn_dataset", description="Dataset directory.")
+    seed: int = Field(default=42, description="Random seed.")
+
+
 @train_cmd.command(name="gnn")
 @click.option(
     "--topology",
@@ -318,17 +332,7 @@ def train_rl(
 )
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
-def train_gnn(
-    ctx: click.Context,
-    topo_path: str,
-    model_type: str,
-    epochs: int,
-    lr: float,
-    hidden_dim: int,
-    output_dir: str,
-    dataset_dir: str,
-    seed: int,
-) -> None:
+def train_gnn(ctx: click.Context, **kwargs: Any) -> None:
     """Train a Graph Neural Network (GCN/GraphSAGE) on network topologies."""
     import os
     import shutil
@@ -341,16 +345,18 @@ def train_gnn(
     from nroute.ml.models.graphsage import GraphSAGEModel
     from nroute.ml.training.trainer import GNNGraphDataset, GNNTrainer, collate_dataset_batch
 
+    args = GNNTrainArgs.model_validate(kwargs)
+
     try:
-        topo = Topology.load(topo_path)
+        topo = Topology.load(args.topo_path)
     except Exception as e:
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
     console.print("\n[cyan]Collecting simulation traces and compiling to Parquet...[/cyan]")
 
-    if os.path.exists(dataset_dir):
-        shutil.rmtree(dataset_dir, ignore_errors=True)
+    if os.path.exists(args.dataset_dir):
+        shutil.rmtree(args.dataset_dir, ignore_errors=True)
 
     generator = DatasetGenerator(
         topology=topo,
@@ -358,14 +364,14 @@ def train_gnn(
         traffic_model="uniform",
         duration_ticks=50,
         flows_per_tick=5,
-        seed=seed,
+        seed=args.seed,
     )
 
     snapshots = generator.generate_snapshots()
-    generator.compile_to_parquet(snapshots, dataset_dir)
-    console.print(f"[green]+[/green] Datasets saved in [bold]{dataset_dir}[/bold]")
+    generator.compile_to_parquet(snapshots, args.dataset_dir)
+    console.print(f"[green]+[/green] Datasets saved in [bold]{args.dataset_dir}[/bold]")
 
-    node_df, edge_df, _ = DatasetGenerator.load_parquet_dataset(dataset_dir)
+    node_df, edge_df, _ = DatasetGenerator.load_parquet_dataset(args.dataset_dir)
     ticks = sorted(node_df["tick"].unique())
     split_idx = int(len(ticks) * 0.8)
     train_ticks = ticks[:split_idx]
@@ -390,29 +396,31 @@ def train_gnn(
     edge_in_dim = 6
 
     model: torch.nn.Module
-    if model_type.lower() == "gcn":
-        model = GCNModel(node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim)
+    if args.model_type.lower() == "gcn":
+        model = GCNModel(
+            node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=args.hidden_dim
+        )
     else:
         model = GraphSAGEModel(
-            node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim
+            node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=args.hidden_dim
         )
 
-    console.print(f"[cyan]Training GNN model ({model_type.upper()})...[/cyan]")
-    trainer = GNNTrainer(model=model, lr=lr)
+    console.print(f"[cyan]Training GNN model ({args.model_type.upper()})...[/cyan]")
+    trainer = GNNTrainer(model=model, lr=args.lr)
 
-    for epoch in range(1, epochs + 1):
+    for epoch in range(1, args.epochs + 1):
         train_metrics = trainer.train_epoch(train_loader)
         val_metrics = trainer.evaluate(val_loader)
         console.print(
-            f"  Epoch {epoch:02d}/{epochs:02d} | "
+            f"  Epoch {epoch:02d}/{args.epochs:02d} | "
             f"Loss: {train_metrics['loss']:.4f} (Cls: {train_metrics['cls_loss']:.4f}, Reg: {train_metrics['reg_loss']:.4f}) | "
             f"Val Loss: {val_metrics['val_loss']:.4f}"
         )
 
     # Save trained model
     try:
-        model_store = ModelStore(base_dir=output_dir)
-        saved_path = model_store.save_model(model, name=model_type.lower(), version="1.0.0")
+        model_store = ModelStore(base_dir=args.output_dir)
+        saved_path = model_store.save_model(model, name=args.model_type.lower(), version="1.0.0")
         console.print(f"[green]+[/green] GNN model saved to [bold]{saved_path}[/bold]")
     except Exception as e:
         console.print(f"[red]x Saving error:[/red] {e}")
