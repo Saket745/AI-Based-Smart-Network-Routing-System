@@ -136,7 +136,7 @@ def run_sim(
     except Exception as e:
         if is_json:
             click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
-            raise SystemExit(1)
+            raise SystemExit(1) from e
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
@@ -348,17 +348,19 @@ def compare(
 
     if len(algo_list) < 2:
         if is_json:
-            click.echo(json.dumps({"error": "Please provide at least 2 algorithms to compare."}), err=True)
-            raise SystemExit(1)
+            click.echo(
+                json.dumps({"error": "Please provide at least 2 algorithms to compare."}), err=True
+            )
+            raise SystemExit(1) from None
         console.print("[red]x Please provide at least 2 algorithms to compare.[/red]")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
     try:
         topo = Topology.load(topo_path)
     except Exception as e:
         if is_json:
             click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
-            raise SystemExit(1)
+            raise SystemExit(1) from e
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
