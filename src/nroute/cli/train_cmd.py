@@ -321,7 +321,9 @@ def train_gnn(ctx: click.Context, **kwargs: Any) -> None:
 
     try:
         config = GNNTrainingConfig(**kwargs)
-        console.print(f"\n[cyan]Starting GNN training workflow for {config.model_type.upper()}...[/cyan]")
+        console.print(
+            f"\n[cyan]Starting GNN training workflow for {config.model_type.upper()}...[/cyan]"
+        )
 
         saved_path = GNNTrainer.run_training_workflow(
             config=config, logger_callback=lambda msg: console.print(msg)

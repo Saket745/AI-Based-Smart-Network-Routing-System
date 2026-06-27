@@ -230,9 +230,7 @@ class GNNTrainer:
         }
 
     @staticmethod
-    def run_training_workflow(
-        config: GNNTrainingConfig, logger_callback: Any | None = None
-    ) -> str:
+    def run_training_workflow(config: GNNTrainingConfig, logger_callback: Any | None = None) -> str:
         """
         Orchestrate the full GNN training workflow:
         1. Load Topology
