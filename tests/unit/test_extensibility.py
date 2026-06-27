@@ -33,7 +33,7 @@ def test_loader_valid_and_invalid() -> None:
         file_path.write_text("""
 class CustomTestRouter:
     def __init__(self, topology=None):
-        self.topology = topology
+        self.topology  =  topology
     def compute_path(self, topology, source, destination, weight=None):
         return [source, destination]
 """)
