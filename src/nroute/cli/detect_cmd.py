@@ -109,7 +109,9 @@ def _init_detector(model_path: str, allow_unsafe: bool, is_json: bool) -> Anomal
         raise  # unreachable
 
 
-def _run_detection(detector: AnomalyDetector, features: pd.DataFrame, is_json: bool) -> pd.DataFrame:
+def _run_detection(
+    detector: AnomalyDetector, features: pd.DataFrame, is_json: bool
+) -> pd.DataFrame:
     """Run anomaly detection on features."""
     try:
         return detector.detect(features)

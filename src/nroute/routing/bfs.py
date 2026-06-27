@@ -29,6 +29,7 @@ class BFSRouter(BaseRouter):
         source: str,
         destination: str,
         weight: str | Callable[[dict[str, Any]], float] | None = None,
+        **kwargs: Any,
     ) -> list[str]:
         """Compute the unweighted (minimum-hop) shortest path.
 

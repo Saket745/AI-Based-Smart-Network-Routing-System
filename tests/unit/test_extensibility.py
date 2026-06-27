@@ -34,7 +34,7 @@ def test_loader_valid_and_invalid() -> None:
             """
 class CustomTestRouter:
     def __init__(self, topology=None):
-        self.topology = topology
+        self.topology  =  topology
     def compute_path(self, topology, source, destination, weight=None):
         return [source, destination]
 """
@@ -102,9 +102,7 @@ def test_default_graph_feature_extractor() -> None:
     topo = Topology()
     topo.add_node("A", capacity=1000.0)
     topo.add_node("B", capacity=2000.0)
-    topo.add_edge(
-        "A", "B", bandwidth=1000.0, latency=5.0, utilization=0.25, packet_loss=0.01
-    )
+    topo.add_edge("A", "B", bandwidth=1000.0, latency=5.0, utilization=0.25, packet_loss=0.01)
 
     # 1. NumPy Extractor
     extractor = DefaultGraphFeatureExtractor(use_pytorch=False)
