@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 
+from nroute.core.query import RoutingQuery
 from nroute.exceptions import RoutingError
 from nroute.routing.base import BaseRouter
 
@@ -34,13 +35,21 @@ class ECMPRouter(BaseRouter):
     def compute_all_equal_cost_paths(
         self,
         topology: Topology,
-        source: str,
-        destination: str,
+        query: RoutingQuery | None = None,
+        source: str | None = None,
+        destination: str | None = None,
         weight: str | Callable[[dict[str, Any]], float] | None = None,
     ) -> list[list[str]]:
         """
         Find all shortest paths of equal minimum cost between source and destination.
         """
+        if query is not None:
+            source = query.source
+            destination = query.destination
+            weight = query.weight
+        elif source is None or destination is None:
+            raise ValueError("Either 'query' or ('source' and 'destination') must be provided.")
+
         subgraph = self._get_active_subgraph(topology)
 
         if source not in subgraph:
@@ -87,16 +96,26 @@ class ECMPRouter(BaseRouter):
     def compute_k_shortest_paths(
         self,
         topology: Topology,
-        source: str,
-        destination: str,
+        query: RoutingQuery | None = None,
+        source: str | None = None,
+        destination: str | None = None,
         k: int | None = None,
         weight: str | Callable[[dict[str, Any]], float] | None = None,
     ) -> list[list[str]]:
         """
         Find the top K shortest simple paths using Yen's algorithm.
         """
+        if query is not None:
+            source = query.source
+            destination = query.destination
+            weight = query.weight
+            k_val = query.k if query.k is not None else self.k
+        elif source is None or destination is None:
+            raise ValueError("Either 'query' or ('source' and 'destination') must be provided.")
+        else:
+            k_val = k if k is not None else self.k
+
         subgraph = self._get_active_subgraph(topology)
-        k_val = k if k is not None else self.k
 
         if source not in subgraph:
             raise RoutingError(f"Source node '{source}' is down or does not exist.")
@@ -146,7 +165,7 @@ class ECMPRouter(BaseRouter):
         source: str,
         destination: str,
         weight: str | Callable[[dict[str, Any]], float] | None = None,
-        flow_key: str | int | None = None,
+        **kwargs: Any,
     ) -> list[str]:
         """
         Compute a single path. Uses ECMP (equal-cost paths) and selects one
@@ -157,9 +176,16 @@ class ECMPRouter(BaseRouter):
             source: Source node ID.
             destination: Destination node ID.
             weight: Routing metric.
-            flow_key: Key used to hash and select one of the equal-cost paths (e.g. protocol or flow ID).
+            **kwargs: Additional parameters including 'flow_key'.
         """
-        paths = self.compute_all_equal_cost_paths(topology, source, destination, weight=weight)
+        flow_key = kwargs.get("flow_key")
+        query = RoutingQuery(
+            source=source,
+            destination=destination,
+            weight=weight,
+            flow_key=flow_key,
+        )
+        paths = self.compute_all_equal_cost_paths(topology, query)
         if not paths:
             raise RoutingError(f"No path found between '{source}' and '{destination}'.")
 
