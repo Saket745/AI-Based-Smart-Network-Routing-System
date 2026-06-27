@@ -164,17 +164,14 @@ class AnalyticalEngine:
         Returns:
             Nested dict  ``{source: {dest: [path]}}``
         """
-        paths: dict[str, dict[str, list[str]]] = {}
-        for src in graph.nodes:
-            try:
-                src_paths = nx.single_source_dijkstra_path(graph, src, weight=weight)
-                paths[str(src)] = {
-                    str(dst): [str(n) for n in path]
-                    for dst, path in src_paths.items()
-                    if dst != src
-                }
-            except nx.NetworkXError:
-                paths[str(src)] = {}
+        all_paths = nx.all_pairs_dijkstra_path(graph, weight=weight)
+        paths = {str(n): {} for n in graph.nodes}
+        for src, src_paths in all_paths:
+            paths[str(src)] = {
+                str(dst): [str(n) for n in path]
+                for dst, path in src_paths.items()
+                if dst != src
+            }
         return paths
 
     @staticmethod
