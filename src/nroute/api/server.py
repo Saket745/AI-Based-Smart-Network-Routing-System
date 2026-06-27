@@ -26,6 +26,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from nroute.core.config import load_config
 from nroute.core.openconfig import ConfigChange
 from nroute.simulation.digital_twin import DigitalTwinEngine
 
@@ -38,12 +39,12 @@ app = FastAPI(
 )
 
 # Load CORS configuration
-from nroute.core.config import load_config
 try:
     _cfg = load_config()
     _cors_origins = _cfg.general.cors_origins
 except Exception:
     import os
+
     _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "*")
     if _cors_origins_raw == "*":
         _cors_origins = ["*"]
@@ -138,11 +139,31 @@ async def health() -> dict[str, Any]:
 async def load_topology(req: TopologyLoadRequest) -> dict[str, Any]:
     """Load a topology from a file path."""
     engine = get_engine()
-    p = Path(req.path)
-    if not p.is_file():
-        raise HTTPException(status_code=404, detail=f"File not found: {req.path}")
+
+    # Security: Validate path is within allowed directory
+    # Defaulting to current working directory for topology files
+    base_dir = Path.cwd().resolve()
+    requested_path = Path(req.path).resolve()
+
+    # Use is_relative_to to prevent prefix bypass vulnerabilities (e.g. /app vs /app_secret)
     try:
-        topo = await _run_in_executor(engine.load_topology, p)
+        if not requested_path.is_relative_to(base_dir):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Access denied: Path {req.path} is outside allowed directory.",
+            )
+    except ValueError as exc:
+        # is_relative_to raises ValueError if paths are not on the same drive/comparable
+        raise HTTPException(
+            status_code=403,
+            detail=f"Access denied: Path {req.path} is outside allowed directory.",
+        ) from exc
+
+    if not requested_path.is_file():
+        raise HTTPException(status_code=404, detail=f"File not found: {req.path}")
+
+    try:
+        topo = await _run_in_executor(engine.load_topology, requested_path)
         return {
             "status": "ok",
             "nodes": topo.node_count,
