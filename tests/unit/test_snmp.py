@@ -114,13 +114,13 @@ def test_snmp_parser_status_mapping(tmp_path: Path) -> None:
 
     rows = []
     for i, s in enumerate(statuses):
-        rows.append({"interface_id": f"N{i}->N{i+1}", "oper_status": s})
+        rows.append({"interface_id": f"N{i}->N{i + 1}", "oper_status": s})
 
     pd.DataFrame(rows).to_csv(csv_file, index=False)
     topo = SNMPParser.parse(csv_file)
 
     for i, exp in enumerate(expected):
-        assert topo.get_edge(f"N{i}", f"N{i+1}")["status"] == exp
+        assert topo.get_edge(f"N{i}", f"N{i + 1}")["status"] == exp
 
 
 def test_snmp_parser_utilization_calculation(tmp_path: Path) -> None:
@@ -135,7 +135,7 @@ def test_snmp_parser_utilization_calculation(tmp_path: Path) -> None:
             "interface_id": ["A->B", "C->D"],
             "speed": [1000000, 1000000],
             "in_octets": [62500, 1000000],  # 0.1 util (with out_octets)
-            "out_octets": [62500, 1000000], # > 1.0 util, should be clamped
+            "out_octets": [62500, 1000000],  # > 1.0 util, should be clamped
         }
     )
     df.to_csv(csv_file, index=False)
@@ -157,7 +157,9 @@ def test_snmp_parser_invalid_json_structure(tmp_path: Path) -> None:
     with open(json_file, "w", encoding="utf-8") as f:
         json.dump({"not_interfaces": []}, f)
 
-    with pytest.raises(IngestionError, match="JSON SNMP data must be a list or contain 'interfaces' key"):
+    with pytest.raises(
+        IngestionError, match="JSON SNMP data must be a list or contain 'interfaces' key"
+    ):
         SNMPParser.parse(json_file)
 
 
@@ -211,9 +213,6 @@ def test_snmp_parser_invalid_numeric_values(tmp_path: Path) -> None:
 
     # Test invalid out_octets
     csv_file2 = tmp_path / "invalid_out.csv"
-    pd.DataFrame({
-        "interface_id": ["E->F"],
-        "out_octets": ["bad"]
-    }).to_csv(csv_file2, index=False)
+    pd.DataFrame({"interface_id": ["E->F"], "out_octets": ["bad"]}).to_csv(csv_file2, index=False)
     topo2 = SNMPParser.parse(csv_file2)
     assert topo2.get_edge("E", "F")["out_octets"] == 0.0

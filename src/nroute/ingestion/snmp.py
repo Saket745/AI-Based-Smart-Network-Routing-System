@@ -114,7 +114,9 @@ class SNMPParser:
                 in_octets = 0.0
 
             try:
-                out_octets = float(clean_row.get("out_octets") or clean_row.get("ifoutcheck") or 0.0)
+                out_octets = float(
+                    clean_row.get("out_octets") or clean_row.get("ifoutcheck") or 0.0
+                )
             except (ValueError, TypeError):
                 out_octets = 0.0
 

@@ -238,8 +238,6 @@ def test_pcap_parser(mock_pcap_reader_cls: MagicMock, tmp_path: Path) -> None:
     assert any(f.protocol == "PROTO_99" for f in tm.flows)
 
 
-
-
 def test_unified_ingest_explicit_and_auto_detect(tmp_path: Path) -> None:
     """Test the unified ingest() function with format overrides and auto-detection."""
     # 1. Non-existent file
