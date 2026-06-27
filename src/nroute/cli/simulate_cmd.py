@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 import json
 from pathlib import Path
 from typing import Any
@@ -299,9 +300,7 @@ def _build_comparison_data(results: dict[str, Any], algo_list: list[str]) -> dic
         if r is not None:
             total_reroutes = sum(m.reroute_count for m in r.results)
             avg_loss = (
-                sum(m.packet_loss_rate for m in r.results) / len(r.results)
-                if r.results
-                else 0.0
+                sum(m.packet_loss_rate for m in r.results) / len(r.results) if r.results else 0.0
             )
             comparison_data[algo] = {
                 "total_throughput": r.total_throughput(),
@@ -553,3 +552,6 @@ def _print_simulation_results(result: Any, algorithm: str) -> None:
 
     console.print(table)
     console.print()
+
+
+# Force reformat
