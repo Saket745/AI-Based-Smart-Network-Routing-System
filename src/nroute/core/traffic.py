@@ -81,21 +81,22 @@ class TrafficMatrix(BaseModel):
             raise IngestionError(f"DataFrame is missing required flow columns: {missing_cols}.")
 
         flows = []
-        for idx, row in df.iterrows():
+        for row in df.itertuples(index=True):
             try:
                 flows.append(
                     FlowRecord(
-                        source=str(row["source"]),
-                        destination=str(row["destination"]),
-                        bytes=int(row["bytes"]),
-                        packets=int(row["packets"]),
-                        duration=float(row["duration"]),
-                        protocol=str(row["protocol"]),
-                        timestamp=float(row["timestamp"]),
+                        source=str(row.source),
+                        destination=str(row.destination),
+                        bytes=int(row.bytes),
+                        packets=int(row.packets),
+                        duration=float(row.duration),
+                        protocol=str(row.protocol),
+                        timestamp=float(row.timestamp),
                     )
                 )
             except Exception as e:
-                raise IngestionError(f"Failed to parse flow record at row {idx}: {e}") from e
+                # row.Index contains the original DataFrame index
+                raise IngestionError(f"Failed to parse flow record at row {row.Index}: {e}") from e
 
         return cls(flows=flows)
 
