@@ -20,7 +20,6 @@ from nroute.ingestion.csv_json import (
 )
 from nroute.ingestion.netflow import NetFlowParser
 from nroute.ingestion.pcap import PcapParser
-from nroute.ingestion.snmp import SNMPParser
 
 if TYPE_CHECKING:
     from pathlib import Path
