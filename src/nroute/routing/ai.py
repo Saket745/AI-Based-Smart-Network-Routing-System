@@ -33,9 +33,7 @@ class AIRouterConfig(BaseModel):
     anomaly_model_type: str = Field(
         default="isolation_forest", description="isolation_forest | autoencoder"
     )
-    alpha: float = Field(
-        default=5.0, description="Scale factor for congestion weight penalty."
-    )
+    alpha: float = Field(default=5.0, description="Scale factor for congestion weight penalty.")
     anomaly_alpha_scale: float = Field(
         default=4.0, description="Multiplier applied to alpha when an anomaly is detected."
     )
