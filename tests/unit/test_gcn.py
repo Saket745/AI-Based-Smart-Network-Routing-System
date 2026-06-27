@@ -6,7 +6,6 @@ import tempfile
 from pathlib import Path
 
 import torch
-import pytest
 
 from nroute.ml.models.gcn import GCNConv, GCNModel
 
@@ -125,7 +124,7 @@ def test_gcn_model_save_load() -> None:
         new_model.load(str(model_path))
 
         # Verify parameters match
-        for p1, p2 in zip(model.parameters(), new_model.parameters()):
+        for p1, p2 in zip(model.parameters(), new_model.parameters(), strict=True):
             assert torch.equal(p1, p2)
 
 
@@ -141,5 +140,5 @@ def test_gcn_model_load_unsafe() -> None:
         # Should work with allow_unsafe=True
         new_model.load(str(model_path), allow_unsafe=True)
 
-        for p1, p2 in zip(model.parameters(), new_model.parameters()):
+        for p1, p2 in zip(model.parameters(), new_model.parameters(), strict=True):
             assert torch.equal(p1, p2)
