@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from click.testing import CliRunner
@@ -12,6 +12,9 @@ from nroute.cli.export_cmd import export_cmd
 from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
 from nroute.core.topology import Topology
 from nroute.visualization.exporters import MetricsExporter, TopologyExporter
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.fixture

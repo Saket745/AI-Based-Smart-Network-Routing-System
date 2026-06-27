@@ -88,7 +88,7 @@ def compute(
             import json
 
             click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
-            raise SystemExit(1)
+            raise SystemExit(1) from e
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
@@ -137,7 +137,7 @@ def compute(
             import json
 
             click.echo(json.dumps({"error": f"Routing error: {e}"}), err=True)
-            raise SystemExit(1)
+            raise SystemExit(1) from e
         console.print(f"[red]x Routing error:[/red] {e}")
         raise SystemExit(1) from e
     except Exception as e:
@@ -145,7 +145,7 @@ def compute(
             import json
 
             click.echo(json.dumps({"error": f"Failed to compute route: {e}"}), err=True)
-            raise SystemExit(1)
+            raise SystemExit(1) from e
         console.print(f"[red]x Failed to compute route:[/red] {e}")
         raise SystemExit(1) from e
 
