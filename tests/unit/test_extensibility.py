@@ -30,13 +30,15 @@ def test_loader_valid_and_invalid() -> None:
     # Create temporary python file with a router class
     with tempfile.TemporaryDirectory() as tmpdir:
         file_path = Path(tmpdir) / "my_custom_module.py"
-        file_path.write_text("""
+        file_path.write_text(
+            """
 class CustomTestRouter:
     def __init__(self, topology=None):
         self.topology = topology
     def compute_path(self, topology, source, destination, weight=None):
         return [source, destination]
-""")
+"""
+        )
 
         # Valid loading
         cls = load_custom_class(f"{file_path}:CustomTestRouter", allow_unsafe=True)
@@ -73,12 +75,14 @@ def test_config_custom_routers_resolution(monkeypatch: Any) -> None:
     """Test that get_router resolves custom routers configured in yaml/config."""
     with tempfile.TemporaryDirectory() as tmpdir:
         file_path = Path(tmpdir) / "configured_router.py"
-        file_path.write_text("""
+        file_path.write_text(
+            """
 from nroute.routing.base import BaseRouter
 class ConfiguredRouter(BaseRouter):
     def compute_path(self, topology, source, destination, weight=None):
         return [source, "via-config", destination]
-""")
+"""
+        )
 
         # Mock config loading to return a config with custom_routers mapping
         cfg = NRouteConfig()
@@ -100,7 +104,9 @@ def test_default_graph_feature_extractor() -> None:
     topo = Topology()
     topo.add_node("A", capacity=1000.0)
     topo.add_node("B", capacity=2000.0)
-    topo.add_edge("A", "B", bandwidth=1000.0, latency=5.0, utilization=0.25, packet_loss=0.01)
+    topo.add_edge(
+        "A", "B", bandwidth=1000.0, latency=5.0, utilization=0.25, packet_loss=0.01
+    )
 
     # 1. NumPy Extractor
     extractor = DefaultGraphFeatureExtractor(use_pytorch=False)
@@ -198,16 +204,19 @@ def test_cli_custom_router_integration(tmp_path: Any) -> None:
 
     # Create temporary router file
     router_file = tmp_path / "my_cli_router.py"
-    router_file.write_text("""
+    router_file.write_text(
+        """
 from nroute.routing.base import BaseRouter
 class MyCliRouter(BaseRouter):
     def compute_path(self, topology, source, destination, weight=None):
         return [source, "cli-dynamic-hop", destination]
-""")
+"""
+    )
 
     # Create temporary topology file
     topo_file = tmp_path / "topo.json"
-    topo_file.write_text("""{
+    topo_file.write_text(
+        """{
         "nodes": [
             {"id": "A", "type": "router", "status": "up"},
             {"id": "B", "type": "router", "status": "up"}
@@ -215,7 +224,8 @@ class MyCliRouter(BaseRouter):
         "edges": [
             {"source": "A", "target": "B", "status": "up"}
         ]
-    }""")
+    }"""
+    )
 
     res = runner.invoke(
         cli,
