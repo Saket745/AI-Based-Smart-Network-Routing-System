@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
@@ -16,9 +15,13 @@ from nroute.simulation.rca import (
     EventSeverity,
     NetworkEvent,
     RCACorrelator,
+    RCAResult,
     classify_event,
     load_events,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.fixture
@@ -105,7 +108,9 @@ def test_load_events_malformed_json(tmp_path: Path) -> None:
 def test_load_events_invalid_structure(tmp_path: Path) -> None:
     path = tmp_path / "events.json"
     path.write_text(json.dumps({"wrong_key": []}))
-    with pytest.raises(SimulationError, match="Events file must be a list or contain an 'events' key"):
+    with pytest.raises(
+        SimulationError, match="Events file must be a list or contain an 'events' key"
+    ):
         load_events(path)
 
     path.write_text(json.dumps(123))
@@ -170,8 +175,16 @@ def test_rca_correlator_basic(small_graph_data: dict[str, Any]) -> None:
     correlator = RCACorrelator(topo)
 
     events = [
-        NetworkEvent(event_id="e1", timestamp=10.0, node_id="A", event_type="link_down", peer_node="B"),
-        NetworkEvent(event_id="e2", timestamp=11.0, node_id="B", event_type="ospf_adjacency_loss", peer_node="A"),
+        NetworkEvent(
+            event_id="e1", timestamp=10.0, node_id="A", event_type="link_down", peer_node="B"
+        ),
+        NetworkEvent(
+            event_id="e2",
+            timestamp=11.0,
+            node_id="B",
+            event_type="ospf_adjacency_loss",
+            peer_node="A",
+        ),
         NetworkEvent(event_id="e3", timestamp=12.0, node_id="C", event_type="syslog_error"),
     ]
     # Pre-classify
@@ -181,26 +194,12 @@ def test_rca_correlator_basic(small_graph_data: dict[str, Any]) -> None:
     result = correlator.diagnose(events)
 
     assert result.root_cause is not None
-    # link_down is INTERFACE (priority 2), but it's the earliest.
-    # ospf_adjacency_loss is ROUTING (priority 1).
-    # Wait, the code says:
-    # 3. Walk events to find the root cause
-    #    The root cause is the earliest event on the highest-priority
-    #    category that can topologically explain other events.
-    # In RCACorrelator.diagnose:
-    # for evt in sorted_events:
-    #     if evt.priority < root_candidate.priority:
-    #         root_candidate = evt
-    #         break
-    # So it prefers higher priority (lower number) even if it's slightly later?
-    # sorted_events is by (timestamp, priority).
-    # e1: (10.0, 2)
-    # e2: (11.0, 1)
-    # e3: (12.0, 3)
-    # Initially root_candidate = e1.
-    # Then it sees e2. e2.priority (1) < e1.priority (2).
-    # So root_candidate becomes e2.
-
+    # Verify that the correlator selects the highest-priority event (lowest number)
+    # as the root cause, even if it occurs slightly later than lower-priority events.
+    # e1: (10.0, 2 - INTERFACE)
+    # e2: (11.0, 1 - ROUTING)
+    # e3: (12.0, 3 - SYSLOG)
+    # e2 has the highest priority (1).
     assert result.root_cause.event_id == "e2"
     assert result.total_events == 3
     assert "A" in result.affected_nodes
@@ -216,39 +215,6 @@ def test_rca_correlator_basic(small_graph_data: dict[str, Any]) -> None:
         classify_event(e)
     result2 = correlator.diagnose(events2)
     assert result2.root_cause.event_id == "e2"
-
-    # Test line 306: priority equal but timestamp earlier, ensures coverage of the if branch
-    # Note: sorted_events is sorted by (timestamp, priority).
-    # e2 (9.0, 2) comes BEFORE e1 (10.0, 2).
-    # Initially root_candidate is e2.
-    # Then it checks e1. e1.priority (2) is not < e2.priority (2).
-    # Then it checks if e1.priority == e2.priority and e1.timestamp < e2.timestamp.
-    # 10.0 < 9.0 is False.
-
-    # To hit line 306 branch as True, we need to bypass the (timestamp, priority) sort or have it fail to put the earliest first.
-    # Actually, if it's already sorted by timestamp, line 306 (evt.timestamp < root_candidate.timestamp) might be hard to hit
-    # unless priority makes it sort differently?
-    # But priority is the second sort key.
-
-    # Wait, sorted(events, key=lambda e: (e.timestamp, e.priority))
-    # If I have:
-    # e1: timestamp=10.0, priority=1
-    # e2: timestamp=9.0, priority=2
-    # sorted_events will be: [e2, e1]
-    # Initially root_candidate = e2.
-    # Loop over sorted_events:
-    # 1. evt = e2. Skip (it's the first one).
-    # 2. evt = e1. e1.priority (1) < e2.priority (2). root_candidate = e1. break.
-
-    # What if:
-    # e1: timestamp=10.0, priority=2
-    # e2: timestamp=11.0, priority=1
-    # sorted_events: [e1, e2]
-    # Initially root_candidate = e1.
-    # 1. evt = e1. skip.
-    # 2. evt = e2. e2.priority (1) < e1.priority (2). root_candidate = e2. break.
-
-    # It seems line 306 is indeed redundant if it's sorted by timestamp.
 
 
 def test_rca_correlator_no_events(small_graph_data: dict[str, Any]) -> None:
@@ -268,14 +234,14 @@ def test_rca_result_to_dict() -> None:
         category=EventCategory.INTERFACE,
         message="Link down message",
     )
-    from nroute.simulation.rca import RCAResult
+
     res = RCAResult(
         root_cause=evt,
         root_cause_summary="Summary",
         correlation_chain=[evt],
         affected_nodes={"A", "B"},
         affected_edges={("A", "B")},
-        total_events=1
+        total_events=1,
     )
     d = res.to_dict()
     assert d["root_cause"]["event_id"] == "e1"
