@@ -292,20 +292,12 @@ class RCACorrelator:
             if evt.node_id and evt.peer_node:
                 result.affected_edges.add((evt.node_id, evt.peer_node))
 
-        # 3. Walk events to find the root cause
-        #    The root cause is the earliest event on the highest-priority
-        #    category that can topologically explain other events.
-        root_candidate = sorted_events[0]
-
-        # Try to find a higher-priority root
-        for evt in sorted_events:
-            if evt.priority < root_candidate.priority:
-                root_candidate = evt
-                break
-            if evt.priority == root_candidate.priority and evt.timestamp < root_candidate.timestamp:
-                root_candidate = evt
-
-        result.root_cause = root_candidate
+        # 3. Walk events to find the root cause. The root cause is the
+        #    highest-priority event (lowest priority value). If multiple
+        #    exist, the earliest one wins. Since sorted_events is already
+        #    in timestamp order, a simple min() over priority suffices.
+        result.root_cause = min(sorted_events, key=lambda e: e.priority)
+        root_candidate = result.root_cause
 
         # 4. Build correlation chain — events explained by the root cause
         chain: list[NetworkEvent] = [root_candidate]
