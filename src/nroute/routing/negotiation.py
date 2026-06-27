@@ -120,6 +120,7 @@ class NegotiationRouter(BaseRouter):
         source: str,
         destination: str,
         weight: str | Callable[[dict[str, Any]], float] | None = None,
+        **kwargs: Any,
     ) -> list[str]:
         # Get active subgraph (excluding down nodes and links)
         subgraph = self._get_active_subgraph(topology)
