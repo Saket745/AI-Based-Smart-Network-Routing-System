@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 from typing import Any
 
-from nroute.routing.ai import AIRouter
+from nroute.routing.ai import AIRouter, AIRouterConfig
 from nroute.routing.base import BaseRouter, FallbackRouter
 from nroute.routing.base_nn import BaseNNRouter
 from nroute.routing.bellman_ford import BellmanFordRouter
@@ -82,6 +82,7 @@ def get_router(algorithm: str, topology: Any = None, allow_unsafe: bool = False)
 __all__ = [
     "ROUTER_REGISTRY",
     "AIRouter",
+    "AIRouterConfig",
     "BFSRouter",
     "BaseNNRouter",
     "BaseRouter",

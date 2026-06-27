@@ -401,7 +401,8 @@ def compare(
     if len(algo_list) < 2:
         if is_json:
             click.echo(
-                json.dumps({"error": "Please provide at least 2 algorithms to compare."}), err=True
+                json.dumps({"error": "Please provide at least 2 algorithms to compare."}),
+                err=True,
             )
             raise SystemExit(1) from None
         console.print("[red]x Please provide at least 2 algorithms to compare.[/red]")
@@ -438,7 +439,9 @@ def compare(
                 from nroute.utils.loader import load_custom_class
 
                 router_cls = load_custom_class(
-                    custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
+                    custom_router,
+                    expected_superclass=BaseRouter,
+                    allow_unsafe=allow_unsafe,
                 )
                 sig = inspect.signature(router_cls)
                 router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()

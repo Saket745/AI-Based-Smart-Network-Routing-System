@@ -53,6 +53,7 @@ from nroute.ml import (
 from nroute.routing import (
     ROUTER_REGISTRY,
     AIRouter,
+    AIRouterConfig,
     BaseRouter,
     RLRouter,
     get_router,
@@ -93,6 +94,7 @@ class Simulator:
 __all__ = [
     "ROUTER_REGISTRY",
     "AIRouter",
+    "AIRouterConfig",
     "BaseFeatureExtractor",
     "BaseRouter",
     "ConfigError",
