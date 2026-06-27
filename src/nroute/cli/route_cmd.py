@@ -161,7 +161,10 @@ def _init_router(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
         sig = inspect.signature(router_cls)
-        return router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        router: BaseRouter = (
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        )
+        return router
 
     return get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
 

@@ -50,6 +50,7 @@ def train_cmd() -> None:
 @click.pass_context
 def train_congestion(
     ctx: click.Context,
+    /,
     topo_path: str,
     model_type: str,
     output: str,
@@ -141,6 +142,7 @@ def train_congestion(
 @click.pass_context
 def train_anomaly(
     ctx: click.Context,
+    /,
     topo_path: str,
     model_type: str,
     output: str,
@@ -229,6 +231,7 @@ def train_anomaly(
 @click.pass_context
 def train_rl(
     ctx: click.Context,
+    /,
     topo_path: str,
     algorithm: str,
     timesteps: int,
@@ -320,6 +323,7 @@ def train_rl(
 @click.pass_context
 def train_gnn(
     ctx: click.Context,
+    /,
     topo_path: str,
     model_type: str,
     epochs: int,
