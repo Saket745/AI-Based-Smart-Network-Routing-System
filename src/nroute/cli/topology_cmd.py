@@ -126,7 +126,7 @@ def generate(
     except TopologyError as e:
         if is_json:
             click.echo(json.dumps({"error": str(e)}), err=True)
-            raise SystemExit(1)
+            raise SystemExit(1) from None
         console.print(f"[red]x Topology error:[/red] {e}")
         raise SystemExit(1) from e
 
@@ -175,7 +175,7 @@ def show(ctx: click.Context, filepath: str) -> None:
     except Exception as e:
         if is_json:
             click.echo(json.dumps({"error": str(e)}), err=True)
-            raise SystemExit(1)
+            raise SystemExit(1) from None
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 

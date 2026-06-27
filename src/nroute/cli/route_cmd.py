@@ -86,8 +86,9 @@ def compute(
     except Exception as e:
         if is_json:
             import json
+
             click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
-            raise SystemExit(1)
+            raise SystemExit(1) from None
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
@@ -95,17 +96,24 @@ def compute(
     if source not in topo.nodes:
         if is_json:
             import json
-            click.echo(json.dumps({"error": f"Source node '{source}' not found in topology."}), err=True)
-            raise SystemExit(1)
+
+            click.echo(
+                json.dumps({"error": f"Source node '{source}' not found in topology."}), err=True
+            )
+            raise SystemExit(1) from None
         console.print(f"[red]x Source node '{source}' not found in topology.[/red]")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     if destination not in topo.nodes:
         if is_json:
             import json
-            click.echo(json.dumps({"error": f"Destination node '{destination}' not found in topology."}), err=True)
-            raise SystemExit(1)
+
+            click.echo(
+                json.dumps({"error": f"Destination node '{destination}' not found in topology."}),
+                err=True,
+            )
+            raise SystemExit(1) from None
         console.print(f"[red]x Destination node '{destination}' not found in topology.[/red]")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
     try:
         if algorithm.lower() == "custom":
@@ -127,15 +135,17 @@ def compute(
     except RoutingError as e:
         if is_json:
             import json
+
             click.echo(json.dumps({"error": f"Routing error: {e}"}), err=True)
-            raise SystemExit(1)
+            raise SystemExit(1) from None
         console.print(f"[red]x Routing error:[/red] {e}")
         raise SystemExit(1) from e
     except Exception as e:
         if is_json:
             import json
+
             click.echo(json.dumps({"error": f"Failed to compute route: {e}"}), err=True)
-            raise SystemExit(1)
+            raise SystemExit(1) from None
         console.print(f"[red]x Failed to compute route:[/red] {e}")
         raise SystemExit(1) from e
 
@@ -144,6 +154,7 @@ def compute(
 
     if is_json:
         import json
+
         out = {
             "source": source,
             "destination": destination,
@@ -151,9 +162,11 @@ def compute(
             "metrics": {
                 "hops": metrics.total_hops,
                 "total_latency": metrics.total_latency,
-                "bottleneck_bandwidth": metrics.bottleneck_bandwidth if metrics.bottleneck_bandwidth < float("inf") else None,
+                "bottleneck_bandwidth": metrics.bottleneck_bandwidth
+                if metrics.bottleneck_bandwidth < float("inf")
+                else None,
                 "bottleneck_utilization": metrics.bottleneck_utilization,
-            }
+            },
         }
         click.echo(json.dumps(out, indent=2))
         return
