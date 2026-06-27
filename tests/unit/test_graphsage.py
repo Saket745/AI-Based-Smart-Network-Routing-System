@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import os
 import tempfile
+
 import torch
 
-from nroute.ml.models.graphsage import SAGEConv, GraphSAGEModel
+from nroute.ml.models.graphsage import GraphSAGEModel, SAGEConv
 
 
 def test_sage_conv_forward() -> None:
@@ -102,7 +103,7 @@ def test_graphsage_model_save_load() -> None:
         new_model.load(tmp_path)
 
         # Check weights match
-        for p1, p2 in zip(model.parameters(), new_model.parameters()):
+        for p1, p2 in zip(model.parameters(), new_model.parameters(), strict=True):
             assert torch.equal(p1, p2)
     finally:
         if os.path.exists(tmp_path):
@@ -138,7 +139,6 @@ def test_sage_conv_specific_graph() -> None:
     """Test SAGEConv with a simple specific graph to verify mean aggregation."""
     in_features = 2
     out_features = 2
-    num_nodes = 3
 
     conv = SAGEConv(in_features, out_features)
     # Identity weights to make it easy to track
