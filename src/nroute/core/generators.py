@@ -22,6 +22,18 @@ class TopologyGenerator:
     @staticmethod
     def _assign_random_edge_attrs(graph: nx.DiGraph, rng: Any, **default_attrs: Any) -> None:
         """Helper to assign randomized link attributes to a Graph's edges."""
+        # Hoist extra attributes that are not part of the standard set
+        standard_keys = {
+            "bandwidth",
+            "latency",
+            "jitter",
+            "packet_loss",
+            "utilization",
+            "weight",
+            "status",
+        }
+        extra_attrs = {k: v for k, v in default_attrs.items() if k not in standard_keys}
+
         for src, dst in graph.edges:
             bandwidth = default_attrs.get("bandwidth")
             if bandwidth is None:
@@ -55,11 +67,8 @@ class TopologyGenerator:
                 "utilization": utilization,
                 "weight": weight,
                 "status": status,
+                **extra_attrs,
             }
-            # Add other extra custom attributes
-            for k, v in default_attrs.items():
-                if k not in edge_attrs:
-                    edge_attrs[k] = v
 
             graph.edges[src, dst].update(edge_attrs)
 
@@ -68,6 +77,10 @@ class TopologyGenerator:
         graph: nx.DiGraph, node_type: str, rng: Any, **default_attrs: Any
     ) -> None:
         """Helper to assign node attributes to all nodes in the Graph."""
+        # Hoist extra attributes that are not part of the standard set
+        standard_keys = {"type", "capacity", "status", "location"}
+        extra_attrs = {k: v for k, v in default_attrs.items() if k not in standard_keys}
+
         for node in graph.nodes:
             capacity = default_attrs.get("capacity")
             if capacity is None:
@@ -89,11 +102,8 @@ class TopologyGenerator:
                 "capacity": capacity,
                 "status": status,
                 "location": location,
+                **extra_attrs,
             }
-            # Add extra custom attributes
-            for k, v in default_attrs.items():
-                if k not in node_attrs:
-                    node_attrs[k] = v
 
             graph.nodes[node].update(node_attrs)
 
