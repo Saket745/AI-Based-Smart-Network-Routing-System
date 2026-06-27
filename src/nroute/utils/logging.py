@@ -72,6 +72,7 @@ def configure_logging(
         processors.append(structlog.processors.JSONRenderer())
     else:
         import os
+
         env_no_color = "NO_COLOR" in os.environ
         use_colors = colors and not env_no_color
         processors.append(structlog.dev.ConsoleRenderer(colors=use_colors))

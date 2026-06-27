@@ -66,6 +66,7 @@ def congestion(
     except Exception as e:
         if is_json:
             import json
+
             click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
             raise SystemExit(1)
         console.print(f"[red]x Failed to load topology:[/red] {e}")
@@ -77,6 +78,7 @@ def congestion(
     except ModelError as e:
         if is_json:
             import json
+
             click.echo(json.dumps({"error": f"Failed to load model: {e}"}), err=True)
             raise SystemExit(1)
         console.print(f"[red]x Failed to load model:[/red] {e}")
@@ -111,6 +113,7 @@ def congestion(
     except Exception as e:
         if is_json:
             import json
+
             click.echo(json.dumps({"error": f"Prediction failed: {e}"}), err=True)
             raise SystemExit(1)
         console.print(f"[red]x Prediction failed:[/red] {e}")
@@ -123,6 +126,7 @@ def congestion(
 
     if is_json:
         import json
+
         out = {
             "links": [
                 {
@@ -244,6 +248,7 @@ def predict_gnn(
     except Exception as e:
         if is_json:
             import json
+
             click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
             raise SystemExit(1)
         console.print(f"[red]x Failed to load topology:[/red] {e}")
@@ -269,7 +274,13 @@ def predict_gnn(
     except Exception as e:
         if is_json:
             import json
-            click.echo(json.dumps({"error": f"Failed to load model {model_type} (version {version}): {e}"}), err=True)
+
+            click.echo(
+                json.dumps(
+                    {"error": f"Failed to load model {model_type} (version {version}): {e}"}
+                ),
+                err=True,
+            )
             raise SystemExit(1)
         console.print(f"[red]x Failed to load model {model_type} (version {version}):[/red] {e}")
         raise SystemExit(1) from e
@@ -281,6 +292,7 @@ def predict_gnn(
     except Exception as e:
         if is_json:
             import json
+
             click.echo(json.dumps({"error": f"Feature engineering failed: {e}"}), err=True)
             raise SystemExit(1)
         console.print(f"[red]x Feature engineering failed:[/red] {e}")
@@ -297,6 +309,7 @@ def predict_gnn(
 
     if is_json:
         import json
+
         edges_sorted = sorted(topo.edges)
         links_out = []
         for idx, (u, v) in enumerate(edges_sorted):
