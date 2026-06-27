@@ -101,6 +101,84 @@ def test_base_router_compute_routes(small_graph_data: dict[str, Any]) -> None:
     assert len(routes) == 2
 
 
+def test_base_router_compute_routes_edge_cases(small_graph_data: dict[str, Any]) -> None:
+    """Test compute_routes handles duplicate flows and unexpected exceptions."""
+    topo = _get_topo(small_graph_data)
+
+    class MockRouter(BaseRouter):
+        def compute_path(
+            self,
+            topology: Topology,
+            source: str,
+            destination: str,
+            weight: str | Callable[[dict[str, Any]], float] | None = None,
+        ) -> list[str]:
+            if source == "FAIL":
+                raise RoutingError("Simulated RoutingError")
+            if source == "CRASH":
+                raise ValueError("Simulated unexpected error")
+            return ["A", "B"]
+
+    router = MockRouter()
+
+    flows = [
+        # Normal flow
+        FlowRecord(
+            source="A",
+            destination="B",
+            bytes=100,
+            packets=10,
+            duration=1.0,
+            protocol="TCP",
+            timestamp=0.0,
+        ),
+        # Duplicate flow (should be skipped via 'continue')
+        FlowRecord(
+            source="A",
+            destination="B",
+            bytes=200,
+            packets=20,
+            duration=1.0,
+            protocol="TCP",
+            timestamp=1.0,
+        ),
+        # Flow that raises RoutingError (should be caught)
+        FlowRecord(
+            source="FAIL",
+            destination="B",
+            bytes=100,
+            packets=10,
+            duration=1.0,
+            protocol="TCP",
+            timestamp=2.0,
+        ),
+    ]
+    tm = TrafficMatrix(flows=flows)
+
+    routes = router.compute_routes(topo, tm)
+
+    assert len(routes) == 1
+    assert routes[("A", "B")] == ["A", "B"]
+    assert ("FAIL", "B") not in routes
+
+    # Verify that unexpected exceptions are NOT caught
+    crash_tm = TrafficMatrix(
+        flows=[
+            FlowRecord(
+                source="CRASH",
+                destination="B",
+                bytes=100,
+                packets=10,
+                duration=1.0,
+                protocol="TCP",
+                timestamp=3.0,
+            )
+        ]
+    )
+    with pytest.raises(ValueError, match="Simulated unexpected error"):
+        router.compute_routes(topo, crash_tm)
+
+
 def test_base_router_validate_path(small_graph_data: dict[str, Any]) -> None:
     """Test comprehensive path validation logic."""
     topo = _get_topo(small_graph_data)
