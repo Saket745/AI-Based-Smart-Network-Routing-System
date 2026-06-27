@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from nroute.core.query import RoutingQuery
 from nroute.core.topology import Topology
 from nroute.exceptions import RoutingError
 from nroute.routing.base import FallbackRouter
@@ -34,7 +35,8 @@ def test_ecmp_equal_cost_paths() -> None:
 
     router = ECMPRouter()
 
-    paths = router.compute_all_equal_cost_paths(topo, "A", "D", weight="weight")
+    query = RoutingQuery(source="A", destination="D", weight="weight")
+    paths = router.compute_all_equal_cost_paths(topo, query)
     assert len(paths) == 2
     assert ["A", "B", "D"] in paths
     assert ["A", "C", "D"] in paths
@@ -97,7 +99,8 @@ def test_k_shortest_paths() -> None:
 
     router = ECMPRouter(k=3)
 
-    paths = router.compute_k_shortest_paths(topo, "A", "D", weight="weight")
+    query = RoutingQuery(source="A", destination="D", weight="weight")
+    paths = router.compute_k_shortest_paths(topo, query)
     assert len(paths) == 3
     assert paths[0] == ["A", "B", "D"]  # cost: 2
     assert paths[1] == ["A", "C", "D"]  # cost: 4

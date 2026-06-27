@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 
+from nroute.core.query import RoutingQuery
 from nroute.exceptions import RoutingError
 from nroute.routing.base import BaseRouter
 
@@ -34,14 +35,14 @@ class ECMPRouter(BaseRouter):
     def compute_all_equal_cost_paths(
         self,
         topology: Topology,
-        source: str,
-        destination: str,
-        weight: str | Callable[[dict[str, Any]], float] | None = None,
+        query: RoutingQuery,
     ) -> list[list[str]]:
         """
         Find all shortest paths of equal minimum cost between source and destination.
         """
         subgraph = self._get_active_subgraph(topology)
+        source, destination = query.source, query.destination
+        weight = query.weight
 
         if source not in subgraph:
             raise RoutingError(f"Source node '{source}' is down or does not exist.")
@@ -87,16 +88,16 @@ class ECMPRouter(BaseRouter):
     def compute_k_shortest_paths(
         self,
         topology: Topology,
-        source: str,
-        destination: str,
+        query: RoutingQuery,
         k: int | None = None,
-        weight: str | Callable[[dict[str, Any]], float] | None = None,
     ) -> list[list[str]]:
         """
         Find the top K shortest simple paths using Yen's algorithm.
         """
         subgraph = self._get_active_subgraph(topology)
         k_val = k if k is not None else self.k
+        source, destination = query.source, query.destination
+        weight = query.weight
 
         if source not in subgraph:
             raise RoutingError(f"Source node '{source}' is down or does not exist.")
@@ -159,13 +160,17 @@ class ECMPRouter(BaseRouter):
             weight: Routing metric.
             flow_key: Key used to hash and select one of the equal-cost paths (e.g. protocol or flow ID).
         """
-        paths = self.compute_all_equal_cost_paths(topology, source, destination, weight=weight)
+        query = RoutingQuery(
+            source=source, destination=destination, weight=weight, flow_key=flow_key
+        )
+        paths = self.compute_all_equal_cost_paths(topology, query)
         if not paths:
             raise RoutingError(f"No path found between '{source}' and '{destination}'.")
 
         # Select path using flow_key hashing
-        if flow_key is not None:
-            hash_val = int(hashlib.md5(str(flow_key).encode("utf-8")).hexdigest(), 16)
+        key = query.flow_key
+        if key is not None:
+            hash_val = int(hashlib.md5(str(key).encode("utf-8")).hexdigest(), 16)
             index = hash_val % len(paths)
             return paths[index]
 
