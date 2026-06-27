@@ -57,8 +57,9 @@ def anomalies(
     except Exception as e:
         if is_json:
             import json
+
             click.echo(json.dumps({"error": f"Failed to load traffic data: {e}"}), err=True)
-            raise SystemExit(1)
+            raise SystemExit(1) from e
         console.print(f"[red]x Failed to load traffic data:[/red] {e}")
         raise SystemExit(1) from e
 
@@ -68,8 +69,9 @@ def anomalies(
     except ModelError as e:
         if is_json:
             import json
+
             click.echo(json.dumps({"error": f"Failed to load model: {e}"}), err=True)
-            raise SystemExit(1)
+            raise SystemExit(1) from e
         console.print(f"[red]x Failed to load model:[/red] {e}")
         raise SystemExit(1) from e
 
@@ -78,13 +80,15 @@ def anomalies(
     except ModelError as e:
         if is_json:
             import json
+
             click.echo(json.dumps({"error": f"Detection failed: {e}"}), err=True)
-            raise SystemExit(1)
+            raise SystemExit(1) from e
         console.print(f"[red]x Detection failed:[/red] {e}")
         raise SystemExit(1) from e
 
     if is_json:
         import json
+
         samples = []
         for idx, row in results.iterrows():
             samples.append(
