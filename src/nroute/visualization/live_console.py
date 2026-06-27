@@ -150,8 +150,95 @@ class LiveSimulationConsole:
         plt_ctx.title("Average Latency (ms)")
         plt_ctx.grid(True)
 
-    def run(self) -> MetricsCollectionResult:
-        """Run the simulation while displaying the live console interface."""
+    def _update_header(self, layout: Layout, tick: int, last_metric: Any) -> None:
+        """Update the header section of the layout."""
+        algo_name = self.engine.router.__class__.__name__
+        header_text = Text.assemble(
+            ("nroute LIVE SIMULATION CONSOLE", "bold cyan"),
+            ("  |  Algorithm: ", "white"),
+            (algo_name, "bold green"),
+            ("  |  Tick: ", "white"),
+            (f"{tick + 1}/{self.duration_ticks}", "bold yellow"),
+            ("  |  Active Flows: ", "white"),
+            (str(last_metric.active_flows), "bold magenta"),
+        )
+        layout["header"].update(Panel(header_text, style="cyan"))
+
+    def _update_link_status_table(self, layout: Layout, engine: SimulationEngine) -> None:
+        """Update the link status table in the layout."""
+        table = Table(
+            title="Link Status & Utilization",
+            show_header=True,
+            header_style="bold magenta",
+            expand=True,
+        )
+        table.add_column("Link (U ➔ V)", style="cyan")
+        table.add_column("Status", justify="center")
+        table.add_column("Bandwidth", justify="right")
+        table.add_column("Latency", justify="right")
+        table.add_column("Utilization", justify="right")
+
+        # Sort edges for stable rendering
+        sorted_edges = sorted(engine.topology.edges)
+        for u, v in sorted_edges:
+            edge_data = engine.topology.get_edge(u, v)
+            status = str(edge_data.get("status", "up")).upper()
+            if status == "DOWN":
+                status_str = "[bold red]🔴 DOWN[/bold red]"
+            else:
+                status_str = "[bold green]🟢 UP[/bold green]"
+
+            bw = f"{edge_data.get('bandwidth', 1000):.0f} Mbps"
+            lat = f"{edge_data.get('latency', 5):.1f} ms"
+            util = float(edge_data.get("utilization", 0.0))
+
+            # Color coding based on utilization
+            if status == "DOWN":
+                util_str = "[grey]--[/grey]"
+            elif util > 0.85:
+                util_str = f"[bold red]{util:.1%}[/bold red] 🔴"
+            elif util > 0.60:
+                util_str = f"[bold yellow]{util:.1%}[/bold yellow] 🟡"
+            else:
+                util_str = f"[bold green]{util:.1%}[/bold green] 🟢"
+
+            table.add_row(f"{u} ➔ {v}", status_str, bw, lat, util_str)
+
+        layout["left"].update(Panel(table, style="magenta"))
+
+    def _update_plots(self, layout: Layout) -> None:
+        """Update the throughput and latency plots in the layout."""
+        layout["right"]["throughput_plot"].update(
+            Panel(PlotextRenderable(self.plot_throughput), style="cyan")
+        )
+        layout["right"]["latency_plot"].update(
+            Panel(PlotextRenderable(self.plot_latency), style="yellow")
+        )
+
+    def _update_footer(self, layout: Layout) -> None:
+        """Update the event log footer in the layout."""
+        events_to_show = self.event_log[-5:] if self.event_log else ["No events yet."]
+        footer_text = Text("\n".join(events_to_show))
+        layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
+
+    def _update_history(self, tick: int, last_metric: Any) -> None:
+        """Update simulation history for plotting."""
+        self.ticks_history.append(tick)
+        self.throughput_history.append(last_metric.throughput)
+        self.latency_history.append(last_metric.avg_latency)
+
+    def _update_all(self, layout: Layout, tick: int, engine: SimulationEngine) -> None:
+        """Update all layout components based on the current simulation state."""
+        last_metric = engine.collector.results[-1]
+        self._update_history(tick, last_metric)
+        self.update_events(tick)
+        self._update_header(layout, tick, last_metric)
+        self._update_link_status_table(layout, engine)
+        self._update_plots(layout)
+        self._update_footer(layout)
+
+    def _create_layout(self) -> Layout:
+        """Create the Rich layout for the live console."""
         layout = Layout()
         layout.split_column(
             Layout(name="header", size=3),
@@ -166,86 +253,14 @@ class LiveSimulationConsole:
             Layout(name="throughput_plot", ratio=1),
             Layout(name="latency_plot", ratio=1),
         )
+        return layout
 
-        algo_name = self.engine.router.__class__.__name__
+    def run(self) -> MetricsCollectionResult:
+        """Run the simulation while displaying the live console interface."""
+        layout = self._create_layout()
 
         def tick_callback(tick: int, engine: SimulationEngine) -> None:
-            # Update history
-            last_metric = engine.collector.results[-1]
-            self.ticks_history.append(tick)
-            self.throughput_history.append(last_metric.throughput)
-            self.latency_history.append(last_metric.avg_latency)
-
-            # Update event log
-            self.update_events(tick)
-
-            # Build elements for render
-            # Header
-            header_text = Text.assemble(
-                ("nroute LIVE SIMULATION CONSOLE", "bold cyan"),
-                ("  |  Algorithm: ", "white"),
-                (algo_name, "bold green"),
-                ("  |  Tick: ", "white"),
-                (f"{tick + 1}/{self.duration_ticks}", "bold yellow"),
-                ("  |  Active Flows: ", "white"),
-                (str(last_metric.active_flows), "bold magenta"),
-            )
-            layout["header"].update(Panel(header_text, style="cyan"))
-
-            # Left Panel: Link Status Table
-            table = Table(
-                title="Link Status & Utilization",
-                show_header=True,
-                header_style="bold magenta",
-                expand=True,
-            )
-            table.add_column("Link (U ➔ V)", style="cyan")
-            table.add_column("Status", justify="center")
-            table.add_column("Bandwidth", justify="right")
-            table.add_column("Latency", justify="right")
-            table.add_column("Utilization", justify="right")
-
-            # Sort edges for stable rendering
-            sorted_edges = sorted(engine.topology.edges)
-            for u, v in sorted_edges:
-                edge_data = engine.topology.get_edge(u, v)
-                status = str(edge_data.get("status", "up")).upper()
-                if status == "DOWN":
-                    status_str = "[bold red]🔴 DOWN[/bold red]"
-                else:
-                    status_str = "[bold green]🟢 UP[/bold green]"
-
-                bw = f"{edge_data.get('bandwidth', 1000):.0f} Mbps"
-                lat = f"{edge_data.get('latency', 5):.1f} ms"
-                util = float(edge_data.get("utilization", 0.0))
-
-                # Color coding based on utilization
-                if status == "DOWN":
-                    util_str = "[grey]--[/grey]"
-                elif util > 0.85:
-                    util_str = f"[bold red]{util:.1%}[/bold red] 🔴"
-                elif util > 0.60:
-                    util_str = f"[bold yellow]{util:.1%}[/bold yellow] 🟡"
-                else:
-                    util_str = f"[bold green]{util:.1%}[/bold green] 🟢"
-
-                table.add_row(f"{u} ➔ {v}", status_str, bw, lat, util_str)
-
-            layout["left"].update(Panel(table, style="magenta"))
-
-            # Right Panel: Plots
-            layout["right"]["throughput_plot"].update(
-                Panel(PlotextRenderable(self.plot_throughput), style="cyan")
-            )
-            layout["right"]["latency_plot"].update(
-                Panel(PlotextRenderable(self.plot_latency), style="yellow")
-            )
-
-            # Footer: Event Log
-            events_to_show = self.event_log[-5:] if self.event_log else ["No events yet."]
-            footer_text = Text("\n".join(events_to_show))
-            layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
-
+            self._update_all(layout, tick, engine)
             # Force sleep to pace the visualization
             time.sleep(self.delay)
 
