@@ -82,4 +82,3 @@ def test_configure_logging_quiet_and_override() -> None:
     _reset_logging_state()
     configure_logging(quiet=True, colors=False, log_level_override="WARNING")
     assert nroute_logging._configured is True
-

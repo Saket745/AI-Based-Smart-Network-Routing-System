@@ -189,7 +189,7 @@ def test_pipeline_config_ingestion_and_simulation(tmp_path: Path) -> None:
                 "latency": 500.0,
                 "bandwidth": 10.0,
             }
-        ]
+        ],
     )
 
     # Simulate config change impact
