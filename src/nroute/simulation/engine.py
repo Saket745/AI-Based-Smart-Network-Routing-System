@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from rich.progress import Progress
@@ -22,6 +23,16 @@ if TYPE_CHECKING:
     from nroute.simulation.traffic_gen import TrafficGenerator
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class SimulationRunConfig:
+    """Configuration for a single simulation run."""
+
+    duration: int
+    traffic_model: str
+    flows_per_tick: int
+    seed: int | None = None
 
 
 class SimulationEngine:
