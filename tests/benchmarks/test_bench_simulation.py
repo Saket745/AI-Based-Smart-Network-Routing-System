@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+
 from nroute.core.generators import TopologyGenerator
 from nroute.routing.dijkstra import DijkstraRouter
 from nroute.simulation.engine import SimulationEngine

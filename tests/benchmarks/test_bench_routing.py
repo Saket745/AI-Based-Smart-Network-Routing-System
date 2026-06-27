@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+
 from nroute.core.generators import TopologyGenerator
 from nroute.routing import get_router
 from nroute.routing.rl_router import RLRouter

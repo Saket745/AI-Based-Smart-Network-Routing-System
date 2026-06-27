@@ -489,7 +489,10 @@ class TestNewCLIFeatures:
 
     def test_api_start_subcommand(self, runner: CliRunner, monkeypatch: pytest.MonkeyPatch) -> None:
         """nroute api start should launch uvicorn server (mocked to prevent blocking)."""
+        from typing import Any
+
         import uvicorn
+
         called = False
 
         def mock_run(*args: Any, **kwargs: Any) -> None:
@@ -527,4 +530,3 @@ class TestNewCLIFeatures:
         assert "destination" in route_data
         assert "path" in route_data
         assert "metrics" in route_data
-
