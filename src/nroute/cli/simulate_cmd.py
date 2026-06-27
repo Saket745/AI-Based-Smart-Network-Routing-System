@@ -399,9 +399,8 @@ def compare(
 
     if len(algo_list) < 2:
         if is_json:
-            click.echo(
-                json.dumps({"error": "Please provide at least 2 algorithms to compare."}), err=True
-            )
+            msg = {"error": "Please provide at least 2 algorithms to compare."}
+            click.echo(json.dumps(msg), err=True)
             raise SystemExit(1) from None
         console.print("[red]x Please provide at least 2 algorithms to compare.[/red]")
         raise SystemExit(1) from None

@@ -53,6 +53,8 @@ class NetFlowParser:
                 rename_map[col] = "protocol"
             elif cleaned in {"first_switched", "first", "start_time", "timestamp", "time"}:
                 rename_map[col] = "timestamp"
+            elif cleaned in {"last_switched", "last", "end_time", "stop_time"}:
+                rename_map[col] = "last_switched"
 
         df = df.rename(columns=rename_map)
 
@@ -69,8 +71,6 @@ class NetFlowParser:
         if "duration" not in df.columns:
             if "last_switched" in df.columns and "timestamp" in df.columns:
                 df["duration"] = df["last_switched"] - df["timestamp"]
-            elif "last" in df.columns and "timestamp" in df.columns:
-                df["duration"] = df["last"] - df["timestamp"]
             else:
                 df["duration"] = 0.0
 
