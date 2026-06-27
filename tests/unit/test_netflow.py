@@ -167,8 +167,9 @@ def test_netflow_parser_invalid_csv(tmp_path: Path) -> None:
 
     # pandas might still read it, but let's try to trigger a read error if possible
     # Actually pd.read_csv is quite robust. Let's mock it to throw.
-    with patch("pandas.read_csv", side_effect=Exception("Read error")), pytest.raises(
-        IngestionError, match="Failed to read NetFlow CSV file"
+    with (
+        patch("pandas.read_csv", side_effect=Exception("Read error")),
+        pytest.raises(IngestionError, match="Failed to read NetFlow CSV file"),
     ):
         NetFlowParser.parse(invalid_file)
 
