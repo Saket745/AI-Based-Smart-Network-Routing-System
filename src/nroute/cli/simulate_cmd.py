@@ -283,6 +283,37 @@ def run_sim(
         console.print(f"[green]+[/green] Metrics saved to [bold]{out_path}[/bold]")
 
 
+def _build_comparison_data(results: dict[str, Any], algo_list: list[str]) -> dict[str, Any]:
+    """Build comparison data dictionary from algorithm results.
+
+    Args:
+        results: Dictionary mapping algorithm names to simulation results.
+        algo_list: List of algorithm names that were compared.
+
+    Returns:
+        Dictionary with comparison metrics for each algorithm.
+    """
+    comparison_data: dict[str, Any] = {}
+    for algo in algo_list:
+        r = results[algo]
+        if r is not None:
+            total_reroutes = sum(m.reroute_count for m in r.results)
+            avg_loss = (
+                sum(m.packet_loss_rate for m in r.results) / len(r.results)
+                if r.results
+                else 0.0
+            )
+            comparison_data[algo] = {
+                "total_throughput": r.total_throughput(),
+                "mean_latency": r.mean_latency(),
+                "avg_packet_loss_rate": avg_loss,
+                "total_reroutes": total_reroutes,
+            }
+        else:
+            comparison_data[algo] = {"error": "simulation_failed"}
+    return comparison_data
+
+
 @simulate_cmd.command(name="compare")
 @click.option(
     "--allow-unsafe",
@@ -435,25 +466,10 @@ def compare(
             console.print(f"[yellow]⚠ {algo.upper()} failed:[/yellow] {e}")
             results[algo] = None
 
+    # Build comparison data once using helper function
+    comparison_data = _build_comparison_data(results, algo_list)
+
     if is_json:
-        comparison_data: dict[str, Any] = {}
-        for algo in algo_list:
-            r = results[algo]
-            if r is not None:
-                total_reroutes = sum(m.reroute_count for m in r.results)
-                avg_loss = (
-                    sum(m.packet_loss_rate for m in r.results) / len(r.results)
-                    if r.results
-                    else 0.0
-                )
-                comparison_data[algo] = {
-                    "total_throughput": r.total_throughput(),
-                    "mean_latency": r.mean_latency(),
-                    "avg_packet_loss_rate": avg_loss,
-                    "total_reroutes": total_reroutes,
-                }
-            else:
-                comparison_data[algo] = {"error": "simulation_failed"}
         click.echo(json.dumps(comparison_data, indent=2))
         if output:
             out_path = Path(output)
@@ -506,24 +522,6 @@ def compare(
     if output:
         out_path = Path(output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        comparison_data: dict[str, Any] = {}
-        for algo in algo_list:
-            r = results[algo]
-            if r is not None:
-                total_reroutes = sum(m.reroute_count for m in r.results)
-                avg_loss = (
-                    sum(m.packet_loss_rate for m in r.results) / len(r.results)
-                    if r.results
-                    else 0.0
-                )
-                comparison_data[algo] = {
-                    "total_throughput": r.total_throughput(),
-                    "mean_latency": r.mean_latency(),
-                    "avg_packet_loss_rate": avg_loss,
-                    "total_reroutes": total_reroutes,
-                }
-            else:
-                comparison_data[algo] = {"error": "simulation_failed"}
         out_path.write_text(json.dumps(comparison_data, indent=2))
         console.print(f"\n[green]+[/green] Comparison saved to [bold]{out_path}[/bold]")
 
