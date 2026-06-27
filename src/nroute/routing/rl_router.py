@@ -290,7 +290,9 @@ class RLRouter(BaseRouter):
         # 1. Fallback if not trained
         if not self.is_trained or self.model is None:
             if not getattr(self, "_warned_untrained", False):
-                logger.warning("RLRouter is not trained. Using cascade fallback (suppressing future warnings).")
+                logger.warning(
+                    "RLRouter is not trained. Using cascade fallback (suppressing future warnings)."
+                )
                 self._warned_untrained = True
             return self._cascade_fallback(topology, source, destination, weight=weight)
 

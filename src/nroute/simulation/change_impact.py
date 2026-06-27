@@ -168,9 +168,7 @@ class AnalyticalEngine:
         paths = {str(n): {} for n in graph.nodes}
         for src, src_paths in all_paths:
             paths[str(src)] = {
-                str(dst): [str(n) for n in path]
-                for dst, path in src_paths.items()
-                if dst != src
+                str(dst): [str(n) for n in path] for dst, path in src_paths.items() if dst != src
             }
         return paths
 

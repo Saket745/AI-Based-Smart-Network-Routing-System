@@ -3,17 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
-
-import pytest
 
 from nroute.core.topology import Topology
 from nroute.core.traffic import FlowRecord, TrafficMatrix
+from nroute.ml.anomaly import AnomalyDetector
 from nroute.routing import get_router
 from nroute.simulation.engine import SimulationEngine
 from nroute.simulation.traffic_gen import TrafficGenerator
-from nroute.ml.anomaly import AnomalyDetector
-
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
