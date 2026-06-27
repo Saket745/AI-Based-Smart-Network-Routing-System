@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import click
+from pydantic import BaseModel
 from rich.console import Console
 from rich.table import Table
 
@@ -19,6 +21,18 @@ console = Console()
 @click.group(name="route")
 def route_cmd() -> None:
     """Compute and inspect network routes."""
+
+
+class RouteComputeArgs(BaseModel):
+    """Arguments for the route compute command."""
+
+    allow_unsafe: bool
+    topo_path: str
+    algorithm: str
+    source: str
+    destination: str
+    weight: str
+    custom_router: str | None = None
 
 
 @route_cmd.command(name="compute")
@@ -77,26 +91,18 @@ def route_cmd() -> None:
     help="Import target for custom router in path/to/file.py:ClassName format (requires -a custom).",
 )
 @click.pass_context
-def compute(
-    ctx: click.Context,
-    allow_unsafe: bool,
-    topo_path: str,
-    algorithm: str,
-    source: str,
-    destination: str,
-    weight: str,
-    custom_router: str | None,
-) -> None:
+def compute(ctx: click.Context, /, **kwargs: Any) -> None:
     """Compute the optimal route between two nodes."""
+    args = RouteComputeArgs(**kwargs)
     is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
 
     # Load and validate topology
-    topo = _load_and_validate_topo(topo_path, source, destination, is_json)
+    topo = _load_and_validate_topo(args.topo_path, args.source, args.destination, is_json)
 
     # Initialize router and compute path
     try:
-        router = _init_router(algorithm, topo, allow_unsafe, custom_router)
-        path = router.compute_path(topo, source, destination, weight=weight)
+        router = _init_router(args.algorithm, topo, args.allow_unsafe, args.custom_router)
+        path = router.compute_path(topo, args.source, args.destination, weight=args.weight)
     except RoutingError as e:
         _handle_error(f"Routing error: {e}", is_json, e)
     except Exception as e:
@@ -107,9 +113,9 @@ def compute(
 
     # Display results
     if is_json:
-        _print_json_metrics(source, destination, path, metrics)
+        _print_json_metrics(args.source, args.destination, path, metrics)
     else:
-        _print_console_metrics(algorithm, source, destination, path, metrics, topo)
+        _print_console_metrics(args.algorithm, args.source, args.destination, path, metrics, topo)
 
 
 def _handle_error(msg: str, is_json: bool, e: Exception | None = None) -> None:
