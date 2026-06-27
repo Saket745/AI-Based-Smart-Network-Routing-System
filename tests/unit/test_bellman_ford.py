@@ -105,9 +105,7 @@ def test_bellman_ford_weights(small_graph_data: dict[str, Any]) -> None:
     assert path_callable is not None
 
 
-def test_bellman_ford_generic_exception(
-    small_graph_data: dict[str, Any], monkeypatch: Any
-) -> None:
+def test_bellman_ford_generic_exception(small_graph_data: dict[str, Any], monkeypatch: Any) -> None:
     """Test handling of generic exceptions during route computation."""
     topo = _get_topo(small_graph_data)
     router = BellmanFordRouter()
