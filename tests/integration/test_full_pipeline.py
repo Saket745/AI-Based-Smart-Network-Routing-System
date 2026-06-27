@@ -83,9 +83,11 @@ def test_pipeline_csv_import_ai_route_predict_export(tmp_path: Path) -> None:
     # 3. Route with AI / Dynamic edge weights using a basic predictor
     predictor = CongestionPredictor(model_type="xgboost")
     # For integration testing, mock the model loading to bypass missing joblib binary file
-    predictor._model = "mock"
+    predictor.model = "mock"
     predictor.load = lambda *args, **kwargs: None  # type: ignore[method-assign]
-    predictor.predict = lambda features: [0] * len(features)  # type: ignore[method-assign]
+    predictor.predict = lambda features: pd.DataFrame(  # type: ignore[method-assign]
+        {"congested": [False] * len(features), "probability": [0.0] * len(features)}
+    )
 
     # Verify edge attributes
     edge_attrs = topo.get_edge("A", "B")
@@ -223,10 +225,13 @@ def test_pipeline_netflow_anomaly_detection(tmp_path: Path) -> None:
 
     # 3. Setup mock anomaly detector
     detector = AnomalyDetector(model_type="isolation_forest")
-    detector._model = "mock"
+    detector.model = "mock"
     detector.load = lambda *args, **kwargs: None  # type: ignore[method-assign]
-    detector.predict = lambda features: [1] * len(features)  # type: ignore[method-assign]
+    detector.detect = lambda features: pd.DataFrame(  # type: ignore[method-assign]
+        {"is_anomaly": [True] * len(features)}
+    )
 
-    # Predict anomalies
-    preds = detector.predict([[500.0, 5.0, 1.0, 100.0, 0.5, 0.5, 0.1, 5.0]])
-    assert preds[0] == 1
+    # Detect anomalies
+    dummy_features = pd.DataFrame([[500.0, 5.0, 1.0, 100.0, 0.5, 0.5, 0.1, 5.0]])
+    preds = detector.detect(dummy_features)
+    assert preds.iloc[0]["is_anomaly"]

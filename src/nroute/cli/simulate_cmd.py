@@ -506,7 +506,7 @@ def compare(
     if output:
         out_path = Path(output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        comparison_data: dict[str, Any] = {}
+        comparison_data = {}
         for algo in algo_list:
             r = results[algo]
             if r is not None:

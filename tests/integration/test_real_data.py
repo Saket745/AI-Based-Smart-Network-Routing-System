@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pandas as pd
+
 from nroute.core.topology import Topology
 from nroute.core.traffic import FlowRecord, TrafficMatrix
 from nroute.ml.anomaly import AnomalyDetector
@@ -91,13 +93,15 @@ def test_real_data_netflow_ingestion_and_anomaly_detection() -> None:
 
     # 2. Setup anomaly detector and run detection on dummy traffic features
     detector = AnomalyDetector(model_type="isolation_forest")
-    # For integration testing, mock model load/predict
-    detector._model = "mock"
+    # For integration testing, mock model load/detect
+    detector.model = "mock"
     detector.load = lambda *args, **kwargs: None  # type: ignore[method-assign]
-    detector.predict = lambda features: [0] * len(features)  # type: ignore[method-assign]
+    detector.detect = lambda features: pd.DataFrame(  # type: ignore[method-assign]
+        {"is_anomaly": [False] * len(features)}
+    )
 
-    # Predict anomalies
-    dummy_features = [[1000.0, 10.0, 1.0, 100.0, 0.0, 0.0, 0.0, 0.0]]
-    preds = detector.predict(dummy_features)
+    # Detect anomalies
+    dummy_features = pd.DataFrame([[1000.0, 10.0, 1.0, 100.0, 0.0, 0.0, 0.0, 0.0]])
+    preds = detector.detect(dummy_features)
     assert len(preds) == 1
-    assert preds[0] == 0
+    assert not preds.iloc[0]["is_anomaly"]

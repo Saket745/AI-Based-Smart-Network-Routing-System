@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,7 +19,7 @@ def runner() -> CliRunner:
 
 
 @pytest.fixture
-def topo_file(tmp_path) -> str:
+def topo_file(tmp_path: Any) -> str:
     """Create a dummy topology file to satisfy click.Path(exists=True)."""
     p = tmp_path / "topo.json"
     p.write_text("{}")
@@ -203,10 +204,10 @@ class TestRouteComputeCLI:
         mock_topo_load.return_value = mock_topology
 
         class FakeRouter:
-            def __init__(self, topology=None):
+            def __init__(self, topology: Any = None) -> None:
                 self.topology = topology
 
-            def compute_path(self, topo, s, d, weight=None):
+            def compute_path(self, topo: Any, s: str, d: str, weight: Any = None) -> list[str]:
                 return [s, d]
 
         mock_load_custom.return_value = FakeRouter
