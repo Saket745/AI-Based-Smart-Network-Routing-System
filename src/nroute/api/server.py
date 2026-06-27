@@ -26,6 +26,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from nroute.core.config import load_config
 from nroute.core.openconfig import ConfigChange
 from nroute.simulation.digital_twin import DigitalTwinEngine
 
@@ -38,12 +39,13 @@ app = FastAPI(
 )
 
 # Load CORS configuration
-from nroute.core.config import load_config
+
 try:
     _cfg = load_config()
     _cors_origins = _cfg.general.cors_origins
 except Exception:
     import os
+
     _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "*")
     if _cors_origins_raw == "*":
         _cors_origins = ["*"]
