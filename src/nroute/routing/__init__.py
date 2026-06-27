@@ -17,7 +17,9 @@ from nroute.routing.registry import ROUTER_REGISTRY, register_router
 from nroute.routing.rl_router import RLRouter
 
 
-def get_router(algorithm: str, topology: Any = None, allow_unsafe: bool = False) -> BaseRouter:
+def get_router(
+    algorithm: str, topology: Any = None, allow_unsafe: bool = False
+) -> BaseRouter:
     """
     Factory function to get a router instance by name.
 

@@ -99,7 +99,7 @@ def test_k_shortest_paths() -> None:
 
     router = ECMPRouter(k=3)
 
-    query = RoutingQuery(source="A", destination="D", weight="weight")
+    query = RoutingQuery(source="A", destination="D", weight="weight", k=3)
     paths = router.compute_k_shortest_paths(topo, query)
     assert len(paths) == 3
     assert paths[0] == ["A", "B", "D"]  # cost: 2

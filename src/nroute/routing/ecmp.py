@@ -89,13 +89,12 @@ class ECMPRouter(BaseRouter):
         self,
         topology: Topology,
         query: RoutingQuery,
-        k: int | None = None,
     ) -> list[list[str]]:
         """
         Find the top K shortest simple paths using Yen's algorithm.
         """
         subgraph = self._get_active_subgraph(topology)
-        k_val = k if k is not None else self.k
+        k_val = query.k if query.k is not None else self.k
         source, destination = query.source, query.destination
         weight = query.weight
 

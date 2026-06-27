@@ -20,6 +20,9 @@ class RoutingQuery(BaseModel):
     weight: str | Callable[[dict[str, Any]], float] | None = Field(
         default=None, description="Routing metric (attribute name or weight function)"
     )
-    flow_key: str | int | None = Field(
+    k: int | None = Field(
+        default=None, description="Number of paths to return (e.g. for K-shortest paths)"
+    )
+    flow_key: Any = Field(
         default=None, description="Key for deterministic path selection (e.g. for ECMP)"
     )
