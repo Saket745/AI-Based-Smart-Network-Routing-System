@@ -145,10 +145,22 @@ _TYPE_RULES: list[tuple[list[str], EventCategory, EventSeverity]] = [
         EventSeverity.WARNING,
     ),
     # Interface events (Priority 2)
-    (["link_down", "interface_down", "port_down"], EventCategory.INTERFACE, EventSeverity.CRITICAL),
-    (["link_up", "interface_up", "port_up"], EventCategory.INTERFACE, EventSeverity.INFO),
+    (
+        ["link_down", "interface_down", "port_down"],
+        EventCategory.INTERFACE,
+        EventSeverity.CRITICAL,
+    ),
+    (
+        ["link_up", "interface_up", "port_up"],
+        EventCategory.INTERFACE,
+        EventSeverity.INFO,
+    ),
     (["interface_flap", "link_flap"], EventCategory.INTERFACE, EventSeverity.ERROR),
-    (["crc_error", "crc_errors", "frame_errors"], EventCategory.INTERFACE, EventSeverity.WARNING),
+    (
+        ["crc_error", "crc_errors", "frame_errors"],
+        EventCategory.INTERFACE,
+        EventSeverity.WARNING,
+    ),
     (["port_disabled"], EventCategory.INTERFACE, EventSeverity.WARNING),
     # Syslog events (Priority 3)
     (["syslog_critical"], EventCategory.SYSLOG, EventSeverity.CRITICAL),
@@ -193,7 +205,9 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
             elif p.suffix.lower() == ".json":
                 raw = json.load(f)
             else:
-                raise SimulationError(f"Unsupported events file extension '{p.suffix}'.")
+                raise SimulationError(
+                    f"Unsupported events file extension '{p.suffix}'."
+                )
     except Exception as exc:
         if isinstance(exc, SimulationError):
             raise
@@ -207,7 +221,9 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
                     raw = raw[key]
                     break
             else:
-                raise SimulationError("Events file must be a list or contain an 'events' key.")
+                raise SimulationError(
+                    "Events file must be a list or contain an 'events' key."
+                )
         else:
             raise SimulationError("Events file must be a list of event records.")
 
@@ -302,7 +318,10 @@ class RCACorrelator:
             if evt.priority < root_candidate.priority:
                 root_candidate = evt
                 break
-            if evt.priority == root_candidate.priority and evt.timestamp < root_candidate.timestamp:
+            if (
+                evt.priority == root_candidate.priority
+                and evt.timestamp < root_candidate.timestamp
+            ):
                 root_candidate = evt
 
         result.root_cause = root_candidate

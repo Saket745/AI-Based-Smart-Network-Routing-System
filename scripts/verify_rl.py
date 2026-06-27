@@ -2,7 +2,9 @@ import os
 import sys
 
 # Add src to python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
+)
 
 from nroute.core.topology import Topology
 from nroute.routing.dijkstra import DijkstraRouter
@@ -70,7 +72,9 @@ def verify():
     print(f"Routes where RL differed from Dijkstra: {mismatched_paths}/{total_tests}")
 
     # Assertions for verification
-    assert successful_rl == total_tests, "RL router failed some inferences (fallback triggered)"
+    assert successful_rl == total_tests, (
+        "RL router failed some inferences (fallback triggered)"
+    )
     print(
         "[SUCCESS] RL Router successfully inferred paths for all tested pairs without falling back!"
     )

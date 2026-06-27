@@ -141,7 +141,9 @@ class AnalyticalEngine:
         g = topology.graph
 
         active_nodes = [
-            n for n, d in g.nodes(data=True) if str(d.get("status", "up")).lower() != "down"
+            n
+            for n, d in g.nodes(data=True)
+            if str(d.get("status", "up")).lower() != "down"
         ]
         sub = g.subgraph(active_nodes).copy()
 
@@ -250,8 +252,12 @@ class ChangeImpactSimulator:
         after_g = AnalyticalEngine.get_active_graph(modified)
 
         # Compute all-pairs shortest paths
-        before_paths = AnalyticalEngine.compute_all_pairs_shortest_paths(before_g, weight=weight)
-        after_paths = AnalyticalEngine.compute_all_pairs_shortest_paths(after_g, weight=weight)
+        before_paths = AnalyticalEngine.compute_all_pairs_shortest_paths(
+            before_g, weight=weight
+        )
+        after_paths = AnalyticalEngine.compute_all_pairs_shortest_paths(
+            after_g, weight=weight
+        )
 
         # Collect all node pairs from the union of both graphs
         all_nodes = sorted(set(before_g.nodes) | set(after_g.nodes))
@@ -288,7 +294,9 @@ class ChangeImpactSimulator:
                 if ap:
                     delta.after_path = ap
                     delta.after_hops = len(ap) - 1
-                    delta.after_latency = AnalyticalEngine.compute_path_latency(after_g, ap, weight)
+                    delta.after_latency = AnalyticalEngine.compute_path_latency(
+                        after_g, ap, weight
+                    )
                     latencies_after.append(delta.after_latency)
                 else:
                     blast.unreachable_pairs_after += 1
@@ -308,7 +316,9 @@ class ChangeImpactSimulator:
                     # Track edges that differ
                     before_edges = set(itertools.pairwise(bp))
                     after_edges = set(itertools.pairwise(ap))
-                    blast.affected_edges.update(before_edges.symmetric_difference(after_edges))
+                    blast.affected_edges.update(
+                        before_edges.symmetric_difference(after_edges)
+                    )
                     blast.affected_nodes.update(set(bp) ^ set(ap))
 
                     lat_increase = delta.after_latency - delta.before_latency

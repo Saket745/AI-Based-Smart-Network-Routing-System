@@ -97,31 +97,51 @@ class FailureInjector:
                     try:
                         topology.set_link_down(src, dst)
                         logger.info(
-                            "Applied link failure event", src=src, dst=dst, tick=current_tick
+                            "Applied link failure event",
+                            src=src,
+                            dst=dst,
+                            tick=current_tick,
                         )
                     except Exception as e:
-                        logger.error("Failed to apply link failure", src=src, dst=dst, error=str(e))
+                        logger.error(
+                            "Failed to apply link failure",
+                            src=src,
+                            dst=dst,
+                            error=str(e),
+                        )
 
                 elif evt_type == "node_failure":
                     node_id = event["node_id"]
                     try:
                         topology.set_node_down(node_id)
                         logger.info(
-                            "Applied node failure event", node_id=node_id, tick=current_tick
+                            "Applied node failure event",
+                            node_id=node_id,
+                            tick=current_tick,
                         )
                     except Exception as e:
-                        logger.error("Failed to apply node failure", node_id=node_id, error=str(e))
+                        logger.error(
+                            "Failed to apply node failure",
+                            node_id=node_id,
+                            error=str(e),
+                        )
 
                 elif evt_type == "link_recovery":
                     src, dst = event["src"], event["dst"]
                     try:
                         topology.set_link_up(src, dst)
                         logger.info(
-                            "Applied link recovery event", src=src, dst=dst, tick=current_tick
+                            "Applied link recovery event",
+                            src=src,
+                            dst=dst,
+                            tick=current_tick,
                         )
                     except Exception as e:
                         logger.error(
-                            "Failed to apply link recovery", src=src, dst=dst, error=str(e)
+                            "Failed to apply link recovery",
+                            src=src,
+                            dst=dst,
+                            error=str(e),
                         )
 
                 elif evt_type == "node_recovery":
@@ -129,10 +149,16 @@ class FailureInjector:
                     try:
                         topology.set_node_up(node_id)
                         logger.info(
-                            "Applied node recovery event", node_id=node_id, tick=current_tick
+                            "Applied node recovery event",
+                            node_id=node_id,
+                            tick=current_tick,
                         )
                     except Exception as e:
-                        logger.error("Failed to apply node recovery", node_id=node_id, error=str(e))
+                        logger.error(
+                            "Failed to apply node recovery",
+                            node_id=node_id,
+                            error=str(e),
+                        )
 
                 elif evt_type == "latency_spike":
                     src, dst = event["src"], event["dst"]
@@ -169,7 +195,10 @@ class FailureInjector:
                         )
                     except Exception as e:
                         logger.error(
-                            "Failed to apply latency spike", src=src, dst=dst, error=str(e)
+                            "Failed to apply latency spike",
+                            src=src,
+                            dst=dst,
+                            error=str(e),
                         )
 
                 elif evt_type == "restore_latency":
@@ -188,5 +217,8 @@ class FailureInjector:
                             )
                         except Exception as e:
                             logger.error(
-                                "Failed to restore latency", src=src, dst=dst, error=str(e)
+                                "Failed to restore latency",
+                                src=src,
+                                dst=dst,
+                                error=str(e),
                             )

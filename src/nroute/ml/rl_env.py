@@ -130,7 +130,9 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             # Use the underlying NetworkX graph for BFS distance computation
             for node in self.nodes:
                 try:
-                    lengths = nx.single_source_shortest_path_length(self.topology.graph, node)
+                    lengths = nx.single_source_shortest_path_length(
+                        self.topology.graph, node
+                    )
                     self._shortest_distances[node] = dict(lengths)
                 except Exception:
                     self._shortest_distances[node] = {}
@@ -163,7 +165,9 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             lat_factor = 1.0 + rand_util * float(self.np_random.uniform(0.5, 2.0))
             rand_latency = max(0.1, base_latency * lat_factor)
             # Perturb packet loss: small probability increase under congestion
-            rand_loss = min(1.0, base_loss + rand_util * float(self.np_random.uniform(0.0, 0.03)))
+            rand_loss = min(
+                1.0, base_loss + rand_util * float(self.np_random.uniform(0.0, 0.03))
+            )
 
             with contextlib.suppress(Exception):
                 self.topology.update_edge(
@@ -203,7 +207,9 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
 
         # Pick active nodes for source and destination
         up_nodes = [
-            n for n in self.nodes if self.topology.get_node(n).get("status", "up").lower() == "up"
+            n
+            for n in self.nodes
+            if self.topology.get_node(n).get("status", "up").lower() == "up"
         ]
 
         if len(up_nodes) < 2:
@@ -249,7 +255,9 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         edge = (self.current_node, next_node)
 
         # 2. Check if next link or node is down
-        node_down = self.topology.get_node(next_node).get("status", "up").lower() == "down"
+        node_down = (
+            self.topology.get_node(next_node).get("status", "up").lower() == "down"
+        )
         edge_down = self.topology.get_edge(*edge).get("status", "up").lower() == "down"
 
         if node_down or edge_down:
@@ -289,7 +297,10 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
 
         # Base step reward: low latency, high bandwidth, low loss
         step_reward = (
-            alpha * (1.0 / max(0.1, latency)) + beta * (bandwidth / 1000.0) - gamma * loss - delta
+            alpha * (1.0 / max(0.1, latency))
+            + beta * (bandwidth / 1000.0)
+            - gamma * loss
+            - delta
         )
 
         # Apply revisit penalty (graduated: -5.0 on first revisit)

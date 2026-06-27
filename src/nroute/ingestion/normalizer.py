@@ -40,7 +40,9 @@ class Normalizer:
                 raise IngestionError(f"Node at index {idx} is missing 'id' or 'name'.")
 
             # Clean keys to lowercase
-            attrs = {k.lower(): v for k, v in node.items() if k.lower() not in {"id", "name"}}
+            attrs = {
+                k.lower(): v for k, v in node.items() if k.lower() not in {"id", "name"}
+            }
 
             # Handle common variations of attributes
             if "type" not in attrs and "node_type" in attrs:
@@ -49,12 +51,19 @@ class Normalizer:
             try:
                 topo.add_node(str(node_id), **attrs)
             except Exception as e:
-                raise IngestionError(f"Failed to normalize node '{node_id}': {e}") from e
+                raise IngestionError(
+                    f"Failed to normalize node '{node_id}': {e}"
+                ) from e
 
         # 2. Normalize and add edges
         for idx, edge in enumerate(raw_edges):
             src = edge.get("source") or edge.get("src") or edge.get("from")
-            dst = edge.get("destination") or edge.get("dst") or edge.get("to") or edge.get("target")
+            dst = (
+                edge.get("destination")
+                or edge.get("dst")
+                or edge.get("to")
+                or edge.get("target")
+            )
 
             if src is None or dst is None:
                 raise IngestionError(
@@ -75,7 +84,8 @@ class Normalizer:
             attrs = {
                 k.lower(): v
                 for k, v in edge.items()
-                if k.lower() not in {"source", "src", "from", "destination", "dst", "to"}
+                if k.lower()
+                not in {"source", "src", "from", "destination", "dst", "to"}
             }
 
             # Common overrides
@@ -120,7 +130,9 @@ class Normalizer:
                 or record.get("dst_ip")
                 or record.get("dst_addr")
             )
-            num_bytes = record.get("bytes") or record.get("octets") or record.get("dOctets")
+            num_bytes = (
+                record.get("bytes") or record.get("octets") or record.get("dOctets")
+            )
             packets = record.get("packets") or record.get("pkts") or record.get("dPkts")
             duration = record.get("duration")
             protocol = record.get("protocol") or record.get("proto")
@@ -161,6 +173,8 @@ class Normalizer:
                     )
                 )
             except Exception as e:
-                raise IngestionError(f"Failed to normalize flow record at index {idx}: {e}") from e
+                raise IngestionError(
+                    f"Failed to normalize flow record at index {idx}: {e}"
+                ) from e
 
         return TrafficMatrix(flows=flows)

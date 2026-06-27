@@ -15,7 +15,9 @@ from nroute.ml.model_store import ModelStore
 class DummyModel:
     """A dummy model for testing ModelStore saving/loading."""
 
-    def __init__(self, model_type: str = "custom", preferred_extension: str | None = None) -> None:
+    def __init__(
+        self, model_type: str = "custom", preferred_extension: str | None = None
+    ) -> None:
         self.model_type = model_type
         if preferred_extension is not None:
             self.preferred_extension = preferred_extension
@@ -113,7 +115,9 @@ def test_model_store_missing_model_or_metadata() -> None:
         store.save_model(model, name="partial", version="1.0.0")
 
         # Query different version
-        with pytest.raises(ModelError, match=r"version '2\.0\.0' for 'partial' not found"):
+        with pytest.raises(
+            ModelError, match=r"version '2\.0\.0' for 'partial' not found"
+        ):
             store.load_model(model, name="partial", version="2.0.0")
 
 

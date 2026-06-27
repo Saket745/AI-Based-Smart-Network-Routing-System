@@ -110,7 +110,9 @@ class Topology:
 
         location = attrs.get("location")
         if location is not None and not isinstance(location, str):
-            raise ValidationError(f"Node location must be a string, got {type(location).__name__}.")
+            raise ValidationError(
+                f"Node location must be a string, got {type(location).__name__}."
+            )
 
         validated_attrs = {
             "type": node_type,
@@ -260,9 +262,13 @@ class Topology:
         updated_data: dict[str, Any] = {}
 
         if "bandwidth" in attrs:
-            updated_data["bandwidth"] = validate_positive_float(attrs["bandwidth"], "bandwidth")
+            updated_data["bandwidth"] = validate_positive_float(
+                attrs["bandwidth"], "bandwidth"
+            )
         if "latency" in attrs:
-            updated_data["latency"] = validate_positive_float(attrs["latency"], "latency")
+            updated_data["latency"] = validate_positive_float(
+                attrs["latency"], "latency"
+            )
         if "jitter" in attrs:
             updated_data["jitter"] = validate_positive_float(attrs["jitter"], "jitter")
         if "packet_loss" in attrs:
@@ -380,7 +386,9 @@ class Topology:
             src = edge.get("source")
             dst = edge.get("target")
             if not src or not dst:
-                raise TopologyError("Edge data is missing 'source' or 'target' attribute.")
+                raise TopologyError(
+                    "Edge data is missing 'source' or 'target' attribute."
+                )
             attrs = {k: v for k, v in edge.items() if k not in {"source", "target"}}
             topo.add_edge(src, dst, **attrs)
 
@@ -436,7 +444,9 @@ class Topology:
 
         # Calculate attribute ranges
         latencies = [
-            attrs["latency"] for _, _, attrs in self._graph.edges(data=True) if "latency" in attrs
+            attrs["latency"]
+            for _, _, attrs in self._graph.edges(data=True)
+            if "latency" in attrs
         ]
         bandwidths = [
             attrs["bandwidth"]
@@ -457,10 +467,14 @@ class Topology:
         max_util = max(utilizations) if utilizations else 0.0
 
         down_nodes = sum(
-            1 for _, attrs in self._graph.nodes(data=True) if attrs.get("status") == "down"
+            1
+            for _, attrs in self._graph.nodes(data=True)
+            if attrs.get("status") == "down"
         )
         down_links = sum(
-            1 for _, _, attrs in self._graph.edges(data=True) if attrs.get("status") == "down"
+            1
+            for _, _, attrs in self._graph.edges(data=True)
+            if attrs.get("status") == "down"
         )
 
         return (

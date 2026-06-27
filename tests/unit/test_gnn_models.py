@@ -15,7 +15,10 @@ def test_gcn_model_forward() -> None:
     hidden_dim = 16
 
     model = GCNModel(
-        node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim, num_layers=2
+        node_in_dim=node_in_dim,
+        edge_in_dim=edge_in_dim,
+        hidden_dim=hidden_dim,
+        num_layers=2,
     )
 
     # 4 nodes, 3 edges
@@ -44,7 +47,10 @@ def test_graphsage_model_forward() -> None:
     hidden_dim = 16
 
     model = GraphSAGEModel(
-        node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim, num_layers=2
+        node_in_dim=node_in_dim,
+        edge_in_dim=edge_in_dim,
+        hidden_dim=hidden_dim,
+        num_layers=2,
     )
 
     # 4 nodes, 3 edges

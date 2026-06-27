@@ -47,7 +47,9 @@ def test_scale_free_generator() -> None:
 
 def test_small_world_generator() -> None:
     """Test Watts-Strogatz small-world topology generation."""
-    topo = Topology.generate("small-world", n_nodes=20, k_neighbors=4, rewire_prob=0.1, seed=42)
+    topo = Topology.generate(
+        "small-world", n_nodes=20, k_neighbors=4, rewire_prob=0.1, seed=42
+    )
     assert topo.node_count == 20
     # Every node has k neighbors -> 20 * 4 = 80 directed edges
     assert topo.edge_count == 80

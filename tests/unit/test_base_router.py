@@ -107,24 +107,31 @@ def test_base_router_validate_path(small_graph_data: dict[str, Any]) -> None:
     router = DummyRouter()
 
     # Valid path
-    assert router.validate_path(topo, ["A", "B", "D"], source="A", destination="D") is True
+    assert (
+        router.validate_path(topo, ["A", "B", "D"], source="A", destination="D") is True
+    )
 
     # Empty path
     with pytest.raises(RoutingError, match="Path is empty"):
         router.validate_path(topo, [])
 
     # Source mismatch
-    with pytest.raises(RoutingError, match="Path source 'B' does not match expected source 'A'"):
+    with pytest.raises(
+        RoutingError, match="Path source 'B' does not match expected source 'A'"
+    ):
         router.validate_path(topo, ["B", "D"], source="A")
 
     # Destination mismatch
     with pytest.raises(
-        RoutingError, match="Path destination 'B' does not match expected destination 'D'"
+        RoutingError,
+        match="Path destination 'B' does not match expected destination 'D'",
     ):
         router.validate_path(topo, ["A", "B"], destination="D")
 
     # Non-existent node
-    with pytest.raises(RoutingError, match="Node 'X' in path does not exist in topology"):
+    with pytest.raises(
+        RoutingError, match="Node 'X' in path does not exist in topology"
+    ):
         router.validate_path(topo, ["A", "X", "D"])
 
     # Down node
@@ -134,7 +141,9 @@ def test_base_router_validate_path(small_graph_data: dict[str, Any]) -> None:
     topo.set_node_up("B")
 
     # Non-existent edge
-    with pytest.raises(RoutingError, match="Edge 'A->D' in path does not exist in topology"):
+    with pytest.raises(
+        RoutingError, match="Edge 'A->D' in path does not exist in topology"
+    ):
         router.validate_path(topo, ["A", "D"])
 
     # Down edge
@@ -196,11 +205,15 @@ def test_fallback_router_all_fail(small_graph_data: dict[str, Any]) -> None:
 
 def test_fallback_router_invalid_init() -> None:
     """Test FallbackRouter requires at least one sub-router."""
-    with pytest.raises(ValueError, match="FallbackRouter requires at least one sub-router"):
+    with pytest.raises(
+        ValueError, match="FallbackRouter requires at least one sub-router"
+    ):
         FallbackRouter([])
 
 
-def test_fallback_router_invalid_path_returned(small_graph_data: dict[str, Any]) -> None:
+def test_fallback_router_invalid_path_returned(
+    small_graph_data: dict[str, Any],
+) -> None:
     """Test FallbackRouter ignores invalid paths returned by sub-routers."""
     topo = _get_topo(small_graph_data)
     # r1 returns an invalid path (A->D doesn't exist directly)

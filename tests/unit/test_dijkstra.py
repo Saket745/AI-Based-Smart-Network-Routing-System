@@ -131,7 +131,8 @@ def test_dijkstra_routing_exception_handling(small_graph_data: dict[str, Any]) -
         # Test Generic Exception wrapping (line 72)
         mock_shortest.side_effect = RuntimeError("Something went wrong")
         with pytest.raises(
-            RoutingError, match="Dijkstra route computation failed: Something went wrong"
+            RoutingError,
+            match="Dijkstra route computation failed: Something went wrong",
         ):
             router.compute_path(topo, "A", "D")
 

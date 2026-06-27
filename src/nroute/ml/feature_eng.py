@@ -61,7 +61,9 @@ def extract_congestion_features(
         with suppress(Exception):
             for _, neighbor_data in topology.graph[v].items():
                 neighbor_utils.append(float(neighbor_data.get("utilization", 0.0)))
-        neighbor_util_avg = sum(neighbor_utils) / len(neighbor_utils) if neighbor_utils else 0.0
+        neighbor_util_avg = (
+            sum(neighbor_utils) / len(neighbor_utils) if neighbor_utils else 0.0
+        )
 
         feature_dict = {
             "source": u,

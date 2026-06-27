@@ -29,7 +29,9 @@ class BellmanFordRouter(BaseRouter):
         subgraph = self._get_active_subgraph(topology)
 
         if source not in subgraph:
-            raise RoutingError(f"Source node '{source}' is down or does not exist in topology.")
+            raise RoutingError(
+                f"Source node '{source}' is down or does not exist in topology."
+            )
         if destination not in subgraph:
             raise RoutingError(
                 f"Destination node '{destination}' is down or does not exist in topology."

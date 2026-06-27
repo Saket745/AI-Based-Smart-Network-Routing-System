@@ -75,7 +75,9 @@ class TrafficGenerator:
         duration = round(self.rng.uniform(0.1, 10.0), 3)
 
         # Weighted protocols: TCP (70%), UDP (25%), ICMP (5%)
-        proto = self.rng.choices(["TCP", "UDP", "ICMP"], weights=[0.70, 0.25, 0.05], k=1)[0]
+        proto = self.rng.choices(
+            ["TCP", "UDP", "ICMP"], weights=[0.70, 0.25, 0.05], k=1
+        )[0]
         timestamp = float(tick)
 
         return FlowRecord(
@@ -211,7 +213,9 @@ class TrafficGenerator:
 
             for src, dst in zip(srcs, dsts, strict=True):
                 if src != dst:
-                    flows.append(self._create_flow(src, dst, tick, bytes_multiplier=bytes_mult))
+                    flows.append(
+                        self._create_flow(src, dst, tick, bytes_multiplier=bytes_mult)
+                    )
                     if len(flows) == count:
                         break
         return flows

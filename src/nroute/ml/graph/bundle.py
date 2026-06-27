@@ -42,7 +42,13 @@ class GraphTensorBundle:
         return getattr(self, key, default)
 
     def keys(self) -> list[str]:
-        return ["node_features", "edge_index", "edge_features", "node_to_idx", "idx_to_node"]
+        return [
+            "node_features",
+            "edge_index",
+            "edge_features",
+            "node_to_idx",
+            "idx_to_node",
+        ]
 
     def to_tensors(self) -> GraphTensorBundle:
         """Convert numpy arrays inside the bundle to PyTorch tensors."""

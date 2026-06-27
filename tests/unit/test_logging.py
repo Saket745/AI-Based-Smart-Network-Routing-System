@@ -52,7 +52,12 @@ def test_configure_logging_idempotent() -> None:
 
 def test_configure_logging_each_option_no_raise() -> None:
     """All four configure_logging() invocations complete without exceptions."""
-    for verbose, json_fmt in [(False, False), (False, True), (True, False), (True, True)]:
+    for verbose, json_fmt in [
+        (False, False),
+        (False, True),
+        (True, False),
+        (True, True),
+    ]:
         _reset_logging_state()
         configure_logging(verbose=verbose, json_format=json_fmt)  # must not raise
 

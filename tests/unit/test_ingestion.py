@@ -56,7 +56,12 @@ def test_csv_topology_importer_valid(tmp_path: Path) -> None:
 
     # 1. Standard headers (src, dst, bandwidth, latency)
     df = pd.DataFrame(
-        {"src": ["A", "B"], "dst": ["B", "C"], "bandwidth": [1000.0, 500.0], "latency": [5.0, 10.0]}
+        {
+            "src": ["A", "B"],
+            "dst": ["B", "C"],
+            "bandwidth": [1000.0, 500.0],
+            "latency": [5.0, 10.0],
+        }
     )
     df.to_csv(csv_file, index=False)
 
@@ -69,7 +74,12 @@ def test_csv_topology_importer_valid(tmp_path: Path) -> None:
 
     # 2. Alternative headers (from, to, speed)
     df_alt = pd.DataFrame(
-        {"from": ["X", "Y"], "to": ["Y", "Z"], "speed": [100.0, 200.0], "status": ["up", "down"]}
+        {
+            "from": ["X", "Y"],
+            "to": ["Y", "Z"],
+            "speed": [100.0, 200.0],
+            "status": ["up", "down"],
+        }
     )
     df_alt.to_csv(csv_file, index=False)
 
@@ -367,7 +377,13 @@ def test_unified_ingest_explicit_and_auto_detect(tmp_path: Path) -> None:
     # 8. Auto-detect CSV Traffic Matrix
     csv_tm = tmp_path / "test_tm.csv"
     df_tm = pd.DataFrame(
-        {"source": ["A"], "destination": ["B"], "bytes": [100], "packets": [1], "protocol": ["TCP"]}
+        {
+            "source": ["A"],
+            "destination": ["B"],
+            "bytes": [100],
+            "packets": [1],
+            "protocol": ["TCP"],
+        }
     )
     df_tm.to_csv(csv_tm, index=False)
     result = ingest(csv_tm)

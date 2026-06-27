@@ -73,7 +73,9 @@ def simulate_cmd() -> None:
 )
 @click.option(
     "--traffic-model",
-    type=click.Choice(["uniform", "gravity", "hotspot", "bursty"], case_sensitive=False),
+    type=click.Choice(
+        ["uniform", "gravity", "hotspot", "bursty"], case_sensitive=False
+    ),
     default="uniform",
     show_default=True,
     help="Traffic generation model.",
@@ -162,7 +164,11 @@ def run_sim(
                 custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
             )
             sig = inspect.signature(router_cls)
-            router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+            router = (
+                router_cls(topology=topo)
+                if "topology" in sig.parameters
+                else router_cls()
+            )
         else:
             router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
 
@@ -181,13 +187,17 @@ def run_sim(
             except Exception as e:
                 console.print(f"[yellow]! Failed to load model:[/yellow] {e}")
 
-        traffic_gen = TrafficGenerator(model=traffic_model, n_flows_per_tick=flows_per_tick)
+        traffic_gen = TrafficGenerator(
+            model=traffic_model, n_flows_per_tick=flows_per_tick
+        )
         engine = SimulationEngine(topo, router, traffic_gen)
 
         if visualize:
             from nroute.visualization import LiveSimulationConsole
 
-            console.print("[cyan]Initializing real-time console visualization...[/cyan]")
+            console.print(
+                "[cyan]Initializing real-time console visualization...[/cyan]"
+            )
             visualizer = LiveSimulationConsole(
                 engine=engine,
                 duration_ticks=duration,
@@ -315,7 +325,9 @@ def run_sim(
 )
 @click.option(
     "--traffic-model",
-    type=click.Choice(["uniform", "gravity", "hotspot", "bursty"], case_sensitive=False),
+    type=click.Choice(
+        ["uniform", "gravity", "hotspot", "bursty"], case_sensitive=False
+    ),
     default="uniform",
     show_default=True,
     help="Traffic generation model.",
@@ -370,7 +382,9 @@ def compare(
     if len(algo_list) < 2:
         if is_json:
             click.echo(
-                json.dumps({"error": "Please provide at least 2 algorithms to compare."}),
+                json.dumps(
+                    {"error": "Please provide at least 2 algorithms to compare."}
+                ),
                 err=True,
             )
             raise SystemExit(1) from None
@@ -413,7 +427,11 @@ def compare(
                     allow_unsafe=allow_unsafe,
                 )
                 sig = inspect.signature(router_cls)
-                router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+                router = (
+                    router_cls(topology=topo)
+                    if "topology" in sig.parameters
+                    else router_cls()
+                )
             else:
                 router = get_router(algo, topology=topo, allow_unsafe=allow_unsafe)
 
@@ -430,7 +448,9 @@ def compare(
                         f"[yellow]! Failed to load model for {algo.upper()}:[/yellow] {e}"
                     )
 
-            traffic_gen = TrafficGenerator(model=traffic_model, n_flows_per_tick=flows_per_tick)
+            traffic_gen = TrafficGenerator(
+                model=traffic_model, n_flows_per_tick=flows_per_tick
+            )
             engine = SimulationEngine(topo, router, traffic_gen)
             result = engine.run(duration_ticks=duration, seed=seed)
             results[algo] = result

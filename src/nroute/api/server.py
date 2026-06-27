@@ -107,7 +107,8 @@ class NetworkEventInput(BaseModel):
     peer_node: str = ""
     event_type: str = ""
     category: str = Field(
-        default="unknown", description="Event category: routing, interface, syslog, unknown"
+        default="unknown",
+        description="Event category: routing, interface, syslog, unknown",
     )
     severity: str = Field(
         default="info", description="Event severity: critical, error, warning, info"
@@ -193,7 +194,9 @@ async def simulate_impact(req: ImpactRequest) -> dict[str, Any]:
     engine = get_engine()
     try:
         change = ConfigChange.model_validate(req.change)
-        result = await _run_in_executor(engine.simulate_change, change, weight=req.weight)
+        result = await _run_in_executor(
+            engine.simulate_change, change, weight=req.weight
+        )
         return cast("dict[str, Any]", result.to_dict())
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

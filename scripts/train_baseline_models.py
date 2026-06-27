@@ -16,7 +16,9 @@ import numpy as np
 import pandas as pd
 
 # Add src directory to python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
+)
 
 from nroute.core.topology import Topology
 from nroute.ml.anomaly import AnomalyDetector
@@ -111,7 +113,9 @@ def train_anomaly_model(topo_path: Path, output_path: Path, seed: int) -> None:
     print(f"Anomalous sample score (lower is more anomalous): {score[0]:.4f}")
 
 
-def train_rl_model(topo_path: Path, output_path: Path, episodes: int, seed: int) -> None:
+def train_rl_model(
+    topo_path: Path, output_path: Path, episodes: int, seed: int
+) -> None:
     print(f"\n--- Training RL Routing Model (PPO for {episodes} episodes) ---")
     topo = Topology.load(str(topo_path))
     print(f"Loaded topology context: {topo.node_count} nodes, {topo.edge_count} edges.")
@@ -175,8 +179,12 @@ def main() -> None:
 
     print("\n=============================================")
     print("All baseline models trained successfully!")
-    print(f"Congestion Model:   {congestion_path} ({congestion_path.stat().st_size / 1024:.1f} KB)")
-    print(f"Anomaly Model:      {anomaly_path} ({anomaly_path.stat().st_size / 1024:.1f} KB)")
+    print(
+        f"Congestion Model:   {congestion_path} ({congestion_path.stat().st_size / 1024:.1f} KB)"
+    )
+    print(
+        f"Anomaly Model:      {anomaly_path} ({anomaly_path.stat().st_size / 1024:.1f} KB)"
+    )
     print(f"RL Model:           {rl_path} ({rl_path.stat().st_size / 1024:.1f} KB)")
     print(
         f"RL Metadata:        {rl_path}.meta ({Path(str(rl_path) + '.meta').stat().st_size / 1024:.1f} KB)"

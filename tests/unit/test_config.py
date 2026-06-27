@@ -18,7 +18,9 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 
-def test_load_config_defaults_when_no_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_config_defaults_when_no_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """load_config() returns defaults when no config file is found."""
     monkeypatch.chdir(tmp_path)
     cfg = load_config()
@@ -83,21 +85,27 @@ def test_load_config_nonexistent_path_falls_back_to_defaults(tmp_path: Path) -> 
 # ---------------------------------------------------------------------------
 
 
-def test_load_config_env_override_string(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_config_env_override_string(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("NROUTE_GENERAL_LOG_LEVEL", "WARNING")
     cfg = load_config()
     assert cfg.general.log_level == "WARNING"
 
 
-def test_load_config_env_override_int(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_config_env_override_int(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("NROUTE_TOPOLOGY_DEFAULT_NODES", "99")
     cfg = load_config()
     assert cfg.topology.default_nodes == 99
 
 
-def test_load_config_env_override_float(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_config_env_override_float(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("NROUTE_TOPOLOGY_DEFAULT_BANDWIDTH", "500.0")
     cfg = load_config()
@@ -133,4 +141,7 @@ def test_load_config_searches_configs_subfolder(
     )
     cfg = load_config()
     assert cfg.general.log_level == "WARNING"
-    assert cfg.general.cors_origins == ["http://localhost:3000", "http://localhost:8000"]
+    assert cfg.general.cors_origins == [
+        "http://localhost:3000",
+        "http://localhost:8000",
+    ]

@@ -3,7 +3,9 @@ import shutil
 import sys
 
 # Add src directory to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
+)
 
 import pandas as pd
 import torch
@@ -15,7 +17,11 @@ from nroute.ml.evaluation.metrics import GNNEvaluator
 from nroute.ml.model_store import ModelStore
 from nroute.ml.models.gcn import GCNModel
 from nroute.ml.models.graphsage import GraphSAGEModel
-from nroute.ml.training.trainer import GNNGraphDataset, GNNTrainer, collate_dataset_batch
+from nroute.ml.training.trainer import (
+    GNNGraphDataset,
+    GNNTrainer,
+    collate_dataset_batch,
+)
 
 
 def main():
@@ -88,18 +94,22 @@ def main():
 
     # 4. Instantiate Models
     node_in_dim = 8  # [capacity, status, degree, queue_length, packet_load, congestion_score, btw_cent, cls_cent]
-    edge_in_dim = (
-        6  # [bandwidth, latency, utilization, packet_loss, reliability, failure_frequency]
-    )
+    edge_in_dim = 6  # [bandwidth, latency, utilization, packet_loss, reliability, failure_frequency]
     hidden_dim = 32
     epochs = 10
 
     models_to_test = {
         "GCN": GCNModel(
-            node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim, num_layers=2
+            node_in_dim=node_in_dim,
+            edge_in_dim=edge_in_dim,
+            hidden_dim=hidden_dim,
+            num_layers=2,
         ),
         "GraphSAGE": GraphSAGEModel(
-            node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim, num_layers=2
+            node_in_dim=node_in_dim,
+            edge_in_dim=edge_in_dim,
+            hidden_dim=hidden_dim,
+            num_layers=2,
         ),
     }
 
@@ -137,10 +147,18 @@ def main():
                 all_pred_lat.append(pred_lat)
                 all_latencies.append(batch["latency_targets"])
 
-        concat_logits = torch.cat(all_logits, dim=0) if all_logits else torch.empty((0,))
-        concat_labels = torch.cat(all_labels, dim=0) if all_labels else torch.empty((0,))
-        concat_pred_lat = torch.cat(all_pred_lat, dim=0) if all_pred_lat else torch.empty((0,))
-        concat_latencies = torch.cat(all_latencies, dim=0) if all_latencies else torch.empty((0,))
+        concat_logits = (
+            torch.cat(all_logits, dim=0) if all_logits else torch.empty((0,))
+        )
+        concat_labels = (
+            torch.cat(all_labels, dim=0) if all_labels else torch.empty((0,))
+        )
+        concat_pred_lat = (
+            torch.cat(all_pred_lat, dim=0) if all_pred_lat else torch.empty((0,))
+        )
+        concat_latencies = (
+            torch.cat(all_latencies, dim=0) if all_latencies else torch.empty((0,))
+        )
 
         metrics = GNNEvaluator.evaluate_predictions(
             logits=concat_logits,
@@ -168,7 +186,9 @@ def main():
         # Load back to verify
         print("Verifying checkpoint integrity by reloading...")
         reloaded_model = (
-            GCNModel(node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim)
+            GCNModel(
+                node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim
+            )
             if name == "GCN"
             else GraphSAGEModel(
                 node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim
@@ -177,7 +197,9 @@ def main():
         model_store.load_model(reloaded_model, name=name.lower(), version="1.0.0")
         print(f"[SUCCESS] Integrity validation for {name} passed successfully!")
 
-    print("\n=== E2E Training and Evaluation baseline verification completed successfully! ===")
+    print(
+        "\n=== E2E Training and Evaluation baseline verification completed successfully! ==="
+    )
 
 
 if __name__ == "__main__":

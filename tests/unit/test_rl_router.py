@@ -140,7 +140,9 @@ def test_rl_env_graduated_loop_penalty(small_graph_data: dict[str, Any]) -> None
 
     # Step to first neighbor
     _obs, _reward1, terminated, _truncated, info = env.step(0)
-    assert not terminated, f"Should not terminate on first step, status={info.get('status')}"
+    assert not terminated, (
+        f"Should not terminate on first step, status={info.get('status')}"
+    )
 
     first_node = env.current_node
 
@@ -184,7 +186,9 @@ def test_rl_env_training_mode_randomization(small_graph_data: dict[str, Any]) ->
     # Capture original utilizations
     original_utils = {}
     for src, dst in env.edges:
-        original_utils[(src, dst)] = float(env.topology.get_edge(src, dst).get("utilization", 0.0))
+        original_utils[(src, dst)] = float(
+            env.topology.get_edge(src, dst).get("utilization", 0.0)
+        )
 
     # Reset should randomize edge attributes
     env.reset(seed=42)
@@ -208,7 +212,9 @@ def test_rl_env_training_mode_randomization(small_graph_data: dict[str, Any]) ->
         )
 
 
-def test_rl_env_inference_mode_no_randomization(small_graph_data: dict[str, Any]) -> None:
+def test_rl_env_inference_mode_no_randomization(
+    small_graph_data: dict[str, Any],
+) -> None:
     """Test that inference mode (training_mode=False) does NOT randomize edge attributes."""
     topo = _get_topo(small_graph_data)
     env = NetworkRoutingEnv(topology=topo, max_hops=20, training_mode=False)
@@ -216,7 +222,9 @@ def test_rl_env_inference_mode_no_randomization(small_graph_data: dict[str, Any]
     # Capture utilizations before reset
     pre_utils = {}
     for src, dst in env.edges:
-        pre_utils[(src, dst)] = float(env.topology.get_edge(src, dst).get("utilization", 0.0))
+        pre_utils[(src, dst)] = float(
+            env.topology.get_edge(src, dst).get("utilization", 0.0)
+        )
 
     env.reset(seed=42)
 
@@ -403,7 +411,9 @@ def test_rl_env_jains_fairness_reward(small_graph_data: dict[str, Any]) -> None:
     # Jain's index = (sum(1.0))^2 / (N * sum(1.0)^2) = N^2 / (N * N) = 1.0
     # fairness_weight * jains = 10.0 * 1.0 = 10.0
     # (plus possible success bonus if B == destination, which it isn't here)
-    assert reward > 0, f"Fairness reward should be positive for uniform utilization, got {reward}"
+    assert reward > 0, (
+        f"Fairness reward should be positive for uniform utilization, got {reward}"
+    )
 
 
 def test_ai_router_anomaly_alpha_escalation(small_graph_data: dict[str, Any]) -> None:

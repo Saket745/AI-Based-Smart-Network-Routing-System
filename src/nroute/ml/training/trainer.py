@@ -118,9 +118,13 @@ def collate_dataset_batch(batch: list[dict[str, Any]]) -> dict[str, Any]:
 class GNNTrainer:
     """Orchestrates the training process of multi-task GNN models."""
 
-    def __init__(self, model: nn.Module, lr: float = 0.005, weight_decay: float = 1e-4) -> None:
+    def __init__(
+        self, model: nn.Module, lr: float = 0.005, weight_decay: float = 1e-4
+    ) -> None:
         self.model = model
-        self.optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+        self.optimizer = optim.Adam(
+            model.parameters(), lr=lr, weight_decay=weight_decay
+        )
         self.criterion_cls = nn.BCEWithLogitsLoss()
         self.criterion_reg = nn.MSELoss()
 

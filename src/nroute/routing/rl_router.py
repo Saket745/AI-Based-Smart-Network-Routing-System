@@ -66,7 +66,9 @@ class RLRouter(BaseRouter):
         self._training_max_hops: int = 20
 
         if self.algorithm not in {"ppo", "dqn"}:
-            raise ValueError(f"Unknown RL algorithm '{algorithm}'. Supported: ppo, dqn.")
+            raise ValueError(
+                f"Unknown RL algorithm '{algorithm}'. Supported: ppo, dqn."
+            )
 
     # Maximum fraction of nodes/edges that can differ before the RL
     # policy is considered incompatible with the live topology.
@@ -255,7 +257,9 @@ class RLRouter(BaseRouter):
             else:
                 # DQN: use softmax of Q-values as proxy for confidence
                 obs_tensor, _ = self.model.policy.obs_to_tensor(obs)
-                q_values = self.model.policy.q_net(obs_tensor).detach().cpu().numpy().flatten()
+                q_values = (
+                    self.model.policy.q_net(obs_tensor).detach().cpu().numpy().flatten()
+                )
                 # Softmax to get pseudo-probabilities
                 exp_q = np.exp(q_values - np.max(q_values))
                 probs = exp_q / exp_q.sum()
@@ -318,7 +322,9 @@ class RLRouter(BaseRouter):
                     f"Observation dimension mismatch (training={self._training_obs_dim}, "
                     f"inference={env.obs_dim}). Using cascade fallback."
                 )
-                return self._cascade_fallback(topology, source, destination, weight=weight)
+                return self._cascade_fallback(
+                    topology, source, destination, weight=weight
+                )
 
             # Setup env state manually to the source/destination pair
             if source not in env.node_to_idx or destination not in env.node_to_idx:
@@ -344,7 +350,9 @@ class RLRouter(BaseRouter):
                         f"RL action confidence {confidence:.3f} below threshold "
                         f"{self.confidence_threshold}. Using cascade fallback."
                     )
-                    return self._cascade_fallback(topology, source, destination, weight=weight)
+                    return self._cascade_fallback(
+                        topology, source, destination, weight=weight
+                    )
 
                 obs, _reward, terminated, truncated, info = env.step(action)
 
@@ -363,7 +371,9 @@ class RLRouter(BaseRouter):
         except Exception as e:
             if isinstance(e, RoutingError):
                 raise
-            logger.error(f"RL path inference encountered an error: {e}. Using cascade fallback.")
+            logger.error(
+                f"RL path inference encountered an error: {e}. Using cascade fallback."
+            )
             return self._cascade_fallback(topology, source, destination, weight=weight)
 
     def save(self, path: str) -> None:
@@ -384,7 +394,9 @@ class RLRouter(BaseRouter):
                 "is_trained": self.is_trained,
                 "training_nodes": self._training_nodes,
                 "training_edges": (
-                    [list(e) for e in self._training_edges] if self._training_edges else None
+                    [list(e) for e in self._training_edges]
+                    if self._training_edges
+                    else None
                 ),
                 "training_obs_dim": self._training_obs_dim,
                 "training_max_out_degree": self._training_max_out_degree,
@@ -393,7 +405,9 @@ class RLRouter(BaseRouter):
             with open(meta_path, "w", encoding="utf-8") as f:
                 json.dump(meta, f, indent=2)
         except Exception as e:
-            raise ModelError(f"Failed to save RLRouter metadata to {meta_path}: {e}") from e
+            raise ModelError(
+                f"Failed to save RLRouter metadata to {meta_path}: {e}"
+            ) from e
 
     def load(self, path: str) -> None:
         """Load model weights and type information from file."""
@@ -423,7 +437,9 @@ class RLRouter(BaseRouter):
             self._training_max_out_degree = meta.get("training_max_out_degree")
             self._training_max_hops = meta.get("training_max_hops", 20)
         except Exception as e:
-            raise ModelError(f"Failed to load RLRouter metadata from {meta_path}: {e}") from e
+            raise ModelError(
+                f"Failed to load RLRouter metadata from {meta_path}: {e}"
+            ) from e
 
         try:
             if self.algorithm == "ppo":
@@ -431,8 +447,12 @@ class RLRouter(BaseRouter):
             elif self.algorithm == "dqn":
                 self.model = DQN.load(path)
             else:
-                raise ModelError(f"Unsupported algorithm type in metadata: {self.algorithm}")
+                raise ModelError(
+                    f"Unsupported algorithm type in metadata: {self.algorithm}"
+                )
         except Exception as e:
             if isinstance(e, ModelError):
                 raise
-            raise ModelError(f"Failed to load stable-baselines3 model from {path}: {e}") from e
+            raise ModelError(
+                f"Failed to load stable-baselines3 model from {path}: {e}"
+            ) from e

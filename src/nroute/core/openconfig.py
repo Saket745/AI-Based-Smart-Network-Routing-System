@@ -57,9 +57,15 @@ class InterfaceConfig(BaseModel):
         ge=0,
         description="Interface bandwidth in Mbps",
     )
-    mtu: int = Field(default=1500, ge=68, le=9216, description="Maximum transmission unit")
-    ipv4_address: str | None = Field(default=None, description="IPv4 address in CIDR notation")
-    ipv6_address: str | None = Field(default=None, description="IPv6 address in CIDR notation")
+    mtu: int = Field(
+        default=1500, ge=68, le=9216, description="Maximum transmission unit"
+    )
+    ipv4_address: str | None = Field(
+        default=None, description="IPv4 address in CIDR notation"
+    )
+    ipv6_address: str | None = Field(
+        default=None, description="IPv6 address in CIDR notation"
+    )
     vlan_id: int | None = Field(default=None, ge=1, le=4094, description="VLAN tag")
 
 
@@ -74,7 +80,9 @@ class OSPFInterfaceConfig(BaseModel):
     area: str = Field(default="0.0.0.0", description="OSPF area ID")
     passive: bool = Field(default=False, description="Passive interface flag")
     network_type: OSPFNetworkType = Field(default=OSPFNetworkType.BROADCAST)
-    hello_interval: int = Field(default=10, ge=1, description="Hello interval in seconds")
+    hello_interval: int = Field(
+        default=10, ge=1, description="Hello interval in seconds"
+    )
     dead_interval: int = Field(default=40, ge=1, description="Dead interval in seconds")
 
 
@@ -100,8 +108,12 @@ class BGPNeighborConfig(BaseModel):
     remote_as: int = Field(..., ge=1, le=4294967295, description="Remote AS number")
     description: str = Field(default="")
     state: BGPSessionState = Field(default=BGPSessionState.ESTABLISHED)
-    import_policy: str | None = Field(default=None, description="Inbound route-policy name")
-    export_policy: str | None = Field(default=None, description="Outbound route-policy name")
+    import_policy: str | None = Field(
+        default=None, description="Inbound route-policy name"
+    )
+    export_policy: str | None = Field(
+        default=None, description="Outbound route-policy name"
+    )
     multihop_ttl: int | None = Field(default=None, ge=1, le=255)
 
 
@@ -184,14 +196,18 @@ class ConfigChange(BaseModel):
     baseline.
     """
 
-    description: str = Field(default="", description="Human-readable change description")
+    description: str = Field(
+        default="", description="Human-readable change description"
+    )
     devices: list[DeviceConfig] = Field(
         default_factory=list,
         description="Full or partial device configs representing the desired post-change state",
     )
     link_changes: list[dict[str, Any]] = Field(
         default_factory=list,
-        description=("Edge-level overrides: [{'src': 'R1', 'dst': 'R2', 'status': 'down'}, ...]"),
+        description=(
+            "Edge-level overrides: [{'src': 'R1', 'dst': 'R2', 'status': 'down'}, ...]"
+        ),
     )
     node_changes: list[dict[str, Any]] = Field(
         default_factory=list,

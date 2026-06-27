@@ -25,7 +25,9 @@ def validate_node_id(node_id: Any) -> str:
         node_id = str(node_id)
 
     if not isinstance(node_id, str):
-        raise ValidationError(f"Node ID must be a string, got {type(node_id).__name__}.")
+        raise ValidationError(
+            f"Node ID must be a string, got {type(node_id).__name__}."
+        )
 
     cleaned = node_id.strip()
     if not cleaned:

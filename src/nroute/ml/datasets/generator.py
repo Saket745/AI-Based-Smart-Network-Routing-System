@@ -148,13 +148,17 @@ class DatasetGenerator:
 
         return snapshots
 
-    def save_json_snapshots(self, snapshots: list[dict[str, Any]], filepath: str) -> None:
+    def save_json_snapshots(
+        self, snapshots: list[dict[str, Any]], filepath: str
+    ) -> None:
         """Save collected snapshots to a JSON file."""
         os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
         with open(filepath, "w") as f:
             json.dump(snapshots, f, indent=2)
 
-    def compile_to_parquet(self, snapshots: list[dict[str, Any]], output_dir: str) -> None:
+    def compile_to_parquet(
+        self, snapshots: list[dict[str, Any]], output_dir: str
+    ) -> None:
         """
         Compile JSON snapshots into DataFrames and save as Parquet files.
 
@@ -262,9 +266,15 @@ class DatasetGenerator:
             )
 
         # Write Parquet files
-        pd.DataFrame(node_records).to_parquet(os.path.join(output_dir, "node_features.parquet"))
-        pd.DataFrame(edge_records).to_parquet(os.path.join(output_dir, "edge_features.parquet"))
-        pd.DataFrame(global_records).to_parquet(os.path.join(output_dir, "global_metrics.parquet"))
+        pd.DataFrame(node_records).to_parquet(
+            os.path.join(output_dir, "node_features.parquet")
+        )
+        pd.DataFrame(edge_records).to_parquet(
+            os.path.join(output_dir, "edge_features.parquet")
+        )
+        pd.DataFrame(global_records).to_parquet(
+            os.path.join(output_dir, "global_metrics.parquet")
+        )
 
     @staticmethod
     def load_parquet_dataset(

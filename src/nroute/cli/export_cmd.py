@@ -50,7 +50,9 @@ def export_cmd(type: str, format: str, input: str, output: str) -> None:
         try:
             topo = Topology.from_json(input_path)
         except Exception as exc:
-            raise click.ClickException(f"Failed to load topology from {input_path}: {exc}") from exc
+            raise click.ClickException(
+                f"Failed to load topology from {input_path}: {exc}"
+            ) from exc
 
         if format == "json":
             TopologyExporter.to_json(topo, output_path)
@@ -66,7 +68,9 @@ def export_cmd(type: str, format: str, input: str, output: str) -> None:
 
     elif type == "metrics":
         if format == "graphml":
-            raise click.BadParameter("GraphML format is not supported for simulation metrics.")
+            raise click.BadParameter(
+                "GraphML format is not supported for simulation metrics."
+            )
 
         try:
             with open(input_path, encoding="utf-8") as f:
@@ -81,7 +85,9 @@ def export_cmd(type: str, format: str, input: str, output: str) -> None:
                     "Input file does not contain valid simulation metrics format."
                 )
         except Exception as exc:
-            raise click.ClickException(f"Failed to load metrics from {input_path}: {exc}") from exc
+            raise click.ClickException(
+                f"Failed to load metrics from {input_path}: {exc}"
+            ) from exc
 
         if format == "json":
             MetricsExporter.to_json(metrics_col, output_path)

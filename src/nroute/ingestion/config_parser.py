@@ -147,7 +147,9 @@ class ConfigParser:
                     node_updates[k] = v
 
             # Derive aggregate bandwidth from interfaces
-            iface_bw = [iface.bandwidth for iface in dev.interfaces if iface.state.value == "up"]
+            iface_bw = [
+                iface.bandwidth for iface in dev.interfaces if iface.state.value == "up"
+            ]
             if iface_bw:
                 node_updates["capacity"] = max(iface_bw)
 
@@ -210,7 +212,9 @@ class ConfigParser:
                 logger.warning("Link change target missing", src=src, dst=dst)
                 continue
             update_attrs = {
-                k: v for k, v in link_change.items() if k not in {"src", "dst", "source", "target"}
+                k: v
+                for k, v in link_change.items()
+                if k not in {"src", "dst", "source", "target"}
             }
             if update_attrs:
                 modified.update_edge(src, dst, **update_attrs)

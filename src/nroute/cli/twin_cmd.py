@@ -219,7 +219,9 @@ def reachability_cmd(
         click.echo(f"Reachability matrix written to {output}")
     else:
         total_pairs = sum(len(v) for v in serializable.values())
-        click.echo(f"Reachability: {len(serializable)} nodes, {total_pairs} reachable pairs")
+        click.echo(
+            f"Reachability: {len(serializable)} nodes, {total_pairs} reachable pairs"
+        )
         click.echo(json.dumps(serializable, indent=2))
 
 

@@ -43,7 +43,13 @@ class NetFlowParser:
             cleaned = col.lower().strip().replace(" ", "_")
             if cleaned in {"src_addr", "srcaddr", "ipv4_src_addr", "src", "source"}:
                 rename_map[col] = "source"
-            elif cleaned in {"dst_addr", "dstaddr", "ipv4_dst_addr", "dst", "destination"}:
+            elif cleaned in {
+                "dst_addr",
+                "dstaddr",
+                "ipv4_dst_addr",
+                "dst",
+                "destination",
+            }:
                 rename_map[col] = "destination"
             elif cleaned in {"bytes", "octets", "inoctets", "d_octets", "doctets"}:
                 rename_map[col] = "bytes"
@@ -51,7 +57,13 @@ class NetFlowParser:
                 rename_map[col] = "packets"
             elif cleaned in {"protocol", "proto", "pr"}:
                 rename_map[col] = "protocol"
-            elif cleaned in {"first_switched", "first", "start_time", "timestamp", "time"}:
+            elif cleaned in {
+                "first_switched",
+                "first",
+                "start_time",
+                "timestamp",
+                "time",
+            }:
                 rename_map[col] = "timestamp"
 
         df = df.rename(columns=rename_map)

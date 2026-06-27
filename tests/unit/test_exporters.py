@@ -100,7 +100,9 @@ def test_topology_exporter_csv(sample_topology: Topology, tmp_path: Path) -> Non
     )
 
 
-def test_metrics_exporter_json(sample_metrics: MetricsCollectionResult, tmp_path: Path) -> None:
+def test_metrics_exporter_json(
+    sample_metrics: MetricsCollectionResult, tmp_path: Path
+) -> None:
     """Test exporting metrics to JSON."""
     out_path = tmp_path / "metrics.json"
     MetricsExporter.to_json(sample_metrics, out_path)
@@ -113,7 +115,9 @@ def test_metrics_exporter_json(sample_metrics: MetricsCollectionResult, tmp_path
     assert data[1]["active_flows"] == 3
 
 
-def test_metrics_exporter_csv(sample_metrics: MetricsCollectionResult, tmp_path: Path) -> None:
+def test_metrics_exporter_csv(
+    sample_metrics: MetricsCollectionResult, tmp_path: Path
+) -> None:
     """Test exporting metrics to CSV."""
     out_path = tmp_path / "metrics.csv"
     MetricsExporter.to_csv(sample_metrics, out_path)
@@ -153,7 +157,9 @@ def test_cli_export_topology(sample_topology: Topology, tmp_path: Path) -> None:
     assert out_path.exists()
 
 
-def test_cli_export_metrics(sample_metrics: MetricsCollectionResult, tmp_path: Path) -> None:
+def test_cli_export_metrics(
+    sample_metrics: MetricsCollectionResult, tmp_path: Path
+) -> None:
     """Test CLI command to export metrics."""
     runner = CliRunner()
     in_path = tmp_path / "input_metrics.json"
@@ -180,7 +186,9 @@ def test_cli_export_metrics(sample_metrics: MetricsCollectionResult, tmp_path: P
     assert out_path.exists()
 
 
-def test_cli_export_invalid_format(sample_metrics: MetricsCollectionResult, tmp_path: Path) -> None:
+def test_cli_export_invalid_format(
+    sample_metrics: MetricsCollectionResult, tmp_path: Path
+) -> None:
     """Test CLI command errors for invalid combinations."""
     runner = CliRunner()
     in_path = tmp_path / "input_metrics.json"

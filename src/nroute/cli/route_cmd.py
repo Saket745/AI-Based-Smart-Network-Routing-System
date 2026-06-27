@@ -59,7 +59,9 @@ def route_cmd() -> None:
     help="Routing algorithm to use.",
 )
 @click.option("--source", "-s", type=str, required=True, help="Source node ID.")
-@click.option("--destination", "-d", type=str, required=True, help="Destination node ID.")
+@click.option(
+    "--destination", "-d", type=str, required=True, help="Destination node ID."
+)
 @click.option(
     "--weight",
     "-w",
@@ -105,7 +107,8 @@ def compute(
             import json
 
             click.echo(
-                json.dumps({"error": f"Source node '{source}' not found in topology."}), err=True
+                json.dumps({"error": f"Source node '{source}' not found in topology."}),
+                err=True,
             )
             raise SystemExit(1) from None
         console.print(f"[red]x Source node '{source}' not found in topology.[/red]")
@@ -115,11 +118,17 @@ def compute(
             import json
 
             click.echo(
-                json.dumps({"error": f"Destination node '{destination}' not found in topology."}),
+                json.dumps(
+                    {
+                        "error": f"Destination node '{destination}' not found in topology."
+                    }
+                ),
                 err=True,
             )
             raise SystemExit(1) from None
-        console.print(f"[red]x Destination node '{destination}' not found in topology.[/red]")
+        console.print(
+            f"[red]x Destination node '{destination}' not found in topology.[/red]"
+        )
         raise SystemExit(1) from None
 
     try:
@@ -137,7 +146,11 @@ def compute(
                 custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
             )
             sig = inspect.signature(router_cls)
-            router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+            router = (
+                router_cls(topology=topo)
+                if "topology" in sig.parameters
+                else router_cls()
+            )
         else:
             router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
         path = router.compute_path(topo, source, destination, weight=weight)
@@ -227,7 +240,9 @@ def compute(
                 bw_str = f"{float(edge.get('bandwidth', 0)):.0f}"
                 util_str = f"{float(edge.get('utilization', 0)):.1%}"
                 status = edge.get("status", "up")
-                status_icon = "[green]up[/green]" if status == "up" else "[red]down[/red]"
+                status_icon = (
+                    "[green]up[/green]" if status == "up" else "[red]down[/red]"
+                )
             except Exception:
                 lat_str = "?"
                 bw_str = "?"

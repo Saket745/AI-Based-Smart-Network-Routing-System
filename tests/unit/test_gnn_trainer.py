@@ -8,7 +8,11 @@ from torch.utils.data import DataLoader
 
 from nroute.ml.evaluation.metrics import GNNEvaluator
 from nroute.ml.models.gcn import GCNModel
-from nroute.ml.training.trainer import GNNGraphDataset, GNNTrainer, collate_dataset_batch
+from nroute.ml.training.trainer import (
+    GNNGraphDataset,
+    GNNTrainer,
+    collate_dataset_batch,
+)
 
 
 def test_gnn_trainer_flow() -> None:
@@ -107,7 +111,9 @@ def test_gnn_trainer_flow() -> None:
     assert len(dataset) == 2
 
     # Load via DataLoader with custom collation
-    dataloader = DataLoader(dataset, batch_size=2, shuffle=False, collate_fn=collate_dataset_batch)
+    dataloader = DataLoader(
+        dataset, batch_size=2, shuffle=False, collate_fn=collate_dataset_batch
+    )
 
     # Initialize model and trainer
     model = GCNModel(node_in_dim=8, edge_in_dim=6, hidden_dim=16)
@@ -144,7 +150,9 @@ def test_evaluator_metrics() -> None:
 
     # Test with empty tensors
     empty_t = torch.empty((0,))
-    metrics_empty = GNNEvaluator.evaluate_predictions(empty_t, empty_t, empty_t, empty_t)
+    metrics_empty = GNNEvaluator.evaluate_predictions(
+        empty_t, empty_t, empty_t, empty_t
+    )
     assert metrics_empty["accuracy"] == 1.0
     assert metrics_empty["f1_score"] == 0.0
     assert metrics_empty["mse"] == 0.0

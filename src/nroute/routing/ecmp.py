@@ -46,7 +46,9 @@ class ECMPRouter(BaseRouter):
         if source not in subgraph:
             raise RoutingError(f"Source node '{source}' is down or does not exist.")
         if destination not in subgraph:
-            raise RoutingError(f"Destination node '{destination}' is down or does not exist.")
+            raise RoutingError(
+                f"Destination node '{destination}' is down or does not exist."
+            )
 
         # Adapt weight
         if weight is None:
@@ -101,7 +103,9 @@ class ECMPRouter(BaseRouter):
         if source not in subgraph:
             raise RoutingError(f"Source node '{source}' is down or does not exist.")
         if destination not in subgraph:
-            raise RoutingError(f"Destination node '{destination}' is down or does not exist.")
+            raise RoutingError(
+                f"Destination node '{destination}' is down or does not exist."
+            )
 
         # Adapt weight
         if weight is None:
@@ -159,7 +163,9 @@ class ECMPRouter(BaseRouter):
             weight: Routing metric.
             flow_key: Key used to hash and select one of the equal-cost paths (e.g. protocol or flow ID).
         """
-        paths = self.compute_all_equal_cost_paths(topology, source, destination, weight=weight)
+        paths = self.compute_all_equal_cost_paths(
+            topology, source, destination, weight=weight
+        )
         if not paths:
             raise RoutingError(f"No path found between '{source}' and '{destination}'.")
 

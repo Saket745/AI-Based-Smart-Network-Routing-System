@@ -17,9 +17,30 @@ WARN_DATA_SIZE_BYTES = 100 * 1024  # 100 KB warn limit for datasets in src/tests
 
 # Allowed extensions in each directory category
 ALLOWED_EXTENSIONS = {
-    "src": {".py", ".pyi", ".yaml", ".yml", ".json", ".csv", ".txt", ".png", ".gitkeep"},
+    "src": {
+        ".py",
+        ".pyi",
+        ".yaml",
+        ".yml",
+        ".json",
+        ".csv",
+        ".txt",
+        ".png",
+        ".gitkeep",
+    },
     "tests": {".py", ".yaml", ".yml", ".json", ".csv", ".txt", ".gitkeep"},
-    "docs": {".md", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".pdf", ".html", ".css", ".txt"},
+    "docs": {
+        ".md",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".svg",
+        ".pdf",
+        ".html",
+        ".css",
+        ".txt",
+    },
     "configs": {".yaml", ".yml", ".toml", ".json", ".ini", ".conf", ".gitkeep"},
     "experiments": {
         ".py",
@@ -65,7 +86,11 @@ def get_git_tracked_files(repo_root: Path) -> list[Path]:
     """Get all files currently tracked by git in the repository."""
     try:
         result = subprocess.run(
-            ["git", "ls-files"], cwd=str(repo_root), capture_output=True, text=True, check=True
+            ["git", "ls-files"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=True,
         )
         return [repo_root / line for line in result.stdout.splitlines() if line.strip()]
     except (subprocess.SubprocessError, FileNotFoundError):
@@ -171,7 +196,9 @@ def main() -> int:
 
     # If file arguments are passed (e.g., via pre-commit), use them. Otherwise, scan all files.
     if len(sys.argv) > 1:
-        files_to_check = [Path(arg).resolve() for arg in sys.argv[1:] if os.path.isfile(arg)]
+        files_to_check = [
+            Path(arg).resolve() for arg in sys.argv[1:] if os.path.isfile(arg)
+        ]
     else:
         print("No files specified. Scanning all git-tracked files in repository...")
         files_to_check = get_git_tracked_files(repo_root)
@@ -181,7 +208,9 @@ def main() -> int:
 
     for file_path in files_to_check:
         # Ignore files inside ignored directories
-        rel_path = file_path.relative_to(repo_root) if file_path.is_absolute() else file_path
+        rel_path = (
+            file_path.relative_to(repo_root) if file_path.is_absolute() else file_path
+        )
         parts = rel_path.parts
         if parts and (parts[0] in IGNORE_DIRS or parts[0].startswith(".")):
             continue

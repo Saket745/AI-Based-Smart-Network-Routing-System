@@ -37,10 +37,14 @@ class FeatureBuilder:
         # 1. Compute Topological Centrality metrics using NetworkX on topology.graph
         # Convert to undirected for centralities if needed, but since topology is directed, we use DiGraph.
         graph = topology.graph
-        betweenness: dict[Any, float] = nx.betweenness_centrality(graph, weight="latency")
+        betweenness: dict[Any, float] = nx.betweenness_centrality(
+            graph, weight="latency"
+        )
         closeness: dict[Any, float] = nx.closeness_centrality(graph, distance="latency")
 
-        max_degree = max(len(list(topology.neighbors(n))) for n in nodes) if nodes else 1
+        max_degree = (
+            max(len(list(topology.neighbors(n))) for n in nodes) if nodes else 1
+        )
         if max_degree == 0:
             max_degree = 1
 

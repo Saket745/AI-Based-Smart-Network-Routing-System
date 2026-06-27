@@ -24,7 +24,9 @@ from nroute.exceptions import ModelError
 class PyTorchLSTM(nn.Module):
     """PyTorch LSTM model for link congestion time-series forecasting."""
 
-    def __init__(self, input_dim: int = 1, hidden_dim: int = 32, num_layers: int = 2) -> None:
+    def __init__(
+        self, input_dim: int = 1, hidden_dim: int = 32, num_layers: int = 2
+    ) -> None:
         super().__init__()
         self.lstm = nn.LSTM(
             input_size=input_dim,
@@ -82,7 +84,9 @@ class CongestionPredictor:
             self.model = PyTorchLSTM(input_dim=1, hidden_dim=32, num_layers=2)
         elif self.model_type == "custom":
             if custom_model is None:
-                raise ValueError("custom_model must be provided if model_type is 'custom'.")
+                raise ValueError(
+                    "custom_model must be provided if model_type is 'custom'."
+                )
             self.model = custom_model
             # If the custom model is pre-trained, mark it as trained
             self.is_trained = getattr(custom_model, "is_trained", False)
@@ -115,7 +119,11 @@ class CongestionPredictor:
         return torch.tensor(seq_data, dtype=torch.float32)
 
     def train(
-        self, features: pd.DataFrame, labels: np.ndarray, epochs: int = 100, batch_size: int = 64
+        self,
+        features: pd.DataFrame,
+        labels: np.ndarray,
+        epochs: int = 100,
+        batch_size: int = 64,
     ) -> dict[str, float]:
         """
         Train the congestion prediction model.
@@ -187,7 +195,9 @@ class CongestionPredictor:
                 self.model.fit(train_features, labels)
                 self.is_trained = True
             else:
-                raise ModelError("Custom model must implement 'train()' or 'fit()' method.")
+                raise ModelError(
+                    "Custom model must implement 'train()' or 'fit()' method."
+                )
 
             # Evaluate custom model
             preds = self.predict(features)["congested"].values.astype(int)
@@ -242,16 +252,24 @@ class CongestionPredictor:
                 congested = probs >= 0.5
             elif hasattr(self.model, "predict"):
                 preds = self.model.predict(train_features)
-                if np.max(preds) <= 1.0 and np.min(preds) >= 0.0 and len(np.unique(preds)) > 2:
+                if (
+                    np.max(preds) <= 1.0
+                    and np.min(preds) >= 0.0
+                    and len(np.unique(preds)) > 2
+                ):
                     probs = preds
                     congested = probs >= 0.5
                 else:
                     congested = preds.astype(bool)
                     probs = congested.astype(float)
             else:
-                raise ModelError("Custom model must implement 'predict()' or 'predict_proba()'.")
+                raise ModelError(
+                    "Custom model must implement 'predict()' or 'predict_proba()'."
+                )
 
-        return pd.DataFrame({"congested": congested, "probability": probs}, index=link_ids)
+        return pd.DataFrame(
+            {"congested": congested, "probability": probs}, index=link_ids
+        )
 
     def save(self, path: str) -> None:
         """

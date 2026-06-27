@@ -102,10 +102,15 @@ def ingest(path: str | Path, format: str | None = None) -> Topology | TrafficMat
             df_sample = pd.read_csv(p, nrows=1)
             cols = {col.lower().strip() for col in df_sample.columns}
         except Exception as e:
-            raise IngestionError(f"Failed to read CSV headers for auto-detection: {e}") from e
+            raise IngestionError(
+                f"Failed to read CSV headers for auto-detection: {e}"
+            ) from e
 
         # Heuristics based on headers
-        if any(h in cols for h in {"src_addr", "srcaddr", "ipv4_src_addr", "first_switched"}):
+        if any(
+            h in cols
+            for h in {"src_addr", "srcaddr", "ipv4_src_addr", "first_switched"}
+        ):
             return NetFlowParser.parse(p)
         if any(h in cols for h in {"interface_id", "oper_status", "admin_status"}):
             return SNMPParser.parse(p)

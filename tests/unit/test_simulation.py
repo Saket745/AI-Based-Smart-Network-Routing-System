@@ -105,5 +105,7 @@ def test_simulation_packet_loss_drop(small_graph_data: dict[str, Any]) -> None:
     results = engine.run(duration_ticks=5, seed=42)
 
     # Verify that some loss was recorded
-    total_loss_rate = sum(m.packet_loss_rate for m in results.results) / len(results.results)
+    total_loss_rate = sum(m.packet_loss_rate for m in results.results) / len(
+        results.results
+    )
     assert total_loss_rate > 0.0

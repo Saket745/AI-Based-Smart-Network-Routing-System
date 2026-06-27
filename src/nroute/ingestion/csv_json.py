@@ -95,7 +95,9 @@ class JSONTopologyImporter:
         raw_edges = data.get("edges", [])
 
         if not isinstance(raw_nodes, list) or not isinstance(raw_edges, list):
-            raise IngestionError("JSON topology must contain 'nodes' and 'edges' lists.")
+            raise IngestionError(
+                "JSON topology must contain 'nodes' and 'edges' lists."
+            )
 
         return Normalizer.normalize_topology(raw_nodes, raw_edges)
 

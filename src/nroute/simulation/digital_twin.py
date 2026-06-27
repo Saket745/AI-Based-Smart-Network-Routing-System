@@ -62,7 +62,9 @@ class TopologySnapshot:
             "edge_count": self.edge_count,
             "active_nodes": self.active_nodes,
             "active_edges": self.active_edges,
-            "reachability_pairs": sum(len(v) for v in self.reachability_matrix.values()),
+            "reachability_pairs": sum(
+                len(v) for v in self.reachability_matrix.values()
+            ),
             "metadata": self.metadata,
         }
 
@@ -352,7 +354,9 @@ class DigitalTwinEngine:
             )
 
         if result.affected_nodes:
-            lines.append(f"  Blast radius: {len(result.affected_nodes)} node(s) affected.")
+            lines.append(
+                f"  Blast radius: {len(result.affected_nodes)} node(s) affected."
+            )
 
         lines.append(
             "  If this change is NOT applied, these flows continue "

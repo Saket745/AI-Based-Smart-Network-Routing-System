@@ -91,7 +91,9 @@ class AnomalyDetector:
             self.model = None
         elif self.model_type == "custom":
             if custom_model is None:
-                raise ValueError("custom_model must be provided if model_type is 'custom'.")
+                raise ValueError(
+                    "custom_model must be provided if model_type is 'custom'."
+                )
             self.model = custom_model
             self.is_trained = getattr(custom_model, "is_trained", False)
         else:
@@ -113,7 +115,9 @@ class AnomalyDetector:
 
         return (x - self.feature_means) / self.feature_stds  # type: ignore[no-any-return]
 
-    def fit(self, features: pd.DataFrame, epochs: int = 100, batch_size: int = 32) -> None:
+    def fit(
+        self, features: pd.DataFrame, epochs: int = 100, batch_size: int = 32
+    ) -> None:
         """
         Train the anomaly detection model on normal traffic patterns.
 
@@ -179,7 +183,9 @@ class AnomalyDetector:
                 self.model.train(features)
                 self.is_trained = True
             else:
-                raise ModelError("Custom model must implement 'fit()' or 'train()' method.")
+                raise ModelError(
+                    "Custom model must implement 'fit()' or 'train()' method."
+                )
 
     def detect(self, features: pd.DataFrame) -> pd.DataFrame:
         """

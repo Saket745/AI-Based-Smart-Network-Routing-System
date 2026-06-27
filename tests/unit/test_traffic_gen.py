@@ -77,7 +77,9 @@ def test_traffic_gen_hotspot(small_graph_data: dict[str, Any]) -> None:
     topo = _get_topo(small_graph_data)
 
     # We specify "D" as the only hotspot node
-    gen = TrafficGenerator(model="hotspot", n_flows_per_tick=20, seed=42, hotspot_nodes=["D"])
+    gen = TrafficGenerator(
+        model="hotspot", n_flows_per_tick=20, seed=42, hotspot_nodes=["D"]
+    )
     flows = gen.generate(topo, tick=2)
 
     assert len(flows) == 20
@@ -93,7 +95,11 @@ def test_traffic_gen_bursty(small_graph_data: dict[str, Any]) -> None:
 
     # High burst probability to guarantee a burst
     gen = TrafficGenerator(
-        model="bursty", n_flows_per_tick=5, seed=42, burst_prob=1.0, burst_multiplier=4.0
+        model="bursty",
+        n_flows_per_tick=5,
+        seed=42,
+        burst_prob=1.0,
+        burst_multiplier=4.0,
     )
     flows = gen.generate(topo, tick=3)
 

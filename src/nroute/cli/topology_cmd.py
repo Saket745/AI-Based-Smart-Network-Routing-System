@@ -25,11 +25,15 @@ def topology_cmd() -> None:
 @click.option(
     "--type",
     "topo_type",
-    type=click.Choice(["random", "scale-free", "small-world", "fat-tree"], case_sensitive=False),
+    type=click.Choice(
+        ["random", "scale-free", "small-world", "fat-tree"], case_sensitive=False
+    ),
     required=True,
     help="Topology generation model.",
 )
-@click.option("--nodes", "-n", type=int, default=10, show_default=True, help="Number of nodes.")
+@click.option(
+    "--nodes", "-n", type=int, default=10, show_default=True, help="Number of nodes."
+)
 @click.option(
     "--edge-prob",
     type=float,
@@ -80,7 +84,9 @@ def generate(
         topo: Topology
 
         if topo_type_lower == "random":
-            topo = TopologyGenerator.random(n_nodes=nodes, edge_prob=edge_prob, seed=seed)
+            topo = TopologyGenerator.random(
+                n_nodes=nodes, edge_prob=edge_prob, seed=seed
+            )
         elif topo_type_lower == "scale-free":
             topo = TopologyGenerator.scale_free(n_nodes=nodes, seed=seed)
         elif topo_type_lower == "small-world":
@@ -148,8 +154,12 @@ def show(ctx: click.Context, filepath: str) -> None:
         topo = Topology.load(filepath)
         if is_json:
             degrees = [topo.graph.degree(n) for n in topo.graph.nodes]
-            up_nodes = sum(1 for n in topo.nodes if topo.get_node(n).get("status") == "up")
-            up_edges = sum(1 for u, v in topo.edges if topo.get_edge(u, v).get("status") == "up")
+            up_nodes = sum(
+                1 for n in topo.nodes if topo.get_node(n).get("status") == "up"
+            )
+            up_edges = sum(
+                1 for u, v in topo.edges if topo.get_edge(u, v).get("status") == "up"
+            )
             node_types: dict[str, int] = {}
             for n in topo.nodes:
                 ntype = topo.get_node(n).get("type", "unknown")
@@ -207,7 +217,9 @@ def _print_topology_summary(topo: Topology, title: str = "Topology Summary") -> 
     stats_table.add_row("Nodes Down", str(down_nodes))
 
     # Count edge statuses
-    up_edges = sum(1 for u, v in topo.edges if topo.get_edge(u, v).get("status") == "up")
+    up_edges = sum(
+        1 for u, v in topo.edges if topo.get_edge(u, v).get("status") == "up"
+    )
     down_edges = topo.edge_count - up_edges
     stats_table.add_row("Links Up", str(up_edges))
     stats_table.add_row("Links Down", str(down_edges))
@@ -221,7 +233,9 @@ def _print_topology_summary(topo: Topology, title: str = "Topology Summary") -> 
         node_types[ntype] = node_types.get(ntype, 0) + 1
 
     if node_types:
-        type_table = Table(title="Node Types", show_header=True, header_style="bold magenta")
+        type_table = Table(
+            title="Node Types", show_header=True, header_style="bold magenta"
+        )
         type_table.add_column("Type", style="cyan")
         type_table.add_column("Count", style="green", justify="right")
         for ntype, count in sorted(node_types.items()):

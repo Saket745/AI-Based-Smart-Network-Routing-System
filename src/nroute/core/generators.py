@@ -20,7 +20,9 @@ class TopologyGenerator:
     """
 
     @staticmethod
-    def _assign_random_edge_attrs(graph: nx.DiGraph, rng: Any, **default_attrs: Any) -> None:
+    def _assign_random_edge_attrs(
+        graph: nx.DiGraph, rng: Any, **default_attrs: Any
+    ) -> None:
         """Helper to assign randomized link attributes to a Graph's edges."""
         for src, dst in graph.edges:
             bandwidth = default_attrs.get("bandwidth")
@@ -104,13 +106,19 @@ class TopologyGenerator:
         core_nodes = []
         for i in range(num_core):
             core_id = f"core_{i}"
-            graph.add_node(core_id, type="switch", capacity=40000.0, status="up", location="core")
+            graph.add_node(
+                core_id, type="switch", capacity=40000.0, status="up", location="core"
+            )
             core_nodes.append(core_id)
         return core_nodes
 
     @staticmethod
     def _add_fat_tree_pod(
-        graph: nx.DiGraph, k: int, pod_idx: int, core_nodes: list[str], **default_attrs: Any
+        graph: nx.DiGraph,
+        k: int,
+        pod_idx: int,
+        core_nodes: list[str],
+        **default_attrs: Any,
     ) -> None:
         """Add a single pod (switches and hosts) and its connections to the Fat-Tree graph."""
         num_agg_per_pod = k // 2
@@ -124,7 +132,11 @@ class TopologyGenerator:
         for agg in range(num_agg_per_pod):
             agg_id = f"pod_{pod_idx}_agg_{agg}"
             graph.add_node(
-                agg_id, type="switch", capacity=10000.0, status="up", location=f"pod_{pod_idx}"
+                agg_id,
+                type="switch",
+                capacity=10000.0,
+                status="up",
+                location=f"pod_{pod_idx}",
             )
             agg_nodes.append(agg_id)
 
@@ -132,7 +144,11 @@ class TopologyGenerator:
         for edge in range(num_edge_per_pod):
             edge_id = f"pod_{pod_idx}_edge_{edge}"
             graph.add_node(
-                edge_id, type="switch", capacity=10000.0, status="up", location=f"pod_{pod_idx}"
+                edge_id,
+                type="switch",
+                capacity=10000.0,
+                status="up",
+                location=f"pod_{pod_idx}",
             )
             edge_nodes.append(edge_id)
 
@@ -140,7 +156,11 @@ class TopologyGenerator:
             for host in range(num_hosts_per_edge):
                 host_id = f"pod_{pod_idx}_host_{edge}_{host}"
                 graph.add_node(
-                    host_id, type="host", capacity=1000.0, status="up", location=f"pod_{pod_idx}"
+                    host_id,
+                    type="host",
+                    capacity=1000.0,
+                    status="up",
+                    location=f"pod_{pod_idx}",
                 )
 
                 # Connect Host <--> Edge Switch (bidirectional)
@@ -201,7 +221,11 @@ class TopologyGenerator:
 
     @classmethod
     def random(
-        cls, n_nodes: int, edge_prob: float, seed: int | None = None, **default_attrs: Any
+        cls,
+        n_nodes: int,
+        edge_prob: float,
+        seed: int | None = None,
+        **default_attrs: Any,
     ) -> Topology:
         """
         Generate a random network topology using Erdős-Rényi model.
@@ -233,7 +257,9 @@ class TopologyGenerator:
         return Topology(directed)
 
     @classmethod
-    def scale_free(cls, n_nodes: int, seed: int | None = None, **default_attrs: Any) -> Topology:
+    def scale_free(
+        cls, n_nodes: int, seed: int | None = None, **default_attrs: Any
+    ) -> Topology:
         """
         Generate a scale-free network topology using Barabási-Albert model.
 
@@ -286,7 +312,9 @@ class TopologyGenerator:
 
         rng = get_rng(seed)
 
-        undirected = nx.watts_strogatz_graph(n_nodes, k_neighbors, rewire_prob, seed=seed)
+        undirected = nx.watts_strogatz_graph(
+            n_nodes, k_neighbors, rewire_prob, seed=seed
+        )
         directed = nx.DiGraph(undirected)
 
         # Relabel nodes to strings
@@ -299,7 +327,9 @@ class TopologyGenerator:
         return Topology(directed)
 
     @classmethod
-    def fat_tree(cls, k: int, seed: int | None = None, **default_attrs: Any) -> Topology:
+    def fat_tree(
+        cls, k: int, seed: int | None = None, **default_attrs: Any
+    ) -> Topology:
         """
         Generate a k-ary Fat-Tree data center topology.
 

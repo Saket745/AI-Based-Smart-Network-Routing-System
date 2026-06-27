@@ -67,7 +67,9 @@ class SNMPParser:
             clean_row = {k.lower().strip(): v for k, v in row.items()}
 
             if "interface_id" not in clean_row:
-                raise IngestionError(f"SNMP record at index {idx} is missing 'interface_id'.")
+                raise IngestionError(
+                    f"SNMP record at index {idx} is missing 'interface_id'."
+                )
 
             if_id = str(clean_row["interface_id"])
 
@@ -107,7 +109,9 @@ class SNMPParser:
                     status = "degraded"
 
             in_octets = clean_row.get("in_octets") or clean_row.get("ifincheck") or 0.0
-            out_octets = clean_row.get("out_octets") or clean_row.get("ifoutcheck") or 0.0
+            out_octets = (
+                clean_row.get("out_octets") or clean_row.get("ifoutcheck") or 0.0
+            )
             # Derive utilization if speed is known
             utilization = 0.0
             if speed and bandwidth > 0:
@@ -116,7 +120,9 @@ class SNMPParser:
                     octets = float(in_octets) + float(out_octets)
                     # utilization = (octets * 8) / (bandwidth * 1e6 * 10)
                     # Simple heuristic: clamp to valid range
-                    utilization = min(1.0, max(0.0, (octets * 8) / (bandwidth * 1e6 * 10)))
+                    utilization = min(
+                        1.0, max(0.0, (octets * 8) / (bandwidth * 1e6 * 10))
+                    )
                 except ValueError:
                     pass
 

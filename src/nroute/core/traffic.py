@@ -29,7 +29,9 @@ class TrafficMatrix(BaseModel):
     Collection of flow records representing traffic patterns in the network.
     """
 
-    flows: list[FlowRecord] = Field(default_factory=list, description="List of flow records")
+    flows: list[FlowRecord] = Field(
+        default_factory=list, description="List of flow records"
+    )
 
     def to_dataframe(self) -> pd.DataFrame:
         """
@@ -78,7 +80,9 @@ class TrafficMatrix(BaseModel):
         }
         missing_cols = required_cols - set(df.columns)
         if missing_cols:
-            raise IngestionError(f"DataFrame is missing required flow columns: {missing_cols}.")
+            raise IngestionError(
+                f"DataFrame is missing required flow columns: {missing_cols}."
+            )
 
         flows = []
         for idx, row in df.iterrows():
@@ -95,7 +99,9 @@ class TrafficMatrix(BaseModel):
                     )
                 )
             except Exception as e:
-                raise IngestionError(f"Failed to parse flow record at row {idx}: {e}") from e
+                raise IngestionError(
+                    f"Failed to parse flow record at row {idx}: {e}"
+                ) from e
 
         return cls(flows=flows)
 
@@ -119,7 +125,9 @@ class TrafficMatrix(BaseModel):
         except Exception as e:
             if isinstance(e, IngestionError):
                 raise
-            raise IngestionError(f"Failed to read traffic data from CSV {path}: {e}") from e
+            raise IngestionError(
+                f"Failed to read traffic data from CSV {path}: {e}"
+            ) from e
 
     def filter_by_time(self, start: float, end: float) -> TrafficMatrix:
         """
@@ -153,7 +161,9 @@ class TrafficMatrix(BaseModel):
         for f in self.flows:
             protocols[f.protocol] = protocols.get(f.protocol, 0) + 1
 
-        protocol_str = ", ".join(f"{proto}: {count}" for proto, count in sorted(protocols.items()))
+        protocol_str = ", ".join(
+            f"{proto}: {count}" for proto, count in sorted(protocols.items())
+        )
 
         return (
             f"Traffic Matrix Summary:\n"

@@ -108,7 +108,9 @@ class SimulationEngine:
         if show_progress:
             progress = Progress(transient=True)
             progress.start()
-            task = progress.add_task("[cyan]Running Simulation...", total=duration_ticks)
+            task = progress.add_task(
+                "[cyan]Running Simulation...", total=duration_ticks
+            )
         else:
             progress = None
             task = None
@@ -184,7 +186,9 @@ class SimulationEngine:
                     if edge_down or node_down:
                         # Link goes down mid-flow: trigger rerouting from current node
                         try:
-                            new_path = self.router.compute_path(self.topology, u, flow.destination)
+                            new_path = self.router.compute_path(
+                                self.topology, u, flow.destination
+                            )
                             state["path"] = new_path
                             state["current_hop_idx"] = 0
                             path = new_path
@@ -194,7 +198,9 @@ class SimulationEngine:
                             reroute_count += 1
                         except Exception as e:
                             # Rerouting failed: flow dropped
-                            dropped_flows.append((flow, f"rerouting_failed_midflow: {e}"))
+                            dropped_flows.append(
+                                (flow, f"rerouting_failed_midflow: {e}")
+                            )
                             continue
 
                     # Forward across edge u -> v

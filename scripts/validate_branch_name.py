@@ -31,7 +31,10 @@ EXEMPT_BRANCHES = ["main", "dev", "master"]
 def get_current_branch():
     try:
         result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, check=True
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
         )
         return result.stdout.strip()
     except Exception:

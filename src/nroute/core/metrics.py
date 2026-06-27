@@ -20,11 +20,15 @@ class RouteMetrics(BaseModel):
     Performance metrics computed for a specific route path.
     """
 
-    path: list[str] = Field(..., description="Ordered list of node IDs forming the route path")
+    path: list[str] = Field(
+        ..., description="Ordered list of node IDs forming the route path"
+    )
     total_latency: float = Field(
         ..., ge=0.0, description="Sum of propagation and queuing delays in ms"
     )
-    total_hops: int = Field(..., ge=0, description="Total number of edge hops (len(path) - 1)")
+    total_hops: int = Field(
+        ..., ge=0, description="Total number of edge hops (len(path) - 1)"
+    )
     bottleneck_bandwidth: float = Field(
         ..., ge=0.0, description="Minimum link capacity along the path in Mbps"
     )
@@ -71,16 +75,24 @@ class SimulationMetrics(BaseModel):
 
     tick: int = Field(..., ge=0, description="Simulation tick index")
     timestamp: float = Field(..., ge=0.0, description="Simulation timestamp in seconds")
-    throughput: float = Field(..., ge=0.0, description="Aggregated network throughput in Mbps")
-    avg_latency: float = Field(..., ge=0.0, description="Network-wide average flow latency in ms")
-    packet_loss_rate: float = Field(..., ge=0.0, le=1.0, description="Fraction of packets dropped")
+    throughput: float = Field(
+        ..., ge=0.0, description="Aggregated network throughput in Mbps"
+    )
+    avg_latency: float = Field(
+        ..., ge=0.0, description="Network-wide average flow latency in ms"
+    )
+    packet_loss_rate: float = Field(
+        ..., ge=0.0, le=1.0, description="Fraction of packets dropped"
+    )
     avg_utilization: float = Field(
         ..., ge=0.0, le=1.0, description="Average utilization across active links"
     )
     reroute_count: int = Field(
         ..., ge=0, description="Number of flow rerouting events in this tick"
     )
-    active_flows: int = Field(..., ge=0, description="Number of active flows in this tick")
+    active_flows: int = Field(
+        ..., ge=0, description="Number of active flows in this tick"
+    )
 
 
 class MetricsCollectionResult(BaseModel):
@@ -151,7 +163,9 @@ class MetricsCollectionResult(BaseModel):
             with open(p, "w", encoding="utf-8") as f:
                 json.dump([m.model_dump() for m in self.results], f, indent=2)
         except Exception as e:
-            raise SimulationError(f"Failed to export metrics to JSON {path}: {e}") from e
+            raise SimulationError(
+                f"Failed to export metrics to JSON {path}: {e}"
+            ) from e
 
     def to_csv(self, path: str | Path) -> None:
         """

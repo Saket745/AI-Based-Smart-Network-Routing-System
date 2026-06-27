@@ -261,7 +261,9 @@ def predict_gnn(
     # 1. Instantiate the GNN model structure
     model: torch.nn.Module
     if model_type.lower() == "gcn":
-        model = GCNModel(node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim)
+        model = GCNModel(
+            node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim
+        )
     else:
         model = GraphSAGEModel(
             node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim
@@ -270,19 +272,25 @@ def predict_gnn(
     # 2. Load model state via ModelStore
     try:
         store = ModelStore(base_dir=model_dir)
-        store.load_model(model, name=model_type.lower(), version=version, allow_unsafe=allow_unsafe)
+        store.load_model(
+            model, name=model_type.lower(), version=version, allow_unsafe=allow_unsafe
+        )
     except Exception as e:
         if is_json:
             import json
 
             click.echo(
                 json.dumps(
-                    {"error": f"Failed to load model {model_type} (version {version}): {e}"}
+                    {
+                        "error": f"Failed to load model {model_type} (version {version}): {e}"
+                    }
                 ),
                 err=True,
             )
             raise SystemExit(1) from e
-        console.print(f"[red]x Failed to load model {model_type} (version {version}):[/red] {e}")
+        console.print(
+            f"[red]x Failed to load model {model_type} (version {version}):[/red] {e}"
+        )
         raise SystemExit(1) from e
 
     # 3. Build graph representation & features
@@ -293,7 +301,9 @@ def predict_gnn(
         if is_json:
             import json
 
-            click.echo(json.dumps({"error": f"Feature engineering failed: {e}"}), err=True)
+            click.echo(
+                json.dumps({"error": f"Feature engineering failed: {e}"}), err=True
+            )
             raise SystemExit(1) from e
         console.print(f"[red]x Feature engineering failed:[/red] {e}")
         raise SystemExit(1) from e
@@ -301,7 +311,9 @@ def predict_gnn(
     # 4. Perform model prediction
     model.eval()
     with torch.no_grad():
-        logits, pred_lat = model(bundle.node_features, bundle.edge_index, bundle.edge_features)
+        logits, pred_lat = model(
+            bundle.node_features, bundle.edge_index, bundle.edge_features
+        )
 
     # Compute probabilities using sigmoid
     probs = torch.sigmoid(logits).tolist()

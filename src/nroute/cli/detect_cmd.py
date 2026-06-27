@@ -58,7 +58,9 @@ def anomalies(
         if is_json:
             import json
 
-            click.echo(json.dumps({"error": f"Failed to load traffic data: {e}"}), err=True)
+            click.echo(
+                json.dumps({"error": f"Failed to load traffic data: {e}"}), err=True
+            )
             raise SystemExit(1) from e
         console.print(f"[red]x Failed to load traffic data:[/red] {e}")
         raise SystemExit(1) from e
@@ -100,7 +102,9 @@ def anomalies(
                 }
             )
 
-        type_counts = results[results["is_anomaly"]]["anomaly_type"].value_counts().to_dict()
+        type_counts = (
+            results[results["is_anomaly"]]["anomaly_type"].value_counts().to_dict()
+        )
         out = {
             "total_samples": len(results),
             "anomalies_detected": int(results["is_anomaly"].sum()),
@@ -148,7 +152,9 @@ def anomalies(
     # Summary
     total = len(results)
     anomalies_found = int(results["is_anomaly"].sum())
-    console.print(f"\n  [bold]{anomalies_found}[/bold] anomalies detected out of {total} samples")
+    console.print(
+        f"\n  [bold]{anomalies_found}[/bold] anomalies detected out of {total} samples"
+    )
 
     # Breakdown by type
     if anomalies_found > 0:

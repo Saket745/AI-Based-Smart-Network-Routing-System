@@ -74,7 +74,9 @@ class BaseNNRouter(BaseRouter, ABC):
         subgraph = self._get_active_subgraph(topology)
 
         if source not in subgraph:
-            raise RoutingError(f"Source node '{source}' is down or does not exist in topology.")
+            raise RoutingError(
+                f"Source node '{source}' is down or does not exist in topology."
+            )
         if destination not in subgraph:
             raise RoutingError(
                 f"Destination node '{destination}' is down or does not exist in topology."
@@ -100,7 +102,9 @@ class BaseNNRouter(BaseRouter, ABC):
                 )
 
             try:
-                next_node = self.predict_next_hop(features, current, destination, topology)
+                next_node = self.predict_next_hop(
+                    features, current, destination, topology
+                )
             except Exception as e:
                 raise RoutingError(f"NN router next-hop prediction failed: {e}") from e
 

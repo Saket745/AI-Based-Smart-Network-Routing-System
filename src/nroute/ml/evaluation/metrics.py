@@ -39,7 +39,9 @@ class GNNEvaluator:
 
             metrics["accuracy"] = float(accuracy_score(targets, preds))
             # Handle zero division warnings when there are no predicted or actual positives
-            metrics["precision"] = float(precision_score(targets, preds, zero_division=0))
+            metrics["precision"] = float(
+                precision_score(targets, preds, zero_division=0)
+            )
             metrics["recall"] = float(recall_score(targets, preds, zero_division=0))
             metrics["f1_score"] = float(f1_score(targets, preds, zero_division=0))
         else:

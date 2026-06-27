@@ -88,12 +88,23 @@ class TestTopologyCLI:
         assert "Nodes" in result.output
         assert "Edges" in result.output
 
-    def test_topology_generate_fat_tree(self, runner: CliRunner, tmp_path: Path) -> None:
+    def test_topology_generate_fat_tree(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
         """topology generate --type fat-tree should work."""
         output_path = str(tmp_path / "fat_tree.json")
         result = runner.invoke(
             cli,
-            ["topology", "generate", "--type", "fat-tree", "--k", "4", "--output", output_path],
+            [
+                "topology",
+                "generate",
+                "--type",
+                "fat-tree",
+                "--k",
+                "4",
+                "--output",
+                output_path,
+            ],
             catch_exceptions=False,
         )
         assert result.exit_code == 0
@@ -145,7 +156,9 @@ class TestRouteCLI:
         assert result.exit_code == 0
         assert "Path" in result.output or "Route" in result.output
 
-    def test_route_compute_bellman_ford(self, runner: CliRunner, topo_file: str) -> None:
+    def test_route_compute_bellman_ford(
+        self, runner: CliRunner, topo_file: str
+    ) -> None:
         """route compute with bellman-ford should work."""
         result = runner.invoke(
             cli,
@@ -165,7 +178,9 @@ class TestRouteCLI:
         )
         assert result.exit_code == 0
 
-    def test_route_compute_invalid_node(self, runner: CliRunner, topo_file: str) -> None:
+    def test_route_compute_invalid_node(
+        self, runner: CliRunner, topo_file: str
+    ) -> None:
         """route compute with invalid source should exit with error."""
         result = runner.invoke(
             cli,
@@ -191,7 +206,9 @@ class TestRouteCLI:
 class TestSimulateCLI:
     """Tests for the `nroute simulate` subcommands."""
 
-    def test_simulate_run(self, runner: CliRunner, topo_file: str, tmp_path: Path) -> None:
+    def test_simulate_run(
+        self, runner: CliRunner, topo_file: str, tmp_path: Path
+    ) -> None:
         """simulate run should complete and optionally save metrics."""
         output_path = str(tmp_path / "sim_results.json")
         result = runner.invoke(
@@ -241,7 +258,9 @@ class TestSimulateCLI:
         assert "DIJKSTRA" in result.output
         assert "BELLMAN-FORD" in result.output
 
-    def test_simulate_compare_too_few_algos(self, runner: CliRunner, topo_file: str) -> None:
+    def test_simulate_compare_too_few_algos(
+        self, runner: CliRunner, topo_file: str
+    ) -> None:
         """simulate compare with only one algorithm should fail."""
         result = runner.invoke(
             cli,
@@ -296,7 +315,9 @@ class TestCLIHelp:
 class TestTrainCLI:
     """Tests for the `nroute train` subcommands."""
 
-    def test_train_congestion(self, runner: CliRunner, topo_file: str, tmp_path: Path) -> None:
+    def test_train_congestion(
+        self, runner: CliRunner, topo_file: str, tmp_path: Path
+    ) -> None:
         """train congestion should successfully output a joblib file."""
         output_path = str(tmp_path / "congestion.joblib")
         result = runner.invoke(
@@ -316,7 +337,9 @@ class TestTrainCLI:
         assert result.exit_code == 0
         assert os.path.exists(output_path)
 
-    def test_train_anomaly(self, runner: CliRunner, topo_file: str, tmp_path: Path) -> None:
+    def test_train_anomaly(
+        self, runner: CliRunner, topo_file: str, tmp_path: Path
+    ) -> None:
         """train anomaly should successfully output a joblib file."""
         output_path = str(tmp_path / "anomaly.joblib")
         result = runner.invoke(
@@ -366,7 +389,9 @@ class TestTrainCLI:
 class TestPredictCLI:
     """Tests for the `nroute predict` subcommands."""
 
-    def test_predict_congestion(self, runner: CliRunner, topo_file: str, tmp_path: Path) -> None:
+    def test_predict_congestion(
+        self, runner: CliRunner, topo_file: str, tmp_path: Path
+    ) -> None:
         """predict congestion should read the topology and model, and print predictions."""
         # 1. Train the model first
         model_path = str(tmp_path / "congestion.joblib")
@@ -403,7 +428,9 @@ class TestPredictCLI:
         assert result.exit_code == 0
         assert "Congestion Predictions" in result.output
         assert (
-            "NORMAL" in result.output or "CONGESTED" in result.output or "AT RISK" in result.output
+            "NORMAL" in result.output
+            or "CONGESTED" in result.output
+            or "AT RISK" in result.output
         )
 
 
@@ -413,7 +440,9 @@ class TestPredictCLI:
 class TestDetectCLI:
     """Tests for the `nroute detect` subcommands."""
 
-    def test_detect_anomalies(self, runner: CliRunner, topo_file: str, tmp_path: Path) -> None:
+    def test_detect_anomalies(
+        self, runner: CliRunner, topo_file: str, tmp_path: Path
+    ) -> None:
         """detect anomalies should read the traffic features CSV and model, and print anomalies."""
         # 1. Train anomaly model
         model_path = str(tmp_path / "anomaly.joblib")
@@ -475,7 +504,9 @@ class TestNewCLIFeatures:
     def test_config_init_subcommand(self, runner: CliRunner, tmp_path: Path) -> None:
         """nroute config init should create a default configuration template."""
         dest = tmp_path / "nroute.yaml"
-        result = runner.invoke(cli, ["config", "init", "-o", str(dest)], catch_exceptions=False)
+        result = runner.invoke(
+            cli, ["config", "init", "-o", str(dest)], catch_exceptions=False
+        )
         assert result.exit_code == 0
         assert "Initialized default configuration file" in result.output
         assert dest.exists()
@@ -487,7 +518,9 @@ class TestNewCLIFeatures:
         assert result.exit_code == 0
         assert "bash_source" in result.output
 
-    def test_api_start_subcommand(self, runner: CliRunner, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_api_start_subcommand(
+        self, runner: CliRunner, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """nroute api start should launch uvicorn server (mocked to prevent blocking)."""
         import uvicorn
 
@@ -498,11 +531,15 @@ class TestNewCLIFeatures:
             called = True
 
         monkeypatch.setattr(uvicorn, "run", mock_run)
-        result = runner.invoke(cli, ["api", "start", "--port", "8999"], catch_exceptions=False)
+        result = runner.invoke(
+            cli, ["api", "start", "--port", "8999"], catch_exceptions=False
+        )
         assert result.exit_code == 0
         assert called is True
 
-    def test_global_options_json_output(self, runner: CliRunner, topo_file: str) -> None:
+    def test_global_options_json_output(
+        self, runner: CliRunner, topo_file: str
+    ) -> None:
         """Global flag -f json / --output-format json should format subcommand outputs as JSON."""
         result = runner.invoke(
             cli,
@@ -519,7 +556,18 @@ class TestNewCLIFeatures:
         # Check route compute output format in JSON
         route_result = runner.invoke(
             cli,
-            ["--output-format", "json", "route", "compute", "-t", topo_file, "-s", "0", "-d", "1"],
+            [
+                "--output-format",
+                "json",
+                "route",
+                "compute",
+                "-t",
+                topo_file,
+                "-s",
+                "0",
+                "-d",
+                "1",
+            ],
             catch_exceptions=False,
         )
         assert route_result.exit_code == 0

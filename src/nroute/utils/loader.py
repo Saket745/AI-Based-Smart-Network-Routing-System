@@ -65,7 +65,9 @@ def load_custom_class(
             raise ImportError(f"Python file not found: {file_path}")
 
         # Construct a unique module name based on file path
-        module_name = f"nroute.dynamic.{file_path.stem}_{hash(str(file_path)) & 0xFFFFFFFF}"
+        module_name = (
+            f"nroute.dynamic.{file_path.stem}_{hash(str(file_path)) & 0xFFFFFFFF}"
+        )
 
         try:
             spec = importlib.util.spec_from_file_location(module_name, file_path)
@@ -76,7 +78,9 @@ def load_custom_class(
             sys.modules[module_name] = module
             spec.loader.exec_module(module)
         except Exception as e:
-            raise ImportError(f"Failed to execute module from file '{file_path}': {e}") from e
+            raise ImportError(
+                f"Failed to execute module from file '{file_path}': {e}"
+            ) from e
     else:
         # Load as a standard Python module path
         try:
@@ -90,7 +94,9 @@ def load_custom_class(
 
     cls = getattr(module, class_name)
     if not isinstance(cls, type):
-        raise ImportError(f"Target '{class_name}' in module '{module_part}' is not a class type.")
+        raise ImportError(
+            f"Target '{class_name}' in module '{module_part}' is not a class type."
+        )
 
     if expected_superclass is not None and not issubclass(cls, expected_superclass):
         raise TypeError(

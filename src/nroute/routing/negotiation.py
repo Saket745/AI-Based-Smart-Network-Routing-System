@@ -74,7 +74,9 @@ class NegotiationRouter(BaseRouter):
                 link_cost = latency / max(0.01, 1.0 - utilization)
             else:  # balanced
                 # Hybrid of latency, packet loss, and congestion penalty
-                link_cost = latency + 50.0 * packet_loss + 5.0 / max(0.01, 1.0 - utilization)
+                link_cost = (
+                    latency + 50.0 * packet_loss + 5.0 / max(0.01, 1.0 - utilization)
+                )
 
         # Estimate remaining cost from v to destination
         if v == destination:
@@ -118,7 +120,9 @@ class NegotiationRouter(BaseRouter):
         subgraph = self._get_active_subgraph(topology)
 
         if source not in subgraph:
-            raise RoutingError(f"Source node '{source}' is down or does not exist in topology.")
+            raise RoutingError(
+                f"Source node '{source}' is down or does not exist in topology."
+            )
         if destination not in subgraph:
             raise RoutingError(
                 f"Destination node '{destination}' is down or does not exist in topology."

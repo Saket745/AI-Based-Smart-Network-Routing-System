@@ -107,7 +107,9 @@ def train_congestion(
         out_path.parent.mkdir(parents=True, exist_ok=True)
         predictor.save(str(out_path))
 
-        console.print(f"[green]+[/green] Congestion model saved to [bold]{out_path}[/bold]")
+        console.print(
+            f"[green]+[/green] Congestion model saved to [bold]{out_path}[/bold]"
+        )
     except ModelError as e:
         console.print(f"[red]x Training error:[/red] {e}")
         raise SystemExit(1) from e
@@ -188,7 +190,9 @@ def train_anomaly(
         out_path.parent.mkdir(parents=True, exist_ok=True)
         detector.save(str(out_path))
 
-        console.print(f"[green]+[/green] Anomaly model saved to [bold]{out_path}[/bold]")
+        console.print(
+            f"[green]+[/green] Anomaly model saved to [bold]{out_path}[/bold]"
+        )
     except ModelError as e:
         console.print(f"[red]x Training error:[/red] {e}")
         raise SystemExit(1) from e
@@ -339,7 +343,11 @@ def train_gnn(
     from nroute.ml.model_store import ModelStore
     from nroute.ml.models.gcn import GCNModel
     from nroute.ml.models.graphsage import GraphSAGEModel
-    from nroute.ml.training.trainer import GNNGraphDataset, GNNTrainer, collate_dataset_batch
+    from nroute.ml.training.trainer import (
+        GNNGraphDataset,
+        GNNTrainer,
+        collate_dataset_batch,
+    )
 
     try:
         topo = Topology.load(topo_path)
@@ -347,7 +355,9 @@ def train_gnn(
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
-    console.print("\n[cyan]Collecting simulation traces and compiling to Parquet...[/cyan]")
+    console.print(
+        "\n[cyan]Collecting simulation traces and compiling to Parquet...[/cyan]"
+    )
 
     if os.path.exists(dataset_dir):
         shutil.rmtree(dataset_dir, ignore_errors=True)
@@ -391,7 +401,9 @@ def train_gnn(
 
     model: torch.nn.Module
     if model_type.lower() == "gcn":
-        model = GCNModel(node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim)
+        model = GCNModel(
+            node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim
+        )
     else:
         model = GraphSAGEModel(
             node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim
@@ -412,7 +424,9 @@ def train_gnn(
     # Save trained model
     try:
         model_store = ModelStore(base_dir=output_dir)
-        saved_path = model_store.save_model(model, name=model_type.lower(), version="1.0.0")
+        saved_path = model_store.save_model(
+            model, name=model_type.lower(), version="1.0.0"
+        )
         console.print(f"[green]+[/green] GNN model saved to [bold]{saved_path}[/bold]")
     except Exception as e:
         console.print(f"[red]x Saving error:[/red] {e}")

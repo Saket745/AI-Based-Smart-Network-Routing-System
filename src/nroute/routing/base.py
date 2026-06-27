@@ -68,7 +68,9 @@ class BaseRouter(ABC):
             if pair in routes:
                 continue
             try:
-                path = self.compute_path(topology, flow.source, flow.destination, weight=weight)
+                path = self.compute_path(
+                    topology, flow.source, flow.destination, weight=weight
+                )
                 routes[pair] = path
             except RoutingError:
                 # Flow is unreachable on current topology configuration
@@ -116,7 +118,9 @@ class BaseRouter(ABC):
 
         for u, v in itertools.pairwise(path):
             if (u, v) not in topology.edges:
-                raise RoutingError(f"Edge '{u}->{v}' in path does not exist in topology.")
+                raise RoutingError(
+                    f"Edge '{u}->{v}' in path does not exist in topology."
+                )
             edge_attr = topology.get_edge(u, v)
             if edge_attr.get("status") == "down":
                 raise RoutingError(f"Edge '{u}->{v}' in path is down.")
@@ -129,7 +133,9 @@ class BaseRouter(ABC):
         """
         # Performance optimization: if no nodes or edges are down, return the graph directly.
         # This avoids the high overhead of nx.subgraph_view callbacks.
-        has_down_nodes = any(d.get("status") == "down" for n, d in topology.graph.nodes(data=True))
+        has_down_nodes = any(
+            d.get("status") == "down" for n, d in topology.graph.nodes(data=True)
+        )
         has_down_edges = any(
             d.get("status") == "down" for u, v, d in topology.graph.edges(data=True)
         )

@@ -177,7 +177,9 @@ class TestConfigParser:
         assert "R5" in sample_topology.nodes
 
     def test_apply_change_creates_copy(self, sample_topology: Topology) -> None:
-        change = ConfigChange(link_changes=[{"src": "R1", "dst": "R2", "status": "down"}])
+        change = ConfigChange(
+            link_changes=[{"src": "R1", "dst": "R2", "status": "down"}]
+        )
         modified = ConfigParser.apply_change(sample_topology, change)
         # Original unchanged
         assert sample_topology.get_edge("R1", "R2")["status"] == "up"
@@ -276,7 +278,9 @@ class TestChangeImpactSimulator:
         assert result.newly_unreachable_pairs > 0
 
     def test_to_dict_serializable(self, sample_topology: Topology) -> None:
-        change = ConfigChange(link_changes=[{"src": "R1", "dst": "R2", "status": "down"}])
+        change = ConfigChange(
+            link_changes=[{"src": "R1", "dst": "R2", "status": "down"}]
+        )
         sim = ChangeImpactSimulator(sample_topology)
         result = sim.simulate(change)
         d = result.to_dict()

@@ -41,7 +41,9 @@ def dummy_dataset() -> tuple[pd.DataFrame, np.ndarray]:
     return df, labels
 
 
-def test_congestion_predictor_xgboost(dummy_dataset: tuple[pd.DataFrame, np.ndarray]) -> None:
+def test_congestion_predictor_xgboost(
+    dummy_dataset: tuple[pd.DataFrame, np.ndarray],
+) -> None:
     """Test XGBoost congestion model train, predict, and save/load."""
     df, labels = dummy_dataset
     predictor = CongestionPredictor(model_type="xgboost")
@@ -80,7 +82,9 @@ def test_congestion_predictor_xgboost(dummy_dataset: tuple[pd.DataFrame, np.ndar
         pd.testing.assert_frame_equal(preds, new_preds)
 
 
-def test_congestion_predictor_lstm(dummy_dataset: tuple[pd.DataFrame, np.ndarray]) -> None:
+def test_congestion_predictor_lstm(
+    dummy_dataset: tuple[pd.DataFrame, np.ndarray],
+) -> None:
     """Test PyTorch LSTM congestion model train, predict, and save/load."""
     df, labels = dummy_dataset
     predictor = CongestionPredictor(model_type="lstm")
@@ -122,7 +126,9 @@ def test_congestion_predictor_mismatched_inputs(
         predictor.train(df, labels[:-1])
 
 
-def test_congestion_predictor_security(dummy_dataset: tuple[pd.DataFrame, np.ndarray]) -> None:
+def test_congestion_predictor_security(
+    dummy_dataset: tuple[pd.DataFrame, np.ndarray],
+) -> None:
     """Test security aspects of model loading."""
     _df, _labels = dummy_dataset
 
@@ -133,7 +139,11 @@ def test_congestion_predictor_security(dummy_dataset: tuple[pd.DataFrame, np.nda
     with tempfile.TemporaryDirectory() as tmpdir:
         # 1. Test legacy joblib rejection
         legacy_xgb_path = os.path.join(tmpdir, "legacy_xgb.joblib")
-        legacy_data = {"model_type": "xgboost", "is_trained": True, "model": "fake_model"}
+        legacy_data = {
+            "model_type": "xgboost",
+            "is_trained": True,
+            "model": "fake_model",
+        }
         joblib.dump(legacy_data, legacy_xgb_path)
 
         predictor = CongestionPredictor()
@@ -167,7 +177,9 @@ def test_congestion_predictor_security(dummy_dataset: tuple[pd.DataFrame, np.nda
             def is_trained(self) -> bool:
                 return True
 
-        predictor_custom = CongestionPredictor(model_type="custom", custom_model=CustomNoSave())
+        predictor_custom = CongestionPredictor(
+            model_type="custom", custom_model=CustomNoSave()
+        )
         with pytest.raises(ModelError, match="does not implement a 'save' method"):
             predictor_custom.save(os.path.join(tmpdir, "custom.model"))
 

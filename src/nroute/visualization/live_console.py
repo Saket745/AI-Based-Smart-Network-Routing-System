@@ -242,9 +242,13 @@ class LiveSimulationConsole:
             )
 
             # Footer: Event Log
-            events_to_show = self.event_log[-5:] if self.event_log else ["No events yet."]
+            events_to_show = (
+                self.event_log[-5:] if self.event_log else ["No events yet."]
+            )
             footer_text = Text("\n".join(events_to_show))
-            layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
+            layout["footer"].update(
+                Panel(footer_text, title="Real-Time Event Log", style="white")
+            )
 
             # Force sleep to pace the visualization
             time.sleep(self.delay)

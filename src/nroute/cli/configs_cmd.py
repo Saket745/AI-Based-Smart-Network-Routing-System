@@ -73,7 +73,9 @@ custom_routers: {}        # Registry mapping for custom routing plugins
 """
     dest = Path(output_path)
     if dest.exists():
-        click.confirm(f"Configuration file '{dest}' already exists. Overwrite?", abort=True)
+        click.confirm(
+            f"Configuration file '{dest}' already exists. Overwrite?", abort=True
+        )
 
     try:
         dest.parent.mkdir(parents=True, exist_ok=True)

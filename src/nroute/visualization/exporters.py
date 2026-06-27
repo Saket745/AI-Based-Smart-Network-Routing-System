@@ -28,7 +28,9 @@ class TopologyExporter:
             with open(p, "w", encoding="utf-8") as f:
                 json.dump(topology.to_dict(), f, indent=2)
         except Exception as e:
-            raise SimulationError(f"Failed to export topology to JSON {path}: {e}") from e
+            raise SimulationError(
+                f"Failed to export topology to JSON {path}: {e}"
+            ) from e
 
     @staticmethod
     def to_graphml(topology: Topology, path: str | Path) -> None:
@@ -54,7 +56,9 @@ class TopologyExporter:
 
             nx.write_graphml(g_copy, str(p))
         except Exception as e:
-            raise SimulationError(f"Failed to export topology to GraphML {path}: {e}") from e
+            raise SimulationError(
+                f"Failed to export topology to GraphML {path}: {e}"
+            ) from e
 
     @staticmethod
     def to_csv(topology: Topology, path: str | Path) -> None:
@@ -87,7 +91,9 @@ class TopologyExporter:
             pd.DataFrame(edges_data).to_csv(edges_path, index=False)
 
         except Exception as e:
-            raise SimulationError(f"Failed to export topology to CSV {path}: {e}") from e
+            raise SimulationError(
+                f"Failed to export topology to CSV {path}: {e}"
+            ) from e
 
 
 class MetricsExporter:
@@ -95,7 +101,9 @@ class MetricsExporter:
 
     @staticmethod
     def to_json(
-        metrics: MetricsCollectionResult | list[SimulationMetrics] | list[dict[str, Any]],
+        metrics: MetricsCollectionResult
+        | list[SimulationMetrics]
+        | list[dict[str, Any]],
         path: str | Path,
     ) -> None:
         """Export simulation metrics to JSON file."""
@@ -114,11 +122,15 @@ class MetricsExporter:
                 with open(p, "w", encoding="utf-8") as f:
                     json.dump(raw_list, f, indent=2)
             except Exception as e:
-                raise SimulationError(f"Failed to export metrics to JSON {path}: {e}") from e
+                raise SimulationError(
+                    f"Failed to export metrics to JSON {path}: {e}"
+                ) from e
 
     @staticmethod
     def to_csv(
-        metrics: MetricsCollectionResult | list[SimulationMetrics] | list[dict[str, Any]],
+        metrics: MetricsCollectionResult
+        | list[SimulationMetrics]
+        | list[dict[str, Any]],
         path: str | Path,
     ) -> None:
         """Export simulation metrics to CSV file."""
@@ -136,4 +148,6 @@ class MetricsExporter:
                         raw_list.append(item)
                 pd.DataFrame(raw_list).to_csv(p, index=False)
             except Exception as e:
-                raise SimulationError(f"Failed to export metrics to CSV {path}: {e}") from e
+                raise SimulationError(
+                    f"Failed to export metrics to CSV {path}: {e}"
+                ) from e

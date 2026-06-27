@@ -35,15 +35,23 @@ class TopologyConfig(BaseModel):
     default_edge_probability: float = Field(
         default=0.1, description="Default edge probability for random graphs"
     )
-    default_bandwidth: float = Field(default=1000.0, description="Default link bandwidth in Mbps")
-    default_latency: float = Field(default=5.0, description="Default link propagation delay in ms")
+    default_bandwidth: float = Field(
+        default=1000.0, description="Default link bandwidth in Mbps"
+    )
+    default_latency: float = Field(
+        default=5.0, description="Default link propagation delay in ms"
+    )
 
 
 class SimulationConfig(BaseModel):
     """Simulation settings."""
 
-    tick_duration: float = Field(default=1.0, description="Duration of each tick in seconds")
-    max_ticks: int = Field(default=3600, description="Maximum number of ticks per simulation run")
+    tick_duration: float = Field(
+        default=1.0, description="Duration of each tick in seconds"
+    )
+    max_ticks: int = Field(
+        default=3600, description="Maximum number of ticks per simulation run"
+    )
     traffic_model: str = Field(
         default="gravity", description="uniform | gravity | hotspot | bursty"
     )
@@ -62,7 +70,9 @@ class MLConfig(BaseModel):
     )
     training_epochs: int = Field(default=100, description="Number of training epochs")
     batch_size: int = Field(default=64, description="Training batch size")
-    learning_rate: float = Field(default=0.001, description="Learning rate for ML models")
+    learning_rate: float = Field(
+        default=0.001, description="Learning rate for ML models"
+    )
 
 
 class RoutingConfig(BaseModel):
@@ -71,15 +81,21 @@ class RoutingConfig(BaseModel):
     default_algorithm: str = Field(
         default="dijkstra", description="dijkstra | bellman-ford | ecmp | rl"
     )
-    weight_metric: str = Field(default="latency", description="latency | utilization | composite")
-    k_shortest_paths: int = Field(default=3, description="Number of paths for ECMP/rerouting")
+    weight_metric: str = Field(
+        default="latency", description="latency | utilization | composite"
+    )
+    k_shortest_paths: int = Field(
+        default=3, description="Number of paths for ECMP/rerouting"
+    )
 
 
 class ExportConfig(BaseModel):
     """Export and reporting settings."""
 
     format: str = Field(default="json", description="json | csv")
-    include_plots: bool = Field(default=True, description="Whether to generate and save plots")
+    include_plots: bool = Field(
+        default=True, description="Whether to generate and save plots"
+    )
     plot_format: str = Field(default="png", description="png | svg | pdf")
     plot_dpi: int = Field(default=150, description="DPI for saved plots")
 
@@ -155,7 +171,9 @@ def load_config(path: str | Path | None = None) -> NRouteConfig:
         except Exception as e:
             if isinstance(e, ConfigError):
                 raise
-            raise ConfigError(f"Failed to read configuration from {found_path}: {e}") from e
+            raise ConfigError(
+                f"Failed to read configuration from {found_path}: {e}"
+            ) from e
 
     # 2. Merge Environment Variable Overrides
     # Expected format: NROUTE_SECTION_KEY (e.g., NROUTE_GENERAL_LOG_LEVEL)
@@ -179,7 +197,11 @@ def load_config(path: str | Path | None = None) -> NRouteConfig:
                         # Simple type casting
                         try:
                             if field_info.annotation is bool:
-                                config_dict[section][key] = env_val.lower() in ("true", "1", "yes")
+                                config_dict[section][key] = env_val.lower() in (
+                                    "true",
+                                    "1",
+                                    "yes",
+                                )
                                 continue
                             if field_info.annotation is int:
                                 config_dict[section][key] = int(env_val)
