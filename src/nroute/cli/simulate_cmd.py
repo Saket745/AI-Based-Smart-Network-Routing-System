@@ -26,6 +26,12 @@ def simulate_cmd() -> None:
 
 @simulate_cmd.command(name="run")
 @click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading of unsafe models (joblib/pickle) and custom classes from file paths.",
+)
+@click.option(
     "--topology",
     "-t",
     "topo_path",
@@ -115,6 +121,7 @@ def simulate_cmd() -> None:
 @click.pass_context
 def run_sim(
     ctx: click.Context,
+    allow_unsafe: bool,
     topo_path: str,
     algorithm: str,
     duration: int,
@@ -151,16 +158,23 @@ def run_sim(
             from nroute.routing.base import BaseRouter
             from nroute.utils.loader import load_custom_class
 
-            router_cls = load_custom_class(custom_router, expected_superclass=BaseRouter)
+            router_cls = load_custom_class(
+                custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
+            )
             sig = inspect.signature(router_cls)
             router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         else:
-            router = get_router(algorithm, topology=topo)
+            router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
 
         # Load pretrained model if provided
         if model_path and hasattr(router, "load"):
             try:
-                router.load(model_path)
+                # Some routers might need allow_unsafe passed to load
+                sig = inspect.signature(router.load)
+                if "allow_unsafe" in sig.parameters:
+                    router.load(model_path, allow_unsafe=allow_unsafe)
+                else:
+                    router.load(model_path)
                 console.print(
                     f"[green]+[/green] Loaded pretrained model from [bold]{model_path}[/bold]"
                 )
@@ -271,6 +285,12 @@ def run_sim(
 
 @simulate_cmd.command(name="compare")
 @click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading of unsafe models (joblib/pickle) and custom classes from file paths.",
+)
+@click.option(
     "--topology",
     "-t",
     "topo_path",
@@ -331,6 +351,7 @@ def run_sim(
 @click.pass_context
 def compare(
     ctx: click.Context,
+    allow_unsafe: bool,
     topo_path: str,
     algorithms: str,
     duration: int,
@@ -383,16 +404,22 @@ def compare(
                 from nroute.routing.base import BaseRouter
                 from nroute.utils.loader import load_custom_class
 
-                router_cls = load_custom_class(custom_router, expected_superclass=BaseRouter)
+                router_cls = load_custom_class(
+                    custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
+                )
                 sig = inspect.signature(router_cls)
                 router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
             else:
-                router = get_router(algo, topology=topo)
+                router = get_router(algo, topology=topo, allow_unsafe=allow_unsafe)
 
             # Load pretrained model if provided and router supports it
             if model_path and hasattr(router, "load"):
                 try:
-                    router.load(model_path)
+                    sig = inspect.signature(router.load)
+                    if "allow_unsafe" in sig.parameters:
+                        router.load(model_path, allow_unsafe=allow_unsafe)
+                    else:
+                        router.load(model_path)
                 except Exception as e:
                     console.print(
                         f"[yellow]! Failed to load model for {algo.upper()}:[/yellow] {e}"

@@ -21,6 +21,12 @@ def route_cmd() -> None:
 
 @route_cmd.command(name="compute")
 @click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading of unsafe models (joblib/pickle) and custom classes from file paths.",
+)
+@click.option(
     "--topology",
     "-t",
     "topo_path",
@@ -71,6 +77,7 @@ def route_cmd() -> None:
 @click.pass_context
 def compute(
     ctx: click.Context,
+    allow_unsafe: bool,
     topo_path: str,
     algorithm: str,
     source: str,
@@ -118,11 +125,13 @@ def compute(
             from nroute.routing.base import BaseRouter
             from nroute.utils.loader import load_custom_class
 
-            router_cls = load_custom_class(custom_router, expected_superclass=BaseRouter)
+            router_cls = load_custom_class(
+                custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
+            )
             sig = inspect.signature(router_cls)
             router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         else:
-            router = get_router(algorithm, topology=topo)
+            router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
         path = router.compute_path(topo, source, destination, weight=weight)
     except RoutingError as e:
         if is_json:

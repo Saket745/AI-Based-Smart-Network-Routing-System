@@ -39,7 +39,7 @@ class CustomTestRouter:
 """)
 
         # Valid loading
-        cls = load_custom_class(f"{file_path}:CustomTestRouter")
+        cls = load_custom_class(f"{file_path}:CustomTestRouter", allow_unsafe=True)
         assert cls.__name__ == "CustomTestRouter"
         router = cls()
         assert router.compute_path(None, "A", "B") == ["A", "B"]
@@ -48,7 +48,11 @@ class CustomTestRouter:
         from nroute.routing.base import BaseRouter
 
         with pytest.raises(TypeError, match="does not inherit from"):
-            load_custom_class(f"{file_path}:CustomTestRouter", expected_superclass=BaseRouter)
+            load_custom_class(
+                f"{file_path}:CustomTestRouter",
+                expected_superclass=BaseRouter,
+                allow_unsafe=True,
+            )
 
         # Invalid format (no colon)
         with pytest.raises(ValueError, match="Expected format"):
@@ -56,11 +60,13 @@ class CustomTestRouter:
 
         # Invalid class name
         with pytest.raises(ImportError, match="not found"):
-            load_custom_class(f"{file_path}:NonexistentClass")
+            load_custom_class(
+                f"{file_path}:NonexistentClass", allow_unsafe=True
+            )
 
         # Invalid file path
         with pytest.raises(ImportError, match="not found"):
-            load_custom_class("nonexistent_file.py:SomeClass")
+            load_custom_class("nonexistent_file.py:SomeClass", allow_unsafe=True)
 
 
 def test_config_custom_routers_resolution(monkeypatch: Any) -> None:
@@ -84,7 +90,7 @@ class ConfiguredRouter(BaseRouter):
         monkeypatch.setattr(nroute.core.config, "load_config", lambda *args, **kwargs: cfg)
 
         # get_router should resolve and load it
-        router = get_router("my-config-router")
+        router = get_router("my-config-router", allow_unsafe=True)
         assert router.__class__.__name__ == "ConfiguredRouter"
         assert router.compute_path(Topology(), "A", "B") == ["A", "via-config", "B"]
 
@@ -216,6 +222,7 @@ class MyCliRouter(BaseRouter):
         [
             "route",
             "compute",
+            "--allow-unsafe",
             "-t",
             str(topo_file),
             "-s",
