@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import networkx as nx
@@ -14,6 +15,16 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from nroute.core.topology import Topology
+
+
+@dataclass(frozen=True)
+class NegotiationContext:
+    """Context for hop-by-hop negotiation."""
+
+    subgraph: nx.DiGraph
+    destination: str
+    weight_func: Callable[[str, str, dict[str, Any]], float] | None = None
+
 
 logger = get_logger(__name__)
 
@@ -39,29 +50,25 @@ class NegotiationRouter(BaseRouter):
 
     def _calculate_bid(
         self,
-        subgraph: nx.DiGraph,
         u: str,
         v: str,
-        destination: str,
-        weight_func: Callable[[str, str, dict[str, Any]], float] | None = None,
+        context: NegotiationContext,
     ) -> float | None:
         """
         Calculate the bid cost from neighbor v to reach the destination via link u -> v.
 
         Args:
-            subgraph: The active topology subgraph.
             u: Current node.
             v: Neighbor node.
-            destination: Target destination node.
-            weight_func: Optional weight override function.
+            context: The negotiation context.
 
         Returns:
             The bid cost as a float, or None if the neighbor cannot reach the destination.
         """
         # Calculate local link cost u -> v
-        d = subgraph.edges[u, v]
-        if weight_func is not None:
-            link_cost = weight_func(u, v, d)
+        d = context.subgraph.edges[u, v]
+        if context.weight_func is not None:
+            link_cost = context.weight_func(u, v, d)
         else:
             latency = float(d.get("latency", 5.0))
             utilization = float(d.get("utilization", 0.0))
@@ -77,12 +84,12 @@ class NegotiationRouter(BaseRouter):
                 link_cost = latency + 50.0 * packet_loss + 5.0 / max(0.01, 1.0 - utilization)
 
         # Estimate remaining cost from v to destination
-        if v == destination:
+        if v == context.destination:
             remaining_cost = 0.0
         else:
             try:
-                if weight_func is not None:
-                    rem_weight = weight_func
+                if context.weight_func is not None:
+                    rem_weight = context.weight_func
                 else:
 
                     def rem_weight(x: str, y: str, edge_data: dict[str, Any]) -> float:
@@ -97,9 +104,9 @@ class NegotiationRouter(BaseRouter):
                             return lat + 50.0 * loss + 5.0 / max(0.01, 1.0 - util)
 
                 remaining_cost = nx.shortest_path_length(
-                    subgraph,
+                    context.subgraph,
                     source=v,
-                    target=destination,
+                    target=context.destination,
                     weight=rem_weight,
                 )
             except (nx.NetworkXNoPath, nx.NodeNotFound):
@@ -146,6 +153,12 @@ class NegotiationRouter(BaseRouter):
                 weight_func = weight_func_callable
 
         # Hop-by-hop contract-net negotiation with backtracking
+        context = NegotiationContext(
+            subgraph=subgraph,
+            destination=destination,
+            weight_func=weight_func,
+        )
+
         def negotiate_path(
             current_node: str,
             path_so_far: list[str],
@@ -160,9 +173,7 @@ class NegotiationRouter(BaseRouter):
                     # Loop prevention
                     continue
 
-                bid_cost = self._calculate_bid(
-                    subgraph, current_node, neighbor, destination, weight_func
-                )
+                bid_cost = self._calculate_bid(current_node, neighbor, context)
                 if bid_cost is not None:
                     bids.append((neighbor, bid_cost))
 

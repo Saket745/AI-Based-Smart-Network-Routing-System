@@ -119,7 +119,9 @@ def test_bellman_ford_generic_exception(
 
     monkeypatch.setattr(nx, "bellman_ford_path", mock_path)
 
-    with pytest.raises(RoutingError, match="Bellman-Ford route computation failed: Unexpected error"):
+    with pytest.raises(
+        RoutingError, match="Bellman-Ford route computation failed: Unexpected error"
+    ):
         router.compute_path(topo, "A", "D")
 
 

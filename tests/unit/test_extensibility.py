@@ -62,9 +62,7 @@ class CustomTestRouter:
 
         # Invalid class name
         with pytest.raises(ImportError, match="not found"):
-            load_custom_class(
-                f"{file_path}:NonexistentClass", allow_unsafe=True
-            )
+            load_custom_class(f"{file_path}:NonexistentClass", allow_unsafe=True)
 
         # Invalid file path
         with pytest.raises(ImportError, match="not found"):
