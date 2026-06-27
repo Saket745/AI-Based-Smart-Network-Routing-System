@@ -553,3 +553,6 @@ def _print_simulation_results(result: Any, algorithm: str) -> None:
 
     console.print(table)
     console.print()
+
+
+# Force reformat
