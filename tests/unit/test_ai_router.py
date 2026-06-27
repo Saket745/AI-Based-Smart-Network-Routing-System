@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from nroute.core.topology import Topology
-from nroute.routing.ai import AIRouter
+from nroute.routing.ai import AIRouter, AIRouterConfig
 
 
 def _get_topo(small_graph_data: dict[str, Any]) -> Topology:
@@ -48,7 +48,9 @@ def test_ai_router_congestion_avoidance(small_graph_data: dict[str, Any]) -> Non
     from nroute.ml.feature_eng import extract_congestion_features
 
     topo = _get_topo(small_graph_data)
-    router = AIRouter(topology=topo, alpha=10.0)
+    # Testing both backward compatibility and new Config object
+    config = AIRouterConfig(alpha=10.0)
+    router = AIRouter(topology=topo, config=config)
 
     # We mock train the congestion predictor:
     # First set B->D utilization high in topology to extract matching features

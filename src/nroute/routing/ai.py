@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 import pandas as pd
+from pydantic import BaseModel, Field
 
 from nroute.exceptions import RoutingError
 from nroute.ml.anomaly import AnomalyDetector
@@ -25,6 +26,21 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+class AIRouterConfig(BaseModel):
+    """Configuration for AIRouter hyperparameters."""
+
+    congestion_model_type: str = Field(default="xgboost", description="xgboost | lstm")
+    anomaly_model_type: str = Field(
+        default="isolation_forest", description="isolation_forest | autoencoder"
+    )
+    alpha: float = Field(
+        default=5.0, description="Scale factor for congestion weight penalty."
+    )
+    anomaly_alpha_scale: float = Field(
+        default=4.0, description="Multiplier applied to alpha when an anomaly is detected."
+    )
+
+
 class AIRouter(BaseRouter):
     """
     AI-powered router that dynamically routes traffic around congestion
@@ -34,30 +50,29 @@ class AIRouter(BaseRouter):
     def __init__(
         self,
         topology: Topology | None = None,
-        congestion_model_type: str = "xgboost",
-        anomaly_model_type: str = "isolation_forest",
-        alpha: float = 5.0,
-        anomaly_alpha_scale: float = 4.0,
+        config: AIRouterConfig | None = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialize the AIRouter.
 
         Args:
             topology: Optional topology context.
-            congestion_model_type: "xgboost" | "lstm".
-            anomaly_model_type: "isolation_forest" | "autoencoder".
-            alpha: Scale factor for congestion weight penalty (W_e = latency * (1 + alpha * prob)).
-            anomaly_alpha_scale: Multiplier applied to alpha when an anomaly is
-                detected, to aggressively route around bottlenecks.
+            config: Optional configuration object for hyperparameters.
+            **kwargs: Backward compatibility for individual hyperparameters.
         """
         self.topology = topology
-        self.alpha = alpha
-        self._base_alpha = alpha
-        self._anomaly_alpha_scale = anomaly_alpha_scale
+
+        if config is None:
+            config = AIRouterConfig(**kwargs)
+
+        self.alpha = config.alpha
+        self._base_alpha = config.alpha
+        self._anomaly_alpha_scale = config.anomaly_alpha_scale
         self._anomaly_active = False
 
-        self.congestion_predictor = CongestionPredictor(model_type=congestion_model_type)
-        self.anomaly_detector = AnomalyDetector(model_type=anomaly_model_type)
+        self.congestion_predictor = CongestionPredictor(model_type=config.congestion_model_type)
+        self.anomaly_detector = AnomalyDetector(model_type=config.anomaly_model_type)
         self.is_trained = False
 
         # Rolling traffic history for congestion prediction
