@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -47,6 +46,23 @@ def test_validate_node_id_non_string_raises() -> None:
         validate_node_id(["list"])
 
 
+def test_validate_node_id_bool_raises() -> None:
+    with pytest.raises(ValidationError, match="cannot be a boolean"):
+        validate_node_id(True)
+
+
+def test_validate_node_id_nan_inf_raises() -> None:
+    with pytest.raises(ValidationError, match="cannot be nan"):
+        validate_node_id(float("nan"))
+    with pytest.raises(ValidationError, match="cannot be inf"):
+        validate_node_id(float("inf"))
+
+
+def test_validate_node_id_none_raises() -> None:
+    with pytest.raises(ValidationError, match="must be a string"):
+        validate_node_id(None)
+
+
 # ---------------------------------------------------------------------------
 # validate_positive_float
 # ---------------------------------------------------------------------------
@@ -74,6 +90,16 @@ def test_validate_positive_float_non_numeric_raises() -> None:
         validate_positive_float("bad", "x")
 
 
+def test_validate_positive_float_nan_raises() -> None:
+    # NaN is technically a float but usually we don't want it in validation for positive floats
+    with pytest.raises(ValidationError, match="must be a non-negative number"):
+        validate_positive_float(float("nan"), "val")
+
+
+def test_validate_positive_float_inf_allowed() -> None:
+    assert validate_positive_float(float("inf"), "limit") == float("inf")
+
+
 # ---------------------------------------------------------------------------
 # validate_probability
 # ---------------------------------------------------------------------------
@@ -97,17 +123,21 @@ def test_validate_probability_non_numeric_raises() -> None:
         validate_probability("high")
 
 
+def test_validate_probability_nan_raises() -> None:
+    with pytest.raises(ValidationError, match=r"between 0\.0 and 1\.0"):
+        validate_probability(float("nan"))
+
+
 # ---------------------------------------------------------------------------
 # validate_file_path
 # ---------------------------------------------------------------------------
 
 
-def test_validate_file_path_existing_file() -> None:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as f:
-        tmp = Path(f.name)
-    result = validate_file_path(tmp, must_exist=True)
-    assert result == tmp.resolve()
-    tmp.unlink()
+def test_validate_file_path_existing_file(tmp_path: Path) -> None:
+    tmp_file = tmp_path / "test.txt"
+    tmp_file.write_text("hello")
+    result = validate_file_path(tmp_file, must_exist=True)
+    assert result == tmp_file.resolve()
 
 
 def test_validate_file_path_must_not_exist_mode() -> None:
@@ -123,3 +153,9 @@ def test_validate_file_path_missing_raises() -> None:
 def test_validate_file_path_empty_raises() -> None:
     with pytest.raises(ValidationError, match="empty"):
         validate_file_path("", must_exist=False)
+
+
+def test_validate_file_path_invalid_format_raises() -> None:
+    # On some systems, null bytes in path raise OSError when resolving
+    with pytest.raises(ValidationError, match="Invalid path format"):
+        validate_file_path("\0", must_exist=False)
