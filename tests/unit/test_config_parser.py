@@ -33,7 +33,7 @@ def test_load_device_configs_json_single(tmp_path: Path) -> None:
     data = {
         "hostname": "R1",
         "vendor": "cisco",
-        "interfaces": [{"name": "GigabitEthernet0/1", "bandwidth": 1000.0}]
+        "interfaces": [{"name": "GigabitEthernet0/1", "bandwidth": 1000.0}],
     }
     with open(config_file, "w", encoding="utf-8") as f:
         json.dump(data, f)
@@ -49,10 +49,7 @@ def test_load_device_configs_json_single(tmp_path: Path) -> None:
 def test_load_device_configs_yaml_list(tmp_path: Path) -> None:
     """Test loading a list of device configs from YAML."""
     config_file = tmp_path / "devices.yaml"
-    data = [
-        {"hostname": "R1", "vendor": "cisco"},
-        {"hostname": "R2", "vendor": "arista"}
-    ]
+    data = [{"hostname": "R1", "vendor": "cisco"}, {"hostname": "R2", "vendor": "arista"}]
     with open(config_file, "w", encoding="utf-8") as f:
         yaml.dump(data, f)
 
@@ -65,12 +62,7 @@ def test_load_device_configs_yaml_list(tmp_path: Path) -> None:
 def test_load_device_configs_devices_key(tmp_path: Path) -> None:
     """Test loading device configs from a top-level 'devices' key."""
     config_file = tmp_path / "config.json"
-    data = {
-        "devices": [
-            {"hostname": "R1"},
-            {"hostname": "R2"}
-        ]
-    }
+    data = {"devices": [{"hostname": "R1"}, {"hostname": "R2"}]}
     with open(config_file, "w", encoding="utf-8") as f:
         json.dump(data, f)
 
@@ -108,7 +100,9 @@ def test_load_device_configs_invalid_structure(tmp_path: Path) -> None:
     config_file = tmp_path / "bad.json"
     with open(config_file, "w", encoding="utf-8") as f:
         json.dump("not a dict or list", f)
-    with pytest.raises(IngestionError, match="must be a dict, list, or contain a top-level 'devices' key"):
+    with pytest.raises(
+        IngestionError, match="must be a dict, list, or contain a top-level 'devices' key"
+    ):
         ConfigParser.load_device_configs(config_file)
 
 
@@ -138,7 +132,7 @@ def test_load_change_valid(tmp_path: Path) -> None:
     data = {
         "description": "Test change",
         "devices": [{"hostname": "R1", "vendor": "cisco"}],
-        "node_changes": [{"id": "R2", "status": "down"}]
+        "node_changes": [{"id": "R2", "status": "down"}],
     }
     with open(change_file, "w", encoding="utf-8") as f:
         yaml.dump(data, f)
@@ -207,12 +201,9 @@ def test_apply_device_configs() -> None:
             metadata={"custom_attr": "value"},
             interfaces=[
                 InterfaceConfig(name="Gig0/1", state=InterfaceState.DOWN, bandwidth=2000.0)
-            ]
+            ],
         ),
-        DeviceConfig(
-            hostname="R3",
-            metadata={"role": "router", "custom_attr": "value2"}
-        )
+        DeviceConfig(hostname="R3", metadata={"role": "router", "custom_attr": "value2"}),
     ]
 
     # Test applying configs, including creating missing node R3
@@ -231,9 +222,7 @@ def test_apply_device_configs() -> None:
     configs2 = [
         DeviceConfig(
             hostname="R1",
-            interfaces=[
-                InterfaceConfig(name="Gig0/1", state=InterfaceState.UP, bandwidth=3000.0)
-            ]
+            interfaces=[InterfaceConfig(name="Gig0/1", state=InterfaceState.UP, bandwidth=3000.0)],
         )
     ]
     ConfigParser.apply_device_configs(topo, configs2)
@@ -249,7 +238,7 @@ def test_apply_device_configs_no_create() -> None:
 
     configs = [
         DeviceConfig(hostname="R1", metadata={"role": "core"}),
-        DeviceConfig(hostname="R2", metadata={"role": "edge"})
+        DeviceConfig(hostname="R2", metadata={"role": "edge"}),
     ]
 
     ConfigParser.apply_device_configs(topo, configs, create_missing_nodes=False)
@@ -270,21 +259,19 @@ def test_apply_change() -> None:
 
     change = ConfigChange(
         description="Complex change",
-        devices=[
-            DeviceConfig(hostname="R1", metadata={"vendor": "cisco"})
-        ],
+        devices=[DeviceConfig(hostname="R1", metadata={"vendor": "cisco"})],
         node_changes=[
             {"id": "R2", "status": "down"},
             {"id": "R3", "status": "up"},
             {"hostname": "R1", "status": "up"},
             {"id": "MISSING_NODE", "status": "down"},
-            {"something": "else"}
+            {"something": "else"},
         ],
         link_changes=[
             {"src": "R1", "dst": "R2", "bandwidth": 5000.0},
             {"src": "R1", "dst": "MISSING_NODE", "status": "down"},
-            {"src": "R1"}
-        ]
+            {"src": "R1"},
+        ],
     )
 
     new_topo = ConfigParser.apply_change(topo, change)
@@ -310,16 +297,16 @@ def test_apply_ospf_and_bgp() -> None:
     config = DeviceConfig(
         hostname="R1",
         ospf=OSPFConfig(
-            interfaces=[
-                OSPFInterfaceConfig(interface_name="Gig0/1", cost=50, area="0.0.0.1")
-            ]
+            interfaces=[OSPFInterfaceConfig(interface_name="Gig0/1", cost=50, area="0.0.0.1")]
         ),
         bgp=BGPConfig(
             local_as=65001,
             neighbors=[
-                BGPNeighborConfig(neighbor_address="R2", remote_as=65002, state=BGPSessionState.ESTABLISHED)
-            ]
-        )
+                BGPNeighborConfig(
+                    neighbor_address="R2", remote_as=65002, state=BGPSessionState.ESTABLISHED
+                )
+            ],
+        ),
     )
 
     ConfigParser.apply_device_configs(topo, [config])
