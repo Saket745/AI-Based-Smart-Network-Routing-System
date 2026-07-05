@@ -161,9 +161,13 @@ def _init_router(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
         sig = inspect.signature(router_cls)
-        return router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        instance = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        if not isinstance(instance, BaseRouter):
+            raise TypeError(f"Custom router '{custom_router}' is not an instance of BaseRouter")
+        return instance
 
-    return get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
+    router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
+    return router
 
 
 def _print_json_metrics(
