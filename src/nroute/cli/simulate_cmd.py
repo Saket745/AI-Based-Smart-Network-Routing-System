@@ -449,7 +449,6 @@ def _output_comparison_console(
 
     if output:
         _save_json_results(comparison_data, output, echo=False)
-        console.print(f"\n[green]+[/green] Comparison saved to [bold]{output}[/bold]")
 
     console.print()
 
