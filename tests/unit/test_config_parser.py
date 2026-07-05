@@ -8,6 +8,18 @@ from typing import TYPE_CHECKING
 import pytest
 import yaml
 
+from nroute.core.openconfig import (
+    BGPConfig,
+    BGPNeighborConfig,
+    BGPSessionState,
+    ConfigChange,
+    DeviceConfig,
+    InterfaceConfig,
+    InterfaceState,
+    OSPFConfig,
+    OSPFInterfaceConfig,
+)
+from nroute.core.topology import Topology
 from nroute.exceptions import IngestionError
 from nroute.ingestion.config_parser import ConfigParser
 
@@ -105,7 +117,7 @@ def test_load_device_configs_entry_not_dict(tmp_path: Path) -> None:
     config_file = tmp_path / "bad.json"
     with open(config_file, "w", encoding="utf-8") as f:
         json.dump([{"hostname": "R1"}, "not a dict"], f)
-    with pytest.raises(IngestionError, match="Config entry #1 in .* is not a dict"):
+    with pytest.raises(IngestionError, match=r"Config entry #1 in .* is not a dict"):
         ConfigParser.load_device_configs(config_file)
 
 
@@ -184,9 +196,6 @@ def test_load_change_validation_failed(tmp_path: Path) -> None:
 
 def test_apply_device_configs() -> None:
     """Test applying device configurations to a topology."""
-    from nroute.core.topology import Topology
-    from nroute.core.openconfig import DeviceConfig, InterfaceConfig, InterfaceState
-
     topo = Topology()
     topo.add_node("R1")
     topo.add_node("R2")
@@ -235,9 +244,6 @@ def test_apply_device_configs() -> None:
 
 def test_apply_device_configs_no_create() -> None:
     """Test apply_device_configs with create_missing_nodes=False."""
-    from nroute.core.topology import Topology
-    from nroute.core.openconfig import DeviceConfig
-
     topo = Topology()
     topo.add_node("R1")
 
@@ -254,9 +260,6 @@ def test_apply_device_configs_no_create() -> None:
 
 def test_apply_change() -> None:
     """Test applying a ConfigChange to a topology."""
-    from nroute.core.topology import Topology
-    from nroute.core.openconfig import ConfigChange, DeviceConfig
-
     topo = Topology()
     topo.add_node("R1", status="up")
     topo.add_node("R2", status="up")
@@ -299,12 +302,6 @@ def test_apply_change() -> None:
 
 def test_apply_ospf_and_bgp() -> None:
     """Test applying OSPF and BGP configurations."""
-    from nroute.core.topology import Topology
-    from nroute.core.openconfig import (
-        DeviceConfig, OSPFConfig, OSPFInterfaceConfig,
-        BGPConfig, BGPNeighborConfig, BGPSessionState
-    )
-
     topo = Topology()
     topo.add_node("R1")
     topo.add_node("R2")
