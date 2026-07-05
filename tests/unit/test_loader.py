@@ -57,6 +57,7 @@ def test_load_custom_class_superclass_validation() -> None:
     """Test that superclass validation works correctly."""
     # Using a class from a standard library to avoid potential import issues with tests package
     from pathlib import Path, PurePath
+
     cls = load_custom_class("pathlib:Path", expected_superclass=PurePath)
     assert cls is Path
 
@@ -71,7 +72,9 @@ def test_load_custom_class_local_file_disallowed() -> None:
         temp_path = f.name
 
     try:
-        with pytest.raises(ImportError, match="Loading custom classes from local files is disallowed"):
+        with pytest.raises(
+            ImportError, match="Loading custom classes from local files is disallowed"
+        ):
             load_custom_class(f"{temp_path}:LocalClass", allow_unsafe=False)
     finally:
         if os.path.exists(temp_path):
@@ -126,9 +129,11 @@ def test_load_custom_class_local_file_spec_none() -> None:
         temp_path = f.name
 
     try:
-        with patch("importlib.util.spec_from_file_location", return_value=None):
-            with pytest.raises(ImportError, match="Could not load spec for Python file"):
-                load_custom_class(f"{temp_path}:SomeClass", allow_unsafe=True)
+        with (
+            patch("importlib.util.spec_from_file_location", return_value=None),
+            pytest.raises(ImportError, match="Could not load spec for Python file"),
+        ):
+            load_custom_class(f"{temp_path}:SomeClass", allow_unsafe=True)
     finally:
         if os.path.exists(temp_path):
             os.unlink(temp_path)
