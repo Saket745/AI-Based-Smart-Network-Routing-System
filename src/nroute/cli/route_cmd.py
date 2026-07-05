@@ -95,7 +95,7 @@ def compute(
 
     # Initialize router and compute path
     try:
-        router = _init_router(algorithm, topo, allow_unsafe, custom_router)
+        router: BaseRouter = _init_router(algorithm, topo, allow_unsafe, custom_router)
         path = router.compute_path(topo, source, destination, weight=weight)
     except RoutingError as e:
         _handle_error(f"Routing error: {e}", is_json, e)
@@ -161,7 +161,10 @@ def _init_router(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
         sig = inspect.signature(router_cls)
-        return router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        router: BaseRouter = (
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        )
+        return router
 
     return get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
 
