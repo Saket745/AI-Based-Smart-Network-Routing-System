@@ -163,8 +163,8 @@ def _init_router(
         )
         sig = inspect.signature(router_cls)
         if "topology" in sig.parameters:
-            return cast(BaseRouter, router_cls(topology=topo))
-        return cast(BaseRouter, router_cls())
+            return cast("BaseRouter", router_cls(topology=topo))
+        return cast("BaseRouter", router_cls())
 
     return get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
 
