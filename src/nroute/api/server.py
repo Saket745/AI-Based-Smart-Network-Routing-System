@@ -213,6 +213,9 @@ async def run_rca(req: RCARequest) -> dict[str, Any]:
 
     engine = get_engine()
     events: list[NetworkEvent] = []
+    valid_categories = {e.value for e in EventCategory}
+    valid_severities = {e.value for e in EventSeverity}
+
     for idx, item in enumerate(req.events):
         cat = item.category
         sev = item.severity
@@ -223,12 +226,8 @@ async def run_rca(req: RCARequest) -> dict[str, Any]:
             interface=item.interface,
             peer_node=item.peer_node,
             event_type=item.event_type,
-            category=EventCategory(cat)
-            if cat in [e.value for e in EventCategory]
-            else EventCategory.UNKNOWN,
-            severity=EventSeverity(sev)
-            if sev in [e.value for e in EventSeverity]
-            else EventSeverity.INFO,
+            category=EventCategory(cat) if cat in valid_categories else EventCategory.UNKNOWN,
+            severity=EventSeverity(sev) if sev in valid_severities else EventSeverity.INFO,
             message=item.message,
             raw=item.model_dump(),
         )
