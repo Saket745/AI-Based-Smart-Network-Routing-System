@@ -77,6 +77,7 @@ def _load_topology(topo_path: str, is_json: bool) -> Topology:
     except Exception as e:
         _handle_error(f"Failed to load topology: {e}", is_json, e)
         # Unreachable as _handle_error raises SystemExit
+        raise SystemExit(1) from e
 
 
 def _setup_router(
@@ -99,9 +100,15 @@ def _setup_router(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
         sig = inspect.signature(router_cls)
-        router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        router_instance = (
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        )
     else:
-        router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
+        router_instance = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
+
+        if not isinstance(router_instance, BaseRouter):
+            raise TypeError(f"Initialized class {type(router_instance)} is not a BaseRouter")
+        router = router_instance
 
     # Load pretrained model if provided
     if model_path and hasattr(router, "load"):
