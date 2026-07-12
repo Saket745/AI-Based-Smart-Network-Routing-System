@@ -188,7 +188,9 @@ def test_load_events_dict_missing_keys(tmp_path: Path) -> None:
     """Should raise SimulationError if dictionary lacks events/alarms/records keys."""
     f = tmp_path / "events.json"
     f.write_text('{"other_key": []}')
-    with pytest.raises(SimulationError, match="Events file must be a list or contain an 'events' key"):
+    with pytest.raises(
+        SimulationError, match="Events file must be a list or contain an 'events' key"
+    ):
         load_events(f)
 
 
@@ -360,6 +362,7 @@ def test_rca_correlator_same_priority_earlier_wins() -> None:
 
 def test_rca_correlator_same_priority_earlier_wins_dynamic() -> None:
     """Test same priority earlier wins with dynamic timestamps to cover line 306."""
+
     class DynamicEvent(NetworkEvent):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
@@ -379,7 +382,9 @@ def test_rca_correlator_same_priority_earlier_wins_dynamic() -> None:
     topo = Topology()
     topo.add_node("R1")
     e1 = DynamicEvent(event_id="e1", event_type="bgp_session_down", category=EventCategory.ROUTING)
-    e2 = NetworkEvent(event_id="e2", timestamp=12.0, event_type="bgp_withdrawal", category=EventCategory.ROUTING)
+    e2 = NetworkEvent(
+        event_id="e2", timestamp=12.0, event_type="bgp_withdrawal", category=EventCategory.ROUTING
+    )
 
     correlator = RCACorrelator(topo)
     res = correlator.diagnose([e1, e2])
