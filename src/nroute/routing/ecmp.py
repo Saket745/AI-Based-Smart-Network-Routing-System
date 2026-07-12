@@ -35,20 +35,14 @@ class ECMPRouter(BaseRouter):
     def compute_all_equal_cost_paths(
         self,
         topology: Topology,
-        query: RoutingQuery | None = None,
-        source: str | None = None,
-        destination: str | None = None,
-        weight: str | Callable[[dict[str, Any]], float] | None = None,
+        query: RoutingQuery,
     ) -> list[list[str]]:
         """
         Find all shortest paths of equal minimum cost between source and destination.
         """
-        if query is not None:
-            source = query.source
-            destination = query.destination
-            weight = query.weight
-        elif source is None or destination is None:
-            raise ValueError("Either 'query' or ('source' and 'destination') must be provided.")
+        source = query.source
+        destination = query.destination
+        weight = query.weight
 
         subgraph = self._get_active_subgraph(topology)
 
@@ -96,24 +90,15 @@ class ECMPRouter(BaseRouter):
     def compute_k_shortest_paths(
         self,
         topology: Topology,
-        query: RoutingQuery | None = None,
-        source: str | None = None,
-        destination: str | None = None,
-        k: int | None = None,
-        weight: str | Callable[[dict[str, Any]], float] | None = None,
+        query: RoutingQuery,
     ) -> list[list[str]]:
         """
         Find the top K shortest simple paths using Yen's algorithm.
         """
-        if query is not None:
-            source = query.source
-            destination = query.destination
-            weight = query.weight
-            k_val = query.k if query.k is not None else self.k
-        elif source is None or destination is None:
-            raise ValueError("Either 'query' or ('source' and 'destination') must be provided.")
-        else:
-            k_val = k if k is not None else self.k
+        source = query.source
+        destination = query.destination
+        weight = query.weight
+        k_val = query.k if query.k is not None else self.k
 
         subgraph = self._get_active_subgraph(topology)
 
