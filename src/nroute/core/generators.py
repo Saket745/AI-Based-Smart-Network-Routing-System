@@ -22,80 +22,104 @@ class TopologyGenerator:
     @staticmethod
     def _assign_random_edge_attrs(graph: nx.DiGraph, rng: Any, **default_attrs: Any) -> None:
         """Helper to assign randomized link attributes to a Graph's edges."""
+        default_bandwidth = default_attrs.get("bandwidth")
+        default_latency = default_attrs.get("latency")
+        default_jitter = default_attrs.get("jitter")
+        default_packet_loss = default_attrs.get("packet_loss")
+        default_utilization = default_attrs.get("utilization", 0.0)
+        default_status = default_attrs.get("status", "up")
+        default_weight = default_attrs.get("weight")
+
+        standard_keys = {
+            "bandwidth",
+            "latency",
+            "jitter",
+            "packet_loss",
+            "utilization",
+            "status",
+            "weight",
+        }
+        custom_attrs = {k: v for k, v in default_attrs.items() if k not in standard_keys}
+
+        edge_attrs_dict = {}
+
         for src, dst in graph.edges:
-            bandwidth = default_attrs.get("bandwidth")
+            bandwidth = default_bandwidth
             if bandwidth is None:
                 # Random bandwidth in Mbps (100, 1000, 10000)
                 bandwidth = float(rng.choice([100.0, 1000.0, 10000.0]))
 
-            latency = default_attrs.get("latency")
+            latency = default_latency
             if latency is None:
                 # Random propagation delay between 1ms and 50ms
                 latency = float(round(rng.uniform(1.0, 50.0), 1))
 
-            jitter = default_attrs.get("jitter")
+            jitter = default_jitter
             if jitter is None:
                 # Random jitter between 0.1ms and 5ms
                 jitter = float(round(rng.uniform(0.1, 5.0), 2))
 
-            packet_loss = default_attrs.get("packet_loss")
+            packet_loss = default_packet_loss
             if packet_loss is None:
                 # Random packet loss rate between 0.0% and 2.0%
                 packet_loss = float(rng.choice([0.0, 0.001, 0.005, 0.01, 0.02]))
 
-            utilization = default_attrs.get("utilization", 0.0)
-            status = default_attrs.get("status", "up")
-            weight = default_attrs.get("weight", latency)
+            weight = default_weight if default_weight is not None else latency
 
             edge_attrs = {
                 "bandwidth": bandwidth,
                 "latency": latency,
                 "jitter": jitter,
                 "packet_loss": packet_loss,
-                "utilization": utilization,
+                "utilization": default_utilization,
                 "weight": weight,
-                "status": status,
+                "status": default_status,
             }
-            # Add other extra custom attributes
-            for k, v in default_attrs.items():
-                if k not in edge_attrs:
-                    edge_attrs[k] = v
+            if custom_attrs:
+                edge_attrs.update(custom_attrs)
 
-            graph.edges[src, dst].update(edge_attrs)
+            edge_attrs_dict[(src, dst)] = edge_attrs
+
+        nx.set_edge_attributes(graph, edge_attrs_dict)
 
     @staticmethod
     def _assign_default_node_attrs(
         graph: nx.DiGraph, node_type: str, rng: Any, **default_attrs: Any
     ) -> None:
         """Helper to assign node attributes to all nodes in the Graph."""
+        default_capacity = default_attrs.get("capacity")
+        if default_capacity is None:
+            # Node capacity ranges based on node type
+            if node_type == "host":
+                default_capacity = 1000.0
+            elif node_type == "switch":
+                default_capacity = 10000.0
+            elif node_type == "router":
+                default_capacity = 40000.0
+            else:
+                default_capacity = 10000.0
+
+        default_status = default_attrs.get("status", "up")
+        default_location = default_attrs.get("location")
+
+        standard_keys = {"type", "capacity", "status", "location"}
+        custom_attrs = {k: v for k, v in default_attrs.items() if k not in standard_keys}
+
+        node_attrs_dict = {}
+
         for node in graph.nodes:
-            capacity = default_attrs.get("capacity")
-            if capacity is None:
-                # Node capacity ranges based on node type
-                if node_type == "host":
-                    capacity = 1000.0
-                elif node_type == "switch":
-                    capacity = 10000.0
-                elif node_type == "router":
-                    capacity = 40000.0
-                else:
-                    capacity = 10000.0
-
-            status = default_attrs.get("status", "up")
-            location = default_attrs.get("location")
-
             node_attrs = {
                 "type": node_type,
-                "capacity": capacity,
-                "status": status,
-                "location": location,
+                "capacity": default_capacity,
+                "status": default_status,
+                "location": default_location,
             }
-            # Add extra custom attributes
-            for k, v in default_attrs.items():
-                if k not in node_attrs:
-                    node_attrs[k] = v
+            if custom_attrs:
+                node_attrs.update(custom_attrs)
 
-            graph.nodes[node].update(node_attrs)
+            node_attrs_dict[node] = node_attrs
+
+        nx.set_node_attributes(graph, node_attrs_dict)
 
     @staticmethod
     def _add_fat_tree_core_layer(graph: nx.DiGraph, k: int) -> list[str]:
@@ -329,11 +353,14 @@ class TopologyGenerator:
             cls._add_fat_tree_pod(graph, k, pod_idx, core_nodes, **default_attrs)
 
         # 3. Fill in any missing or customized attributes
-        for src, dst in graph.edges:
-            # Overwrite default parameters if specifically provided in kwargs
-            for k_attr, v_attr in default_attrs.items():
-                if not k_attr.endswith("bandwidth") and not k_attr.endswith("latency"):
-                    graph.edges[src, dst][k_attr] = v_attr
+        overrides = {
+            k_attr: v_attr
+            for k_attr, v_attr in default_attrs.items()
+            if not k_attr.endswith("bandwidth") and not k_attr.endswith("latency")
+        }
+        if overrides:
+            edge_attrs_dict = {edge: overrides for edge in graph.edges}
+            nx.set_edge_attributes(graph, edge_attrs_dict)
 
         return Topology(graph)
 
