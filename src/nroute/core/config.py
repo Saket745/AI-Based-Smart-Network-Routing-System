@@ -159,39 +159,39 @@ def load_config(path: str | Path | None = None) -> NRouteConfig:
 
     # 2. Merge Environment Variable Overrides
     # Expected format: NROUTE_SECTION_KEY (e.g., NROUTE_GENERAL_LOG_LEVEL)
-    for env_key, env_val in os.environ.items():
-        if env_key.startswith("NROUTE_"):
-            parts = env_key[7:].lower().split("_", 1)
-            if len(parts) == 2:
-                section, key = parts
-                if section in NRouteConfig.model_fields:
-                    if section not in config_dict:
-                        config_dict[section] = {}
+    nroute_env = {k: os.environ[k] for k in os.environ if k.startswith("NROUTE_")}
+    for env_key, env_val in nroute_env.items():
+        parts = env_key[7:].lower().split("_", 1)
+        if len(parts) == 2:
+            section, key = parts
+            if section in NRouteConfig.model_fields:
+                if section not in config_dict:
+                    config_dict[section] = {}
 
-                    # Cast string value based on Pydantic target type if possible
-                    section_model_cls = NRouteConfig.model_fields[section].annotation
-                    if (
-                        section_model_cls
-                        and hasattr(section_model_cls, "model_fields")
-                        and key in section_model_cls.model_fields
-                    ):
-                        field_info = section_model_cls.model_fields[key]
-                        # Simple type casting
-                        try:
-                            if field_info.annotation is bool:
-                                config_dict[section][key] = env_val.lower() in ("true", "1", "yes")
-                                continue
-                            if field_info.annotation is int:
-                                config_dict[section][key] = int(env_val)
-                                continue
-                            if field_info.annotation is float:
-                                config_dict[section][key] = float(env_val)
-                                continue
-                        except ValueError:
-                            # Fall back to raw string to let Pydantic handle/error
-                            pass
+                # Cast string value based on Pydantic target type if possible
+                section_model_cls = NRouteConfig.model_fields[section].annotation
+                if (
+                    section_model_cls
+                    and hasattr(section_model_cls, "model_fields")
+                    and key in section_model_cls.model_fields
+                ):
+                    field_info = section_model_cls.model_fields[key]
+                    # Simple type casting
+                    try:
+                        if field_info.annotation is bool:
+                            config_dict[section][key] = env_val.lower() in ("true", "1", "yes")
+                            continue
+                        if field_info.annotation is int:
+                            config_dict[section][key] = int(env_val)
+                            continue
+                        if field_info.annotation is float:
+                            config_dict[section][key] = float(env_val)
+                            continue
+                    except ValueError:
+                        # Fall back to raw string to let Pydantic handle/error
+                        pass
 
-                    config_dict[section][key] = env_val
+                config_dict[section][key] = env_val
 
     # 3. Instantiate and validate with Pydantic
     try:
