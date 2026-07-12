@@ -79,6 +79,109 @@ class FailureInjector:
             }
         )
 
+    def _apply_link_failure(
+        self, topology: Topology, event: dict[str, Any], current_tick: int
+    ) -> None:
+        """Apply a link failure event to the topology."""
+        src, dst = event["src"], event["dst"]
+        try:
+            topology.set_link_down(src, dst)
+            logger.info("Applied link failure event", src=src, dst=dst, tick=current_tick)
+        except Exception as e:
+            logger.error("Failed to apply link failure", src=src, dst=dst, error=str(e))
+
+    def _apply_node_failure(
+        self, topology: Topology, event: dict[str, Any], current_tick: int
+    ) -> None:
+        """Apply a node failure event to the topology."""
+        node_id = event["node_id"]
+        try:
+            topology.set_node_down(node_id)
+            logger.info("Applied node failure event", node_id=node_id, tick=current_tick)
+        except Exception as e:
+            logger.error("Failed to apply node failure", node_id=node_id, error=str(e))
+
+    def _apply_link_recovery(
+        self, topology: Topology, event: dict[str, Any], current_tick: int
+    ) -> None:
+        """Apply a link recovery event to the topology."""
+        src, dst = event["src"], event["dst"]
+        try:
+            topology.set_link_up(src, dst)
+            logger.info("Applied link recovery event", src=src, dst=dst, tick=current_tick)
+        except Exception as e:
+            logger.error("Failed to apply link recovery", src=src, dst=dst, error=str(e))
+
+    def _apply_node_recovery(
+        self, topology: Topology, event: dict[str, Any], current_tick: int
+    ) -> None:
+        """Apply a node recovery event to the topology."""
+        node_id = event["node_id"]
+        try:
+            topology.set_node_up(node_id)
+            logger.info("Applied node recovery event", node_id=node_id, tick=current_tick)
+        except Exception as e:
+            logger.error("Failed to apply node recovery", node_id=node_id, error=str(e))
+
+    def _apply_latency_spike(
+        self, topology: Topology, event: dict[str, Any], current_tick: int
+    ) -> None:
+        """Apply a latency spike event to the topology."""
+        src, dst = event["src"], event["dst"]
+        mult = event["multiplier"]
+        dur = event["duration"]
+        try:
+            edge_data = topology.get_edge(src, dst)
+            orig_lat = float(edge_data.get("latency", 5.0))
+
+            # Store original latency if not already tracked
+            key = (src, dst)
+            if key not in self._original_latencies:
+                self._original_latencies[key] = orig_lat
+
+            new_lat = orig_lat * mult
+            topology.update_edge(src, dst, latency=new_lat)
+            logger.info(
+                "Applied latency spike event",
+                src=src,
+                dst=dst,
+                old_latency=orig_lat,
+                new_latency=new_lat,
+                tick=current_tick,
+            )
+
+            # Schedule recovery
+            restore_tick = current_tick + dur
+            self.events[restore_tick].append(
+                {
+                    "type": "restore_latency",
+                    "src": src,
+                    "dst": dst,
+                }
+            )
+        except Exception as e:
+            logger.error("Failed to apply latency spike", src=src, dst=dst, error=str(e))
+
+    def _apply_restore_latency(
+        self, topology: Topology, event: dict[str, Any], current_tick: int
+    ) -> None:
+        """Restore link latency to its original value after a spike."""
+        src, dst = event["src"], event["dst"]
+        key = (src, dst)
+        if key in self._original_latencies:
+            orig_lat = self._original_latencies.pop(key)
+            try:
+                topology.update_edge(src, dst, latency=orig_lat)
+                logger.info(
+                    "Restored latency after spike",
+                    src=src,
+                    dst=dst,
+                    latency=orig_lat,
+                    tick=current_tick,
+                )
+            except Exception as e:
+                logger.error("Failed to restore latency", src=src, dst=dst, error=str(e))
+
     def apply(self, topology: Topology, current_tick: int) -> None:
         """
         Apply all scheduled events for the current tick to the topology.
@@ -93,100 +196,14 @@ class FailureInjector:
                 evt_type = event["type"]
 
                 if evt_type == "link_failure":
-                    src, dst = event["src"], event["dst"]
-                    try:
-                        topology.set_link_down(src, dst)
-                        logger.info(
-                            "Applied link failure event", src=src, dst=dst, tick=current_tick
-                        )
-                    except Exception as e:
-                        logger.error("Failed to apply link failure", src=src, dst=dst, error=str(e))
-
+                    self._apply_link_failure(topology, event, current_tick)
                 elif evt_type == "node_failure":
-                    node_id = event["node_id"]
-                    try:
-                        topology.set_node_down(node_id)
-                        logger.info(
-                            "Applied node failure event", node_id=node_id, tick=current_tick
-                        )
-                    except Exception as e:
-                        logger.error("Failed to apply node failure", node_id=node_id, error=str(e))
-
+                    self._apply_node_failure(topology, event, current_tick)
                 elif evt_type == "link_recovery":
-                    src, dst = event["src"], event["dst"]
-                    try:
-                        topology.set_link_up(src, dst)
-                        logger.info(
-                            "Applied link recovery event", src=src, dst=dst, tick=current_tick
-                        )
-                    except Exception as e:
-                        logger.error(
-                            "Failed to apply link recovery", src=src, dst=dst, error=str(e)
-                        )
-
+                    self._apply_link_recovery(topology, event, current_tick)
                 elif evt_type == "node_recovery":
-                    node_id = event["node_id"]
-                    try:
-                        topology.set_node_up(node_id)
-                        logger.info(
-                            "Applied node recovery event", node_id=node_id, tick=current_tick
-                        )
-                    except Exception as e:
-                        logger.error("Failed to apply node recovery", node_id=node_id, error=str(e))
-
+                    self._apply_node_recovery(topology, event, current_tick)
                 elif evt_type == "latency_spike":
-                    src, dst = event["src"], event["dst"]
-                    mult = event["multiplier"]
-                    dur = event["duration"]
-                    try:
-                        edge_data = topology.get_edge(src, dst)
-                        orig_lat = float(edge_data.get("latency", 5.0))
-
-                        # Store original latency if not already tracked
-                        key = (src, dst)
-                        if key not in self._original_latencies:
-                            self._original_latencies[key] = orig_lat
-
-                        new_lat = orig_lat * mult
-                        topology.update_edge(src, dst, latency=new_lat)
-                        logger.info(
-                            "Applied latency spike event",
-                            src=src,
-                            dst=dst,
-                            old_latency=orig_lat,
-                            new_latency=new_lat,
-                            tick=current_tick,
-                        )
-
-                        # Schedule recovery
-                        restore_tick = current_tick + dur
-                        self.events[restore_tick].append(
-                            {
-                                "type": "restore_latency",
-                                "src": src,
-                                "dst": dst,
-                            }
-                        )
-                    except Exception as e:
-                        logger.error(
-                            "Failed to apply latency spike", src=src, dst=dst, error=str(e)
-                        )
-
+                    self._apply_latency_spike(topology, event, current_tick)
                 elif evt_type == "restore_latency":
-                    src, dst = event["src"], event["dst"]
-                    key = (src, dst)
-                    if key in self._original_latencies:
-                        orig_lat = self._original_latencies.pop(key)
-                        try:
-                            topology.update_edge(src, dst, latency=orig_lat)
-                            logger.info(
-                                "Restored latency after spike",
-                                src=src,
-                                dst=dst,
-                                latency=orig_lat,
-                                tick=current_tick,
-                            )
-                        except Exception as e:
-                            logger.error(
-                                "Failed to restore latency", src=src, dst=dst, error=str(e)
-                            )
+                    self._apply_restore_latency(topology, event, current_tick)
