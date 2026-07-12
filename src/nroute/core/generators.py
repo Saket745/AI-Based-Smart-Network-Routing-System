@@ -42,8 +42,8 @@ class TopologyGenerator:
         loss_choices = [0.0, 0.001, 0.005, 0.01, 0.02]
 
         adj = graph.adj
-        for src, nbrs in adj.items():
-            for dst, edge_data in nbrs.items():
+        for _src, nbrs in adj.items():
+            for _dst, edge_data in nbrs.items():
                 bandwidth = def_bandwidth if def_bandwidth is not None else float_func(rng_choice(bandwidth_choices))
                 latency = def_latency if def_latency is not None else float_func(round_func(rng_uniform(1.0, 50.0), 1))
                 jitter = def_jitter if def_jitter is not None else float_func(round_func(rng_uniform(0.1, 5.0), 2))
@@ -83,7 +83,7 @@ class TopologyGenerator:
         def_status = default_attrs.get("status", "up")
         def_location = default_attrs.get("location")
 
-        for node, node_data in graph.nodes.items():
+        for _node, node_data in graph.nodes.items():
             node_data["type"] = node_type
             node_data["capacity"] = def_capacity
             node_data["status"] = def_status
@@ -331,8 +331,8 @@ class TopologyGenerator:
         }
         if custom_attrs:
             adj = graph.adj
-            for src, nbrs in adj.items():
-                for dst, edge_data in nbrs.items():
+            for _src, nbrs in adj.items():
+                for _dst, edge_data in nbrs.items():
                     edge_data.update(custom_attrs)
 
         return Topology(graph)
