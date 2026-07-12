@@ -19,7 +19,7 @@ import torch
 if not hasattr(joblib.numpy_pickle.NumpyUnpickler, "_patched_for_security"):
     _orig_find_class = joblib.numpy_pickle.NumpyUnpickler.find_class
 
-    def secure_find_class(self, module: str, name: str) -> Any:
+    def secure_find_class(self: Any, module: str, name: str) -> Any:
         # Whitelist of safe modules
         safe_modules = {
             "numpy",
@@ -65,8 +65,8 @@ if not hasattr(joblib.numpy_pickle.NumpyUnpickler, "_patched_for_security"):
             f"Insecure class deserialization blocked: '{module}.{name}' is not in the allowlist."
         )
 
-    joblib.numpy_pickle.NumpyUnpickler.find_class = secure_find_class  # type: ignore[method-assign]
-    joblib.numpy_pickle.NumpyUnpickler._patched_for_security = True  # type: ignore[attr-defined]
+    setattr(joblib.numpy_pickle.NumpyUnpickler, "find_class", secure_find_class)  # noqa: B010
+    setattr(joblib.numpy_pickle.NumpyUnpickler, "_patched_for_security", True)  # noqa: B010
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
