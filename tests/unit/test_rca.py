@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from nroute.core.topology import Topology
 from nroute.exceptions import SimulationError
@@ -20,7 +22,6 @@ from nroute.simulation.rca import (
     classify_event,
     load_events,
 )
-
 
 # ── classify_event Tests ─────────────────────────────────────
 
