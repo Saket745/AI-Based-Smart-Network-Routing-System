@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from nroute.cli.topology_cmd import topology_cmd
 from nroute.core.topology import Topology
@@ -191,7 +194,9 @@ class TestTopologyShowCLI:
         assert "Failed to load topology: Load failed" in result.output
 
     @patch("nroute.cli.topology_cmd.Topology.load")
-    def test_show_load_error_json(self, mock_load: MagicMock, runner: CliRunner, tmp_path: Path) -> None:
+    def test_show_load_error_json(
+        self, mock_load: MagicMock, runner: CliRunner, tmp_path: Path
+    ) -> None:
         """Test handling of errors when loading a topology with JSON output."""
         p = tmp_path / "bad.json"
         p.write_text("invalid")
