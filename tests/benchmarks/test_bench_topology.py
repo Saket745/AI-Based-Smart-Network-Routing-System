@@ -12,6 +12,7 @@ from nroute.core.topology import Topology
 @pytest.mark.benchmark
 def test_bench_add_node(benchmark: Any) -> None:
     """Benchmark adding nodes with standard and custom attributes."""
+
     def run_add_nodes() -> None:
         topo = Topology()
         for i in range(1000):
@@ -43,7 +44,7 @@ def test_bench_add_edge(benchmark: Any) -> None:
         for i in range(1000):
             topo.add_edge(
                 f"N{i}",
-                f"N{i+1}",
+                f"N{i + 1}",
                 bandwidth=1000.0,
                 latency=5.0,
                 jitter=0.5,
@@ -65,13 +66,13 @@ def test_bench_update_edge(benchmark: Any) -> None:
     for i in range(1001):
         topo.add_node(f"N{i}")
     for i in range(1000):
-        topo.add_edge(f"N{i}", f"N{i+1}")
+        topo.add_edge(f"N{i}", f"N{i + 1}")
 
     def run_update_edges() -> None:
         for i in range(1000):
             topo.update_edge(
                 f"N{i}",
-                f"N{i+1}",
+                f"N{i + 1}",
                 bandwidth=2000.0,
                 latency=10.0,
                 jitter=1.0,
