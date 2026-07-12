@@ -22,7 +22,15 @@ class TopologyGenerator:
     @staticmethod
     def _assign_random_edge_attrs(graph: nx.DiGraph, rng: Any, **default_attrs: Any) -> None:
         """Helper to assign randomized link attributes to a Graph's edges."""
-        standard_keys = {"bandwidth", "latency", "jitter", "packet_loss", "utilization", "weight", "status"}
+        standard_keys = {
+            "bandwidth",
+            "latency",
+            "jitter",
+            "packet_loss",
+            "utilization",
+            "weight",
+            "status",
+        }
         custom_attrs = {k: v for k, v in default_attrs.items() if k not in standard_keys}
 
         def_bandwidth = default_attrs.get("bandwidth")
@@ -44,10 +52,26 @@ class TopologyGenerator:
         adj = graph.adj
         for _src, nbrs in adj.items():
             for _dst, edge_data in nbrs.items():
-                bandwidth = def_bandwidth if def_bandwidth is not None else float_func(rng_choice(bandwidth_choices))
-                latency = def_latency if def_latency is not None else float_func(round_func(rng_uniform(1.0, 50.0), 1))
-                jitter = def_jitter if def_jitter is not None else float_func(round_func(rng_uniform(0.1, 5.0), 2))
-                packet_loss = def_packet_loss if def_packet_loss is not None else float_func(rng_choice(loss_choices))
+                bandwidth = (
+                    def_bandwidth
+                    if def_bandwidth is not None
+                    else float_func(rng_choice(bandwidth_choices))
+                )
+                latency = (
+                    def_latency
+                    if def_latency is not None
+                    else float_func(round_func(rng_uniform(1.0, 50.0), 1))
+                )
+                jitter = (
+                    def_jitter
+                    if def_jitter is not None
+                    else float_func(round_func(rng_uniform(0.1, 5.0), 2))
+                )
+                packet_loss = (
+                    def_packet_loss
+                    if def_packet_loss is not None
+                    else float_func(rng_choice(loss_choices))
+                )
                 weight = def_weight if def_weight is not None else latency
 
                 edge_data["bandwidth"] = bandwidth
