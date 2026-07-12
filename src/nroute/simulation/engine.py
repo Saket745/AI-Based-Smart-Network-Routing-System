@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from rich.progress import Progress
 
-from nroute.simulation.collector import MetricsCollector
+from nroute.simulation.collector import MetricsCollector, SimulationTickData
 from nroute.utils.logging import get_logger
 from nroute.utils.random import get_rng
 
@@ -227,14 +227,16 @@ class SimulationEngine:
 
                 # 6. Record tick metrics
                 self.collector.record_tick(
-                    tick=tick,
-                    timestamp=timestamp,
-                    tick_duration=tick_duration,
-                    topology=self.topology,
-                    active_flows_count=len(self.active_flows),
-                    completed_flows=completed_flows,
-                    dropped_flows=dropped_flows,
-                    reroute_count=reroute_count,
+                    SimulationTickData(
+                        tick=tick,
+                        timestamp=timestamp,
+                        tick_duration=tick_duration,
+                        topology=self.topology,
+                        active_flows_count=len(self.active_flows),
+                        completed_flows=completed_flows,
+                        dropped_flows=dropped_flows,
+                        reroute_count=reroute_count,
+                    )
                 )
 
                 # Store temporary attributes for dynamic event logging in callbacks
