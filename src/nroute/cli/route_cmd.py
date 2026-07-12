@@ -148,6 +148,8 @@ def _init_router(
     custom_router: str | None,
 ) -> BaseRouter:
     """Initialize the appropriate router based on algorithm name."""
+    from typing import cast
+
     if algorithm.lower() == "custom":
         if not custom_router:
             raise click.UsageError(
@@ -161,7 +163,8 @@ def _init_router(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
         sig = inspect.signature(router_cls)
-        return router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        instance = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        return cast("BaseRouter", instance)
 
     return get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
 
