@@ -9,7 +9,7 @@ import pytest
 from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
 from nroute.core.topology import Topology
 from nroute.core.traffic import FlowRecord
-from nroute.simulation.collector import MetricsCollector
+from nroute.simulation.collector import MetricsCollector, SimulationTickData
 
 
 def _get_topo(small_graph_data: dict[str, Any]) -> Topology:
@@ -57,14 +57,16 @@ def test_record_tick_basic(small_graph_data: dict[str, Any]) -> None:
     )
 
     metrics = collector.record_tick(
-        tick=0,
-        timestamp=0.0,
-        tick_duration=1.0,
-        topology=topo,
-        active_flows_count=1,
-        completed_flows=[flow],
-        dropped_flows=[],
-        reroute_count=0,
+        SimulationTickData(
+            tick=0,
+            timestamp=0.0,
+            tick_duration=1.0,
+            topology=topo,
+            active_flows_count=1,
+            completed_flows=[flow],
+            dropped_flows=[],
+            reroute_count=0,
+        )
     )
 
     assert isinstance(metrics, SimulationMetrics)
@@ -86,14 +88,16 @@ def test_record_tick_no_flows(small_graph_data: dict[str, Any]) -> None:
     topo = _get_topo(small_graph_data)
 
     metrics = collector.record_tick(
-        tick=1,
-        timestamp=1.0,
-        tick_duration=1.0,
-        topology=topo,
-        active_flows_count=0,
-        completed_flows=[],
-        dropped_flows=[],
-        reroute_count=0,
+        SimulationTickData(
+            tick=1,
+            timestamp=1.0,
+            tick_duration=1.0,
+            topology=topo,
+            active_flows_count=0,
+            completed_flows=[],
+            dropped_flows=[],
+            reroute_count=0,
+        )
     )
 
     assert metrics.throughput == 0.0
@@ -126,14 +130,16 @@ def test_record_tick_packet_loss(small_graph_data: dict[str, Any]) -> None:
     )
 
     metrics = collector.record_tick(
-        tick=2,
-        timestamp=2.0,
-        tick_duration=1.0,
-        topology=topo,
-        active_flows_count=0,
-        completed_flows=[flow_completed],
-        dropped_flows=[(flow_dropped, "congestion")],
-        reroute_count=0,
+        SimulationTickData(
+            tick=2,
+            timestamp=2.0,
+            tick_duration=1.0,
+            topology=topo,
+            active_flows_count=0,
+            completed_flows=[flow_completed],
+            dropped_flows=[(flow_dropped, "congestion")],
+            reroute_count=0,
+        )
     )
 
     # total_packets = 10 + 30 = 40
@@ -166,14 +172,16 @@ def test_record_tick_multiple_flows(small_graph_data: dict[str, Any]) -> None:
     )
 
     metrics = collector.record_tick(
-        tick=0,
-        timestamp=0.0,
-        tick_duration=1.0,
-        topology=topo,
-        active_flows_count=2,
-        completed_flows=[flow1, flow2],
-        dropped_flows=[],
-        reroute_count=1,
+        SimulationTickData(
+            tick=0,
+            timestamp=0.0,
+            tick_duration=1.0,
+            topology=topo,
+            active_flows_count=2,
+            completed_flows=[flow1, flow2],
+            dropped_flows=[],
+            reroute_count=1,
+        )
     )
 
     # throughput = (1000 + 2000) * 8 / 1e6 = 0.024 Mbps
@@ -195,14 +203,16 @@ def test_record_tick_utilization(small_graph_data: dict[str, Any]) -> None:
     topo.update_edge("A", "C", utilization=0.1)
 
     metrics = collector.record_tick(
-        tick=3,
-        timestamp=3.0,
-        tick_duration=1.0,
-        topology=topo,
-        active_flows_count=0,
-        completed_flows=[],
-        dropped_flows=[],
-        reroute_count=0,
+        SimulationTickData(
+            tick=3,
+            timestamp=3.0,
+            tick_duration=1.0,
+            topology=topo,
+            active_flows_count=0,
+            completed_flows=[],
+            dropped_flows=[],
+            reroute_count=0,
+        )
     )
 
     # 7 edges total. Sum = 0.5 + 0.1 + 0.0*5 = 0.6
@@ -212,14 +222,16 @@ def test_record_tick_utilization(small_graph_data: dict[str, Any]) -> None:
     # Mark one link down
     topo.set_link_down("D", "A")
     metrics2 = collector.record_tick(
-        tick=4,
-        timestamp=4.0,
-        tick_duration=1.0,
-        topology=topo,
-        active_flows_count=0,
-        completed_flows=[],
-        dropped_flows=[],
-        reroute_count=0,
+        SimulationTickData(
+            tick=4,
+            timestamp=4.0,
+            tick_duration=1.0,
+            topology=topo,
+            active_flows_count=0,
+            completed_flows=[],
+            dropped_flows=[],
+            reroute_count=0,
+        )
     )
 
     # 6 links up. Sum = 0.5 + 0.1 + 0.0*4 = 0.6
@@ -247,14 +259,16 @@ def test_record_tick_clamping(small_graph_data: dict[str, Any]) -> None:
         topo.update_edge(u, v, utilization=1.0)
 
     metrics = collector.record_tick(
-        tick=5,
-        timestamp=5.0,
-        tick_duration=1.0,
-        topology=topo,
-        active_flows_count=0,
-        completed_flows=[],
-        dropped_flows=[],
-        reroute_count=0,
+        SimulationTickData(
+            tick=5,
+            timestamp=5.0,
+            tick_duration=1.0,
+            topology=topo,
+            active_flows_count=0,
+            completed_flows=[],
+            dropped_flows=[],
+            reroute_count=0,
+        )
     )
     assert metrics.avg_utilization == 1.0
 
@@ -276,14 +290,16 @@ def test_record_tick_missing_utilization(small_graph_data: dict[str, Any]) -> No
 
     with patch.object(Topology, "get_edge", side_effect=side_effect):
         metrics = collector.record_tick(
-            tick=6,
-            timestamp=6.0,
-            tick_duration=1.0,
-            topology=topo,
-            active_flows_count=0,
-            completed_flows=[],
-            dropped_flows=[],
-            reroute_count=0,
+            SimulationTickData(
+                tick=6,
+                timestamp=6.0,
+                tick_duration=1.0,
+                topology=topo,
+                active_flows_count=0,
+                completed_flows=[],
+                dropped_flows=[],
+                reroute_count=0,
+            )
         )
 
     # 7 edges total. One fails, so 6 edges considered.
@@ -302,14 +318,16 @@ def test_get_results() -> None:
 
     for i in range(3):
         collector.record_tick(
-            tick=i,
-            timestamp=float(i),
-            tick_duration=1.0,
-            topology=mock_topo,
-            active_flows_count=0,
-            completed_flows=[],
-            dropped_flows=[],
-            reroute_count=0,
+            SimulationTickData(
+                tick=i,
+                timestamp=float(i),
+                tick_duration=1.0,
+                topology=mock_topo,
+                active_flows_count=0,
+                completed_flows=[],
+                dropped_flows=[],
+                reroute_count=0,
+            )
         )
 
     results = collector.get_results()
