@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-
 import json
 from pathlib import Path
 from typing import Any
 
 import click
+from pydantic import BaseModel
 from rich.console import Console
 from rich.table import Table
 
@@ -18,6 +18,38 @@ from nroute.simulation.engine import SimulationEngine
 from nroute.simulation.traffic_gen import TrafficGenerator
 
 console = Console()
+
+
+class SimulationArgs(BaseModel):
+    """Arguments for the simulation run command."""
+
+    allow_unsafe: bool
+    topo_path: str
+    algorithm: str
+    duration: int
+    traffic_model: str
+    flows_per_tick: int
+    seed: int | None
+    output: str | None
+    visualize: bool
+    visualize_delay: float
+    model_path: str | None
+    custom_router: str | None
+
+
+class ComparisonArgs(BaseModel):
+    """Arguments for the simulation compare command."""
+
+    allow_unsafe: bool
+    topo_path: str
+    algorithms: str
+    duration: int
+    traffic_model: str
+    flows_per_tick: int
+    seed: int | None
+    output: str | None
+    model_path: str | None
+    custom_router: str | None
 
 
 @click.group(name="simulate")
@@ -122,25 +154,16 @@ def simulate_cmd() -> None:
 @click.pass_context
 def run_sim(
     ctx: click.Context,
-    allow_unsafe: bool,
-    topo_path: str,
-    algorithm: str,
-    duration: int,
-    traffic_model: str,
-    flows_per_tick: int,
-    seed: int | None,
-    output: str | None,
-    visualize: bool,
-    visualize_delay: float,
-    model_path: str | None,
-    custom_router: str | None,
+    /,
+    **kwargs: Any,
 ) -> None:
     """Run a network simulation."""
-    seed = seed or (ctx.obj.get("seed") if ctx.obj is not None else None)
+    args = SimulationArgs(**kwargs)
+    seed = args.seed or (ctx.obj.get("seed") if ctx.obj is not None else None)
     is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
 
     try:
-        topo = Topology.load(topo_path)
+        topo = Topology.load(args.topo_path)
     except Exception as e:
         if is_json:
             click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
@@ -149,8 +172,8 @@ def run_sim(
         raise SystemExit(1) from e
 
     try:
-        if algorithm.lower() == "custom":
-            if not custom_router:
+        if args.algorithm.lower() == "custom":
+            if not args.custom_router:
                 raise click.UsageError(
                     "Option '--custom-router' is required when using algorithm 'custom'."
                 )
@@ -160,49 +183,51 @@ def run_sim(
             from nroute.utils.loader import load_custom_class
 
             router_cls = load_custom_class(
-                custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
+                args.custom_router, expected_superclass=BaseRouter, allow_unsafe=args.allow_unsafe
             )
             sig = inspect.signature(router_cls)
             router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         else:
-            router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
+            router = get_router(args.algorithm, topology=topo, allow_unsafe=args.allow_unsafe)
 
         # Load pretrained model if provided
-        if model_path and hasattr(router, "load"):
+        if args.model_path and hasattr(router, "load"):
             try:
                 # Some routers might need allow_unsafe passed to load
                 sig = inspect.signature(router.load)
                 if "allow_unsafe" in sig.parameters:
-                    router.load(model_path, allow_unsafe=allow_unsafe)
+                    router.load(args.model_path, allow_unsafe=args.allow_unsafe)
                 else:
-                    router.load(model_path)
+                    router.load(args.model_path)
                 console.print(
-                    f"[green]+[/green] Loaded pretrained model from [bold]{model_path}[/bold]"
+                    f"[green]+[/green] Loaded pretrained model from [bold]{args.model_path}[/bold]"
                 )
             except Exception as e:
                 console.print(f"[yellow]! Failed to load model:[/yellow] {e}")
 
-        traffic_gen = TrafficGenerator(model=traffic_model, n_flows_per_tick=flows_per_tick)
+        traffic_gen = TrafficGenerator(
+            model=args.traffic_model, n_flows_per_tick=args.flows_per_tick
+        )
         engine = SimulationEngine(topo, router, traffic_gen)
 
-        if visualize:
+        if args.visualize:
             from nroute.visualization import LiveSimulationConsole
 
             console.print("[cyan]Initializing real-time console visualization...[/cyan]")
             visualizer = LiveSimulationConsole(
                 engine=engine,
-                duration_ticks=duration,
+                duration_ticks=args.duration,
                 seed=seed,
-                delay=visualize_delay,
+                delay=args.visualize_delay,
             )
             result = visualizer.run()
         else:
             console.print(
-                f"\n[cyan]Running simulation:[/cyan] {algorithm.upper()} on "
-                f"{topo.node_count} nodes, {duration} ticks, "
-                f"{traffic_model} traffic ({flows_per_tick} flows/tick)\n"
+                f"\n[cyan]Running simulation:[/cyan] {args.algorithm.upper()} on "
+                f"{topo.node_count} nodes, {args.duration} ticks, "
+                f"{args.traffic_model} traffic ({args.flows_per_tick} flows/tick)\n"
             )
-            result = engine.run(duration_ticks=duration, seed=seed)
+            result = engine.run(duration_ticks=args.duration, seed=seed)
 
     except SimulationError as e:
         console.print(f"[red]x Simulation error:[/red] {e}")
@@ -219,9 +244,9 @@ def run_sim(
             else 0.0
         )
         metrics_data = {
-            "algorithm": algorithm,
-            "duration_ticks": duration,
-            "traffic_model": traffic_model,
+            "algorithm": args.algorithm,
+            "duration_ticks": args.duration,
+            "traffic_model": args.traffic_model,
             "seed": seed,
             "total_throughput": result.total_throughput(),
             "mean_latency": result.mean_latency(),
@@ -240,18 +265,18 @@ def run_sim(
             ],
         }
         click.echo(json.dumps(metrics_data, indent=2))
-        if output:
-            out_path = Path(output)
+        if args.output:
+            out_path = Path(args.output)
             out_path.parent.mkdir(parents=True, exist_ok=True)
             out_path.write_text(json.dumps(metrics_data, indent=2))
         return
 
     # Display results
-    _print_simulation_results(result, algorithm)
+    _print_simulation_results(result, args.algorithm)
 
     # Save to file if requested
-    if output:
-        out_path = Path(output)
+    if args.output:
+        out_path = Path(args.output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         total_reroutes = sum(m.reroute_count for m in result.results)
         avg_loss = (
@@ -260,9 +285,9 @@ def run_sim(
             else 0.0
         )
         metrics_data = {
-            "algorithm": algorithm,
-            "duration_ticks": duration,
-            "traffic_model": traffic_model,
+            "algorithm": args.algorithm,
+            "duration_ticks": args.duration,
+            "traffic_model": args.traffic_model,
             "seed": seed,
             "total_throughput": result.total_throughput(),
             "mean_latency": result.mean_latency(),
@@ -381,21 +406,14 @@ def _build_comparison_data(results: dict[str, Any], algo_list: list[str]) -> dic
 @click.pass_context
 def compare(
     ctx: click.Context,
-    allow_unsafe: bool,
-    topo_path: str,
-    algorithms: str,
-    duration: int,
-    traffic_model: str,
-    flows_per_tick: int,
-    seed: int | None,
-    output: str | None,
-    model_path: str | None,
-    custom_router: str | None,
+    /,
+    **kwargs: Any,
 ) -> None:
     """Compare multiple routing algorithms on the same topology and traffic."""
-    seed = seed or (ctx.obj.get("seed") if ctx.obj is not None else None)
+    args = ComparisonArgs(**kwargs)
+    seed = args.seed or (ctx.obj.get("seed") if ctx.obj is not None else None)
     is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
-    algo_list = [a.strip() for a in algorithms.split(",") if a.strip()]
+    algo_list = [a.strip() for a in args.algorithms.split(",") if a.strip()]
 
     if len(algo_list) < 2:
         if is_json:
@@ -407,7 +425,7 @@ def compare(
         raise SystemExit(1) from None
 
     try:
-        topo = Topology.load(topo_path)
+        topo = Topology.load(args.topo_path)
     except Exception as e:
         if is_json:
             click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
@@ -419,7 +437,7 @@ def compare(
         console.print(
             f"\n[cyan]Comparing algorithms:[/cyan] {', '.join(a.upper() for a in algo_list)}\n"
             f"  Topology: {topo.node_count} nodes, {topo.edge_count} edges\n"
-            f"  Duration: {duration} ticks | Traffic: {traffic_model} ({flows_per_tick} flows/tick)\n"
+            f"  Duration: {args.duration} ticks | Traffic: {args.traffic_model} ({args.flows_per_tick} flows/tick)\n"
         )
 
     results: dict[str, Any] = {}
@@ -427,7 +445,7 @@ def compare(
     for algo in algo_list:
         try:
             if algo.lower() == "custom":
-                if not custom_router:
+                if not args.custom_router:
                     raise click.UsageError(
                         "Option '--custom-router' is required when using algorithm 'custom'."
                     )
@@ -437,29 +455,33 @@ def compare(
                 from nroute.utils.loader import load_custom_class
 
                 router_cls = load_custom_class(
-                    custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
+                    args.custom_router,
+                    expected_superclass=BaseRouter,
+                    allow_unsafe=args.allow_unsafe,
                 )
                 sig = inspect.signature(router_cls)
                 router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
             else:
-                router = get_router(algo, topology=topo, allow_unsafe=allow_unsafe)
+                router = get_router(algo, topology=topo, allow_unsafe=args.allow_unsafe)
 
             # Load pretrained model if provided and router supports it
-            if model_path and hasattr(router, "load"):
+            if args.model_path and hasattr(router, "load"):
                 try:
                     sig = inspect.signature(router.load)
                     if "allow_unsafe" in sig.parameters:
-                        router.load(model_path, allow_unsafe=allow_unsafe)
+                        router.load(args.model_path, allow_unsafe=args.allow_unsafe)
                     else:
-                        router.load(model_path)
+                        router.load(args.model_path)
                 except Exception as e:
                     console.print(
                         f"[yellow]! Failed to load model for {algo.upper()}:[/yellow] {e}"
                     )
 
-            traffic_gen = TrafficGenerator(model=traffic_model, n_flows_per_tick=flows_per_tick)
+            traffic_gen = TrafficGenerator(
+                model=args.traffic_model, n_flows_per_tick=args.flows_per_tick
+            )
             engine = SimulationEngine(topo, router, traffic_gen)
-            result = engine.run(duration_ticks=duration, seed=seed)
+            result = engine.run(duration_ticks=args.duration, seed=seed)
             results[algo] = result
         except Exception as e:
             console.print(f"[yellow]⚠ {algo.upper()} failed:[/yellow] {e}")
@@ -470,8 +492,8 @@ def compare(
 
     if is_json:
         click.echo(json.dumps(comparison_data, indent=2))
-        if output:
-            out_path = Path(output)
+        if args.output:
+            out_path = Path(args.output)
             out_path.parent.mkdir(parents=True, exist_ok=True)
             out_path.write_text(json.dumps(comparison_data, indent=2))
         return
@@ -518,8 +540,8 @@ def compare(
     console.print(table)
 
     # Save comparison if requested
-    if output:
-        out_path = Path(output)
+    if args.output:
+        out_path = Path(args.output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(json.dumps(comparison_data, indent=2))
         console.print(f"\n[green]+[/green] Comparison saved to [bold]{out_path}[/bold]")
