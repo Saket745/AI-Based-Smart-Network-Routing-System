@@ -6,9 +6,63 @@ import os
 from typing import Any, cast
 
 import joblib
+import joblib.numpy_pickle
 import numpy as np
 import pandas as pd
 import torch
+
+# Guard against duplicate patching
+if not hasattr(joblib.numpy_pickle.NumpyUnpickler, "_patched_for_security"):
+    _orig_find_class = joblib.numpy_pickle.NumpyUnpickler.find_class
+
+    def secure_find_class(self, module: str, name: str) -> Any:
+        # Whitelist of safe modules
+        safe_modules = {
+            "numpy",
+            "sklearn",
+            "xgboost",
+            "joblib",
+            "collections",
+            "pandas",
+            "scipy",
+            "nroute",
+        }
+        # Whitelist of safe builtins
+        safe_builtins = {
+            "dict",
+            "list",
+            "tuple",
+            "set",
+            "frozenset",
+            "str",
+            "int",
+            "float",
+            "bool",
+            "bytes",
+            "bytearray",
+            "slice",
+            "complex",
+            "range",
+            "object",
+            "type",
+            "ValueError",
+            "TypeError",
+            "KeyError",
+            "AttributeError",
+            "Exception",
+        }
+        base_module = module.split(".")[0]
+        if base_module in safe_modules:
+            return _orig_find_class(self, module, name)
+        if module == "builtins" and name in safe_builtins:
+            return _orig_find_class(self, module, name)
+
+        raise ValueError(
+            f"Insecure class deserialization blocked: '{module}.{name}' is not in the allowlist."
+        )
+
+    joblib.numpy_pickle.NumpyUnpickler.find_class = secure_find_class  # type: ignore[method-assign]
+    joblib.numpy_pickle.NumpyUnpickler._patched_for_security = True  # type: ignore[attr-defined]
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.ensemble import IsolationForest
