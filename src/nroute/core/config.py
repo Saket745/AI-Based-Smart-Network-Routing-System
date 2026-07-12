@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from nroute.exceptions import ConfigError
 
@@ -20,9 +20,31 @@ class GeneralConfig(BaseModel):
     seed: int | None = Field(default=None, description="Global random seed")
     output_dir: str = Field(default="./output", description="Default output directory")
     cors_origins: list[str] = Field(
-        default_factory=lambda: ["*"],
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ],
         description="CORS allowed origins for the API server",
     )
+
+    @field_validator("cors_origins")
+    @classmethod
+    def validate_cors_origins(cls, v: list[str]) -> list[str]:
+        """Validate that cors_origins does not contain wildcard '*' for secure credentials handling."""
+        if "*" in v:
+            raise ValueError(
+                "Wildcard '*' is not allowed for cors_origins due to security risks. "
+                "Please specify explicit origins."
+            )
+        for origin in v:
+            if origin == "*":
+                raise ValueError(
+                    "Wildcard '*' is not allowed for cors_origins due to security risks. "
+                    "Please specify explicit origins."
+                )
+        return v
 
 
 class TopologyConfig(BaseModel):
