@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import os
 import tempfile
+from typing import Any
 
 import joblib
 import pytest
@@ -44,3 +45,27 @@ def test_congestion_predictor_secure_loading_enforcement() -> None:
 
         with pytest.raises(ModelError, match="Insecure model file detected"):
             predictor.load(path, allow_unsafe=False)
+
+
+def test_joblib_unpickler_defense_in_depth_rce_prevention() -> None:
+    """Verify that even with allow_unsafe=True, malicious payloads trigger errors and do not execute."""
+
+    class FakeSystemPayload:
+        def __reduce__(self) -> tuple[Any, tuple[Any, ...]]:
+            import os
+
+            return (os.system, ("echo VULNERABLE",))
+
+    predictor = CongestionPredictor(model_type="xgboost")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, "malicious_payload.joblib")
+        joblib.dump(FakeSystemPayload(), path)
+
+        # Even with allow_unsafe=True, loading should fail and block the unsafe class
+        with pytest.raises(ModelError, match="Insecure class deserialization blocked"):
+            predictor.load(path, allow_unsafe=True)
+
+        # Confirm the same for AnomalyDetector
+        detector = AnomalyDetector(model_type="isolation_forest")
+        with pytest.raises(ModelError, match="Insecure class deserialization blocked"):
+            detector.load(path, allow_unsafe=True)
