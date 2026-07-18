@@ -39,6 +39,7 @@ def temp_events_files() -> tuple[Path, Path]:
 
     return json_path, yaml_path
 
+
 @pytest.mark.benchmark
 def test_bench_load_events_json(temp_events_files: tuple[Path, Path], benchmark: Any) -> None:
     """Benchmark loading events from JSON multiple times."""
@@ -49,6 +50,7 @@ def test_bench_load_events_json(temp_events_files: tuple[Path, Path], benchmark:
             load_events(json_path)
 
     benchmark(run_load)
+
 
 @pytest.mark.benchmark
 def test_bench_load_events_yaml(temp_events_files: tuple[Path, Path], benchmark: Any) -> None:
