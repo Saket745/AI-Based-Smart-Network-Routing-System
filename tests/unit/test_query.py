@@ -22,6 +22,7 @@ def test_routing_query_valid_defaults() -> None:
 
 def test_routing_query_valid_with_values() -> None:
     """Test valid instantiation with all custom values."""
+
     def dummy_weight(edge_attrs: dict[str, Any]) -> float:
         return float(edge_attrs.get("latency", 1.0))
 
@@ -71,6 +72,7 @@ def test_routing_query_invalid_types() -> None:
 
 def test_routing_query_arbitrary_types() -> None:
     """Test that arbitrary types are allowed due to config settings."""
+
     class CustomObject:
         pass
 
