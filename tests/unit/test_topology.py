@@ -311,3 +311,52 @@ def test_topology_compute_routes() -> None:
     # Invalid router name should raise ValueError
     with pytest.raises(ValueError, match="Unknown router name"):
         get_router("invalid-router", topology=topo)
+
+
+def test_down_tracking() -> None:
+    """Test O(1) status tracking for down nodes and edges."""
+    topo = Topology()
+    topo.add_node("A")
+    topo.add_node("B")
+    topo.add_edge("A", "B")
+
+    # Initial state
+    assert not topo.has_down_nodes
+    assert not topo.has_down_edges
+
+    # Set link down
+    topo.set_link_down("A", "B")
+    assert not topo.has_down_nodes
+    assert topo.has_down_edges
+
+    # Set link up
+    topo.set_link_up("A", "B")
+    assert not topo.has_down_nodes
+    assert not topo.has_down_edges
+
+    # Set node down
+    topo.set_node_down("B")
+    assert topo.has_down_nodes
+    assert topo.has_down_edges  # Incident edge goes down too
+
+    # Set node up
+    topo.set_node_up("B")
+    assert not topo.has_down_nodes
+    assert not topo.has_down_edges
+
+    # Remove node
+    topo.set_node_down("B")
+    assert topo.has_down_nodes
+    topo.remove_node("B")
+    assert not topo.has_down_nodes
+    assert not topo.has_down_edges
+
+    # Copy copy checks
+    topo.add_node("B")
+    topo.add_edge("A", "B")
+    topo.set_link_down("A", "B")
+    topo_copy = topo.copy()
+    assert topo_copy.has_down_edges
+    topo_copy.set_link_up("A", "B")
+    assert not topo_copy.has_down_edges
+    assert topo.has_down_edges  # original unchanged
