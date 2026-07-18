@@ -23,6 +23,10 @@ class GeneralConfig(BaseModel):
         default_factory=lambda: ["*"],
         description="CORS allowed origins for the API server",
     )
+    api_token: str | None = Field(
+        default=None,
+        description="API Token for authenticating FastAPI requests (HTTP Bearer)",
+    )
 
 
 class TopologyConfig(BaseModel):
