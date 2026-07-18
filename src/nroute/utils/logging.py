@@ -15,9 +15,7 @@ if TYPE_CHECKING:
 _configured: bool = False
 
 
-def _resolve_log_level(
-    verbose: bool, quiet: bool, log_level_override: str | None
-) -> int:
+def _resolve_log_level(verbose: bool, quiet: bool, log_level_override: str | None) -> int:
     """Resolve the logging level based on input arguments."""
     if quiet:
         return logging.ERROR
