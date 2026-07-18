@@ -135,10 +135,18 @@ class BaseRouter(ABC):
         """
         # Performance optimization: if no nodes or edges are down, return the graph directly.
         # This avoids the high overhead of nx.subgraph_view callbacks.
-        has_down_nodes = any(d.get("status") == "down" for n, d in topology.graph.nodes(data=True))
-        has_down_edges = any(
-            d.get("status") == "down" for u, v, d in topology.graph.edges(data=True)
-        )
+        has_down_nodes = getattr(topology, "has_down_nodes", None)
+        if has_down_nodes is None:
+            has_down_nodes = any(
+                d.get("status") == "down" for n, d in topology.graph.nodes(data=True)
+            )
+
+        has_down_edges = getattr(topology, "has_down_edges", None)
+        if has_down_edges is None:
+            has_down_edges = any(
+                d.get("status") == "down" for u, v, d in topology.graph.edges(data=True)
+            )
+
         if not has_down_nodes and not has_down_edges:
             return topology.graph
 
