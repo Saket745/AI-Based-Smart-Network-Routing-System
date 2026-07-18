@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import json
+import tempfile
 from pathlib import Path
 from typing import Any
-import tempfile
-import yaml
 
 import pytest
+import yaml
+
 from nroute.simulation.rca import load_events
+
 
 @pytest.fixture
 def temp_events_files() -> tuple[Path, Path]:
