@@ -212,9 +212,7 @@ def test_normalize_topology_happy_path() -> None:
 
 def test_normalize_topology_missing_node_id() -> None:
     """Test that node missing ID/name raises IngestionError."""
-    raw_nodes = [
-        {"capacity": 1000}
-    ]
+    raw_nodes = [{"capacity": 1000}]
     with pytest.raises(IngestionError, match=r"Node at index 0 is missing 'id' or 'name'"):
         Normalizer.normalize_topology(raw_nodes, [])
 
@@ -238,10 +236,14 @@ def test_normalize_topology_edge_speed_fallback() -> None:
 
 def test_normalize_topology_exceptions() -> None:
     """Test that exception raised during node or edge creation is wrapped in IngestionError."""
-    with patch("nroute.core.topology.Topology.add_node", side_effect=ValueError("Mock Error")), \
-         pytest.raises(IngestionError, match=r"Failed to normalize node 'A'"):
+    with (
+        patch("nroute.core.topology.Topology.add_node", side_effect=ValueError("Mock Error")),
+        pytest.raises(IngestionError, match=r"Failed to normalize node 'A'"),
+    ):
         Normalizer.normalize_topology([{"id": "A"}], [])
 
-    with patch("nroute.core.topology.Topology.add_edge", side_effect=ValueError("Mock Edge Error")), \
-         pytest.raises(IngestionError, match=r"Failed to normalize edge from 'A' to 'B'"):
+    with (
+        patch("nroute.core.topology.Topology.add_edge", side_effect=ValueError("Mock Edge Error")),
+        pytest.raises(IngestionError, match=r"Failed to normalize edge from 'A' to 'B'"),
+    ):
         Normalizer.normalize_topology([{"id": "A"}, {"id": "B"}], [{"from": "A", "to": "B"}])
