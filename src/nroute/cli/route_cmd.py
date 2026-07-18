@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import typing
 
 import click
 from rich.console import Console
@@ -149,12 +148,15 @@ def _init_router(
     custom_router: str | None,
 ) -> BaseRouter:
     """Initialize the appropriate router based on algorithm name."""
+    import typing
+
     if algorithm.lower() == "custom":
         if not custom_router:
             raise click.UsageError(
                 "Option '--custom-router' is required when using algorithm 'custom'."
             )
         import inspect
+        import typing
 
         from nroute.utils.loader import load_custom_class
 
