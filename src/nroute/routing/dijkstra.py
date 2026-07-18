@@ -18,15 +18,12 @@ if TYPE_CHECKING:
 class DijkstraRouter(BaseRouter):
     """Router implementing Dijkstra's shortest path algorithm."""
 
-    def compute_path(
-        self,
-        topology: Topology,
-        source: str,
-        destination: str,
-        weight: str | Callable[[dict[str, Any]], float] | None = None,
-        **kwargs: Any,
-    ) -> list[str]:
-        # Get active subgraph (excluding down nodes and links)
+    def _get_validated_active_subgraph(
+        self, topology: Topology, source: str, destination: str
+    ) -> nx.DiGraph:
+        """
+        Get active subgraph and validate that source and destination are present and up.
+        """
         subgraph = self._get_active_subgraph(topology)
 
         if source not in subgraph:
@@ -36,21 +33,48 @@ class DijkstraRouter(BaseRouter):
                 f"Destination node '{destination}' is down or does not exist in topology."
             )
 
-        # Adapt weight to NetworkX signature (u, v, data_dict) -> weight_value
+        return subgraph
+
+    def _resolve_weight_function(
+        self, weight: str | Callable[[dict[str, Any]], float] | None
+    ) -> Callable[[str, str, dict[str, Any]], float]:
+        """
+        Adapt weight attribute or callable into a standard NetworkX weight function.
+        """
         if weight is None:
 
             def weight_func(u: str, v: str, d: dict[str, Any]) -> float:
                 return float(d.get("weight", 1.0))
-        elif isinstance(weight, str):
+
+            return weight_func
+        if isinstance(weight, str):
             weight_attr = weight
 
-            def weight_func(u: str, v: str, d: dict[str, Any]) -> float:
+            def weight_func_attr(u: str, v: str, d: dict[str, Any]) -> float:
                 return float(d.get(weight_attr, 1.0))
-        else:
-            wt_callable = weight
 
-            def weight_func(u: str, v: str, d: dict[str, Any]) -> float:
-                return float(wt_callable(d))
+            return weight_func_attr
+
+        wt_callable = weight
+
+        def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
+            return float(wt_callable(d))
+
+        return weight_func_callable
+
+    def compute_path(
+        self,
+        topology: Topology,
+        source: str,
+        destination: str,
+        weight: str | Callable[[dict[str, Any]], float] | None = None,
+        **kwargs: Any,
+    ) -> list[str]:
+        # Get active subgraph and validate nodes
+        subgraph = self._get_validated_active_subgraph(topology, source, destination)
+
+        # Resolve weight function to NetworkX signature
+        weight_func = self._resolve_weight_function(weight)
 
         try:
             path = nx.shortest_path(
