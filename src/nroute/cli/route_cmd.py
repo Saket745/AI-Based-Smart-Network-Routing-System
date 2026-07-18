@@ -149,6 +149,8 @@ def _init_router(
     custom_router: str | None,
 ) -> BaseRouter:
     """Initialize the appropriate router based on algorithm name."""
+    import typing
+
     if algorithm.lower() == "custom":
         if not custom_router:
             raise click.UsageError(
