@@ -19,7 +19,7 @@ def test_bench_from_dataframe(n_flows: int, benchmark: Any) -> None:
     df = pd.DataFrame(
         {
             "source": [f"N{i}" for i in range(n_flows)],
-            "destination": [f"N{i+1}" for i in range(n_flows)],
+            "destination": [f"N{i + 1}" for i in range(n_flows)],
             "bytes": np.random.randint(100, 10000, size=n_flows),
             "packets": np.random.randint(1, 100, size=n_flows),
             "duration": np.random.uniform(0.1, 10.0, size=n_flows),
