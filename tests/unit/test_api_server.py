@@ -63,6 +63,7 @@ def test_api_endpoints_succeed_with_configured_config_token(
     mock_config = NRouteConfig(general=GeneralConfig(api_token=test_token))
 
     import nroute.api.server
+
     monkeypatch.setattr(nroute.api.server, "load_config", lambda: mock_config)
 
     headers = {"Authorization": f"Bearer {test_token}"}
