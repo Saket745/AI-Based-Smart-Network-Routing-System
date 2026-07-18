@@ -13,7 +13,9 @@ if TYPE_CHECKING:
     import pytest
 
 
-def test_cors_origins_rejection_and_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cors_origins_rejection_and_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Ensure that '*' and empty values are rejected, and default to secure origins."""
     monkeypatch.chdir(tmp_path)
 

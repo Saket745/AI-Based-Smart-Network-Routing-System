@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import json
 
-import inspect
 import click
 from rich.console import Console
 from rich.table import Table
-from typing import Type, cast
 
 from nroute.core.metrics import RouteMetrics
 from nroute.core.topology import Topology
@@ -155,17 +153,15 @@ def _init_router(
             raise click.UsageError(
                 "Option '--custom-router' is required when using algorithm 'custom'."
             )
+        import inspect
 
         from nroute.utils.loader import load_custom_class
 
-        # load_custom_class returns Any; cast to a router class type so mypy knows
         router_cls = load_custom_class(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
-        router_cls_t = cast(Type[BaseRouter], router_cls)
-        sig = inspect.signature(router_cls_t)
-        # If constructor accepts a 'topology' parameter, pass it, otherwise call without
-        return router_cls_t(topology=topo) if "topology" in sig.parameters else router_cls_t()
+        sig = inspect.signature(router_cls)
+        return router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
 
     return get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
 
