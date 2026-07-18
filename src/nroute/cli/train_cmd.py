@@ -90,7 +90,7 @@ def train_cmd() -> None:
 )
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
-def train_congestion(ctx: click.Context, /, **kwargs: Any) -> None:
+def train_congestion(ctx: click.Context, **kwargs: Any) -> None:
     """Train a congestion prediction model from simulation data."""
     import numpy as np
     import pandas as pd
@@ -177,7 +177,7 @@ def train_congestion(ctx: click.Context, /, **kwargs: Any) -> None:
 )
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
-def train_anomaly(ctx: click.Context, /, **kwargs: Any) -> None:
+def train_anomaly(ctx: click.Context, **kwargs: Any) -> None:
     """Train an anomaly detection model from normal traffic patterns."""
     import numpy as np
     import pandas as pd
@@ -261,7 +261,7 @@ def train_anomaly(ctx: click.Context, /, **kwargs: Any) -> None:
 )
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
-def train_rl(ctx: click.Context, /, **kwargs: Any) -> None:
+def train_rl(ctx: click.Context, **kwargs: Any) -> None:
     """Train a reinforcement learning routing agent."""
     from nroute.routing.rl_router import RLRouter
 
@@ -347,7 +347,7 @@ def train_rl(ctx: click.Context, /, **kwargs: Any) -> None:
 )
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
-def train_gnn(ctx: click.Context, /, **kwargs: Any) -> None:
+def train_gnn(ctx: click.Context, **kwargs: Any) -> None:
     """Train a Graph Neural Network (GCN/GraphSAGE) on network topologies."""
     import os
     import shutil

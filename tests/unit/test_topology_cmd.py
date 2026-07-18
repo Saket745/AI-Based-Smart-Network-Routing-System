@@ -12,15 +12,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 from click.testing import CliRunner
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 from nroute.cli.topology_cmd import topology_cmd
 from nroute.core.topology import Topology
 from nroute.exceptions import TopologyError
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @pytest.fixture
