@@ -139,3 +139,59 @@ def test_custom_anomaly_detector() -> None:
 
     assert not results["is_anomaly"].iloc[0]
     assert results["is_anomaly"].iloc[1]
+
+
+def test_get_router_all_types() -> None:
+    """Verify that get_router resolves all built-in standard algorithms and handles invalid input correctly."""
+    import pytest
+
+    from nroute.routing.ai import AIRouter
+    from nroute.routing.bellman_ford import BellmanFordRouter
+    from nroute.routing.bfs import BFSRouter
+    from nroute.routing.dijkstra import DijkstraRouter
+    from nroute.routing.ecmp import ECMPRouter
+    from nroute.routing.negotiation import NegotiationRouter
+    from nroute.routing.rl_router import RLRouter
+
+    topo = Topology()
+
+    assert isinstance(get_router("dijkstra"), DijkstraRouter)
+    assert isinstance(get_router("bellman-ford"), BellmanFordRouter)
+    assert isinstance(get_router("bellmanford"), BellmanFordRouter)
+    assert isinstance(get_router("ecmp"), ECMPRouter)
+    assert isinstance(get_router("ai", topology=topo), AIRouter)
+    assert isinstance(get_router("bfs"), BFSRouter)
+
+    # RL/PPO/DQN
+    rl_router = get_router("rl", topology=topo)
+    assert isinstance(rl_router, RLRouter)
+    assert rl_router.algorithm == "ppo"
+
+    ppo_router = get_router("ppo", topology=topo)
+    assert isinstance(ppo_router, RLRouter)
+    assert ppo_router.algorithm == "ppo"
+
+    dqn_router = get_router("dqn", topology=topo)
+    assert isinstance(dqn_router, RLRouter)
+    assert dqn_router.algorithm == "dqn"
+
+    # Negotiation variations
+    neg_router = get_router("negotiation")
+    assert isinstance(neg_router, NegotiationRouter)
+    assert neg_router.profile == "balanced"
+
+    neg_latency = get_router("negotiation-latency")
+    assert isinstance(neg_latency, NegotiationRouter)
+    assert neg_latency.profile == "latency"
+
+    neg_congestion = get_router("negotiation-congestion")
+    assert isinstance(neg_congestion, NegotiationRouter)
+    assert neg_congestion.profile == "congestion"
+
+    neg_balanced = get_router("negotiation-balanced")
+    assert isinstance(neg_balanced, NegotiationRouter)
+    assert neg_balanced.profile == "balanced"
+
+    # Invalid
+    with pytest.raises(ValueError, match="Unknown router name 'nonexistent'"):
+        get_router("nonexistent")
