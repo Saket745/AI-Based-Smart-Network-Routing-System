@@ -148,7 +148,15 @@ async def health() -> dict[str, Any]:
 async def load_topology(req: TopologyLoadRequest) -> dict[str, Any]:
     """Load a topology from a file path."""
     engine = get_engine()
-    p = Path(req.path)
+    p = Path(req.path).resolve()
+
+    # Path traversal protection: restrict to allowed directories
+    allowed_dirs = [Path.cwd().resolve(), Path(tempfile.gettempdir()).resolve()]
+    if not any(p.is_relative_to(d) for d in allowed_dirs):
+        raise HTTPException(
+            status_code=403, detail="Access denied: Path is outside allowed directories."
+        )
+
     if not p.is_file():
         raise HTTPException(status_code=404, detail=f"File not found: {req.path}")
     try:
