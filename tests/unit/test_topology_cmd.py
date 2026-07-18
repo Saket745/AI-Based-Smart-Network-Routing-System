@@ -6,6 +6,9 @@ import json
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 import pytest
 
 if TYPE_CHECKING:
