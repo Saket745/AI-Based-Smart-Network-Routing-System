@@ -9,6 +9,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 from nroute.cli.topology_cmd import topology_cmd
 from nroute.core.topology import Topology
 from nroute.exceptions import TopologyError
