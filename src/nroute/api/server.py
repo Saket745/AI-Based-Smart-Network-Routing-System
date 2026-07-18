@@ -16,19 +16,57 @@ Designed for SPA consumption with CORS enabled.
 from __future__ import annotations
 
 import asyncio
+import os
+import secrets
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
 from typing import Any, cast
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from nroute.core.config import load_config
 from nroute.core.openconfig import ConfigChange
 from nroute.simulation.digital_twin import DigitalTwinEngine
+
+# ── Security & Authentication ────────────────────────────────
+
+# Generate a fallback token on startup for security-by-default (prevents CWE-798 hardcoded credentials)
+_FALLBACK_TOKEN = secrets.token_hex(32)
+
+security_scheme = HTTPBearer(auto_error=False)
+
+
+async def verify_token(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),  # noqa: B008
+) -> None:
+    """Verify that the HTTP Bearer token matches the configured API token."""
+    # Exclude API documentation and OpenAPI schemas from token validation
+    # to allow the interactive OpenAPI UI to load without auth.
+    if request.url.path in ("/docs", "/redoc", "/openapi.json"):
+        return
+
+    try:
+        cfg = load_config()
+        configured_token = cfg.general.api_token or os.environ.get("NROUTE_API_TOKEN")
+    except Exception:
+        configured_token = os.environ.get("NROUTE_API_TOKEN")
+
+    if not configured_token:
+        configured_token = _FALLBACK_TOKEN
+
+    if credentials is None or credentials.credentials != configured_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
 
 # ── App factory ──────────────────────────────────────────────
 
@@ -36,6 +74,7 @@ app = FastAPI(
     title="NRoute Digital Twin API",
     description="Phase 1 — Deterministic Digital Twin Platform",
     version="1.0.0",
+    dependencies=[Depends(verify_token)],
 )
 
 DEFAULT_CORS_ORIGINS = [
