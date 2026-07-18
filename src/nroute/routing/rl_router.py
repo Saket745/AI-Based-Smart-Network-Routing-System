@@ -133,23 +133,8 @@ class RLRouter(BaseRouter):
 
         return True, "compatible"
 
-    def train(
-        self,
-        traffic_data: Any = None,
-        episodes: int = 1000,
-        seed: int | None = None,
-    ) -> dict[str, Any]:
-        """
-        Train the RL routing agent in the Gymnasium environment.
-
-        Args:
-            traffic_data: Unused, kept for API compatibility.
-            episodes: Number of episodes to train for.
-            seed: Global random seed.
-
-        Returns:
-            Dictionary of training metrics.
-        """
+    def _init_env_and_cache_metadata(self) -> NetworkRoutingEnv:
+        """Initialize Gymnasium environment and cache training topology metadata."""
         if self.topology is None:
             raise ModelError("Cannot train RLRouter without a topology context.")
 
@@ -164,22 +149,16 @@ class RLRouter(BaseRouter):
         self._training_obs_dim = env.obs_dim
         self._training_max_out_degree = env.max_out_degree
         self._training_max_hops = env.max_hops
+        return env
 
-        # Seeding environment
-        if seed is not None:
-            env.reset(seed=seed)
-
-        # Estimate timesteps needed
-        # We assume average episode duration is max_hops (20)
-        total_timesteps = episodes * env.max_hops
-
-        logger.info(
-            f"Training RL agent using {self.algorithm.upper()} for {episodes} episodes ({total_timesteps} steps)..."
-        )
-
-        # Scale n_steps relative to topology size to avoid too-few-updates problem
-        n_steps = min(256, max(64, env.max_hops * 4))
-
+    def _init_rl_model(
+        self,
+        env: NetworkRoutingEnv,
+        seed: int | None,
+        total_timesteps: int,
+        n_steps: int,
+    ) -> None:
+        """Initialize the RL model depending on the algorithm (PPO/DQN)."""
         if self.algorithm == "ppo":
             # Ensure batch_size divides n_steps evenly
             batch_size = min(64, n_steps)
@@ -209,6 +188,42 @@ class RLRouter(BaseRouter):
                 learning_starts=max(100, n_steps),
                 exploration_fraction=0.3,
             )
+
+    def train(
+        self,
+        traffic_data: Any = None,
+        episodes: int = 1000,
+        seed: int | None = None,
+    ) -> dict[str, Any]:
+        """
+        Train the RL routing agent in the Gymnasium environment.
+
+        Args:
+            traffic_data: Unused, kept for API compatibility.
+            episodes: Number of episodes to train for.
+            seed: Global random seed.
+
+        Returns:
+            Dictionary of training metrics.
+        """
+        env = self._init_env_and_cache_metadata()
+
+        # Seeding environment
+        if seed is not None:
+            env.reset(seed=seed)
+
+        # Estimate timesteps needed
+        # We assume average episode duration is max_hops (20)
+        total_timesteps = episodes * env.max_hops
+
+        logger.info(
+            f"Training RL agent using {self.algorithm.upper()} for {episodes} episodes ({total_timesteps} steps)..."
+        )
+
+        # Scale n_steps relative to topology size to avoid too-few-updates problem
+        n_steps = min(256, max(64, env.max_hops * 4))
+
+        self._init_rl_model(env, seed, total_timesteps, n_steps)
 
         self.model.learn(total_timesteps=total_timesteps)
         self.is_trained = True
