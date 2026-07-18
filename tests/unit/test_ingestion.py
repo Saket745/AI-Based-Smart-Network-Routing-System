@@ -19,6 +19,7 @@ from nroute.ingestion.csv_json import (
     JSONTopologyImporter,
 )
 from nroute.ingestion.netflow import NetFlowParser
+from nroute.ingestion.normalizer import Normalizer
 from nroute.ingestion.pcap import PcapParser
 from nroute.ingestion.snmp import SNMPParser
 
@@ -434,3 +435,18 @@ def test_topology_and_traffic_classmethods(tmp_path: Path) -> None:
     assert topo3.node_count == 3
     assert ("N1", "N2") in topo3.edges
     assert ("N2", "N3") in topo3.edges
+
+
+def test_normalize_topology_missing_edge_nodes() -> None:
+    """Test Normalizer.normalize_topology raises IngestionError when an edge is missing source or destination."""
+    raw_nodes = [{"id": "A"}, {"id": "B"}]
+
+    # 1. Edge missing source/src/from
+    raw_edges_missing_src = [{"dst": "B"}]
+    with pytest.raises(IngestionError, match=r"is missing source .* or destination"):
+        Normalizer.normalize_topology(raw_nodes, raw_edges_missing_src)
+
+    # 2. Edge missing destination/dst/to/target
+    raw_edges_missing_dst = [{"src": "A"}]
+    with pytest.raises(IngestionError, match=r"is missing source .* or destination"):
+        Normalizer.normalize_topology(raw_nodes, raw_edges_missing_dst)
