@@ -9,7 +9,8 @@ from typing import TYPE_CHECKING
 import structlog
 
 if TYPE_CHECKING:
-    from structlog.types import FilteringBoundLogger
+    from structlog.types import FilteringBoundLogger, Processor
+
 
 _configured: bool = False
 
@@ -59,7 +60,7 @@ def configure_logging(
         stream=sys.stderr,
     )
 
-    processors: list[structlog.types.Processor] = [
+    processors: list[Processor] = [
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         structlog.processors.TimeStamper(fmt="iso"),
