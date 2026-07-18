@@ -77,6 +77,13 @@ app = FastAPI(
     dependencies=[Depends(verify_token)],
 )
 
+DEFAULT_CORS_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
 # Load CORS configuration
 try:
     _cfg = load_config()
@@ -84,11 +91,13 @@ try:
 except Exception:
     import os
 
-    _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "*")
-    if _cors_origins_raw == "*":
-        _cors_origins = ["*"]
-    else:
-        _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+    _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "")
+    _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+
+# Filter out '*' and empty strings, ensure secure local development defaults as fallback
+_cors_origins = [o for o in _cors_origins if o and o != "*"]
+if not _cors_origins:
+    _cors_origins = DEFAULT_CORS_ORIGINS
 
 app.add_middleware(
     CORSMiddleware,

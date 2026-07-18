@@ -16,6 +16,9 @@ from nroute.cli.topology_cmd import topology_cmd
 from nroute.core.topology import Topology
 from nroute.exceptions import TopologyError
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 
 @pytest.fixture
 def runner() -> CliRunner:
