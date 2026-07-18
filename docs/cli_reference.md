@@ -81,7 +81,7 @@ The CLI and underlying libraries respect the following environment variables:
 | Variable | Value | Description |
 |---|---|---|
 | `NO_COLOR` | any (e.g. `1`) | Disables all color output (follows https://no-color.org). |
-| `NROUTE_CORS_ORIGINS` | `*` or comma-separated list | Hardens API CORS allowed origins (e.g., `http://localhost:3000,https://app.example.com`). |
+| `NROUTE_CORS_ORIGINS` | Comma-separated list of origins | Hardens API CORS allowed origins (e.g., `http://localhost:3000,https://app.example.com`). Wildcards (`*`) and empty values are rejected for security. |
 | `NROUTE_[SECTION]_[KEY]` | e.g. `NROUTE_GENERAL_LOG_LEVEL=DEBUG` | Overrides configuration options dynamically from the environment. |
 
 ---

@@ -194,7 +194,7 @@ class ECMPRouter(BaseRouter):
 
         # Select path using flow_key hashing
         if flow_key is not None:
-            hash_val = int(hashlib.md5(str(flow_key).encode("utf-8")).hexdigest(), 16)
+            hash_val = int(hashlib.sha256(str(flow_key).encode("utf-8")).hexdigest(), 16)
             index = hash_val % len(paths)
             return paths[index]
 
