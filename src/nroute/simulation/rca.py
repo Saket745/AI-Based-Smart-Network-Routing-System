@@ -15,6 +15,8 @@ to isolate root failures.
 from __future__ import annotations
 
 import contextlib
+import copy
+import functools
 import json
 from dataclasses import dataclass, field
 from enum import Enum
@@ -175,6 +177,19 @@ def classify_event(event: NetworkEvent) -> NetworkEvent:
 # ── Event loading ────────────────────────────────────────────
 
 
+@functools.lru_cache(maxsize=128)
+def _load_raw_file_cached(path_str: str, mtime: float, size: int) -> Any:
+    """Load and parse file with caching based on path, mtime, and size."""
+    p = Path(path_str)
+    with open(p, encoding="utf-8") as f:
+        if p.suffix.lower() in {".yaml", ".yml"}:
+            return yaml.safe_load(f)
+        elif p.suffix.lower() == ".json":
+            return json.load(f)
+        else:
+            raise SimulationError(f"Unsupported events file extension '{p.suffix}'.")
+
+
 def load_events(path: str | Path) -> list[NetworkEvent]:
     """Load alarm/event records from a YAML or JSON file.
 
@@ -187,13 +202,9 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
         raise SimulationError(f"Events file not found: {path}")
 
     try:
-        with open(p, encoding="utf-8") as f:
-            if p.suffix.lower() in {".yaml", ".yml"}:
-                raw = yaml.safe_load(f)
-            elif p.suffix.lower() == ".json":
-                raw = json.load(f)
-            else:
-                raise SimulationError(f"Unsupported events file extension '{p.suffix}'.")
+        stat = p.stat()
+        raw_cached = _load_raw_file_cached(str(p.resolve()), stat.st_mtime, stat.st_size)
+        raw = copy.deepcopy(raw_cached)
     except Exception as exc:
         if isinstance(exc, SimulationError):
             raise

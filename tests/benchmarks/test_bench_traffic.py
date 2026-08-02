@@ -1,10 +1,9 @@
-"""Traffic benchmarks using pytest-benchmark."""
+"""Traffic ingestion benchmarks using pytest-benchmark."""
 
 from __future__ import annotations
 
 from typing import Any
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -12,20 +11,22 @@ from nroute.core.traffic import TrafficMatrix
 
 
 @pytest.mark.benchmark
-@pytest.mark.parametrize("n_flows", [1000, 10000])
-def test_bench_from_dataframe(n_flows: int, benchmark: Any) -> None:
-    """Benchmark TrafficMatrix.from_dataframe."""
-    # Generate mock DataFrame
+@pytest.mark.parametrize("num_flows", [1000, 10000])
+def test_bench_traffic_from_dataframe(num_flows: int, benchmark: Any) -> None:
+    """Benchmark creating a TrafficMatrix from a pandas DataFrame of varying sizes."""
     df = pd.DataFrame(
         {
-            "source": [f"N{i}" for i in range(n_flows)],
-            "destination": [f"N{i + 1}" for i in range(n_flows)],
-            "bytes": np.random.randint(100, 10000, size=n_flows),
-            "packets": np.random.randint(1, 100, size=n_flows),
-            "duration": np.random.uniform(0.1, 10.0, size=n_flows),
-            "protocol": np.random.choice(["TCP", "UDP", "ICMP"], size=n_flows),
-            "timestamp": np.random.uniform(100.0, 200.0, size=n_flows),
+            "source": [f"Node_{i % 10}" for i in range(num_flows)],
+            "destination": [f"Node_{(i + 1) % 10}" for i in range(num_flows)],
+            "bytes": [1000 + i for i in range(num_flows)],
+            "packets": [10 + i % 5 for i in range(num_flows)],
+            "duration": [1.5 + (i % 3) * 0.5 for i in range(num_flows)],
+            "protocol": ["TCP" if i % 2 == 0 else "UDP" for i in range(num_flows)],
+            "timestamp": [100.0 + i * 0.1 for i in range(num_flows)],
         }
     )
 
-    benchmark(TrafficMatrix.from_dataframe, df)
+    def run_from_dataframe() -> None:
+        TrafficMatrix.from_dataframe(df)
+
+    benchmark(run_from_dataframe)
