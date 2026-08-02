@@ -109,44 +109,40 @@ class TopologyGenerator:
         return core_nodes
 
     @staticmethod
-    def _add_fat_tree_pod(
-        graph: nx.DiGraph, k: int, pod_idx: int, core_nodes: list[str], **default_attrs: Any
-    ) -> None:
-        """Add a single pod (switches and hosts) and its connections to the Fat-Tree graph."""
-        num_agg_per_pod = k // 2
-        num_edge_per_pod = k // 2
-        num_hosts_per_edge = k // 2
-
+    def _add_pod_agg_switches(graph: nx.DiGraph, pod_idx: int, num_agg: int) -> list[str]:
+        """Add Aggregation Switches for a pod."""
         agg_nodes = []
-        edge_nodes = []
-
-        # Add Aggregation Switches
-        for agg in range(num_agg_per_pod):
+        for agg in range(num_agg):
             agg_id = f"pod_{pod_idx}_agg_{agg}"
             graph.add_node(
                 agg_id, type="switch", capacity=10000.0, status="up", location=f"pod_{pod_idx}"
             )
             agg_nodes.append(agg_id)
+        return agg_nodes
 
-        # Add Edge Switches and Hosts
-        for edge in range(num_edge_per_pod):
+    @staticmethod
+    def _add_pod_edge_switches_and_hosts(
+        graph: nx.DiGraph, pod_idx: int, num_edge: int, num_hosts: int, **default_attrs: Any
+    ) -> list[str]:
+        """Add Edge Switches and Hosts for a pod, and connect them."""
+        edge_nodes = []
+        host_bw = default_attrs.get("host_bandwidth", 1000.0)
+        host_lat = default_attrs.get("host_latency", 0.5)
+
+        for edge in range(num_edge):
             edge_id = f"pod_{pod_idx}_edge_{edge}"
             graph.add_node(
                 edge_id, type="switch", capacity=10000.0, status="up", location=f"pod_{pod_idx}"
             )
             edge_nodes.append(edge_id)
 
-            # Add Hosts and connect to Edge Switch
-            for host in range(num_hosts_per_edge):
+            for host in range(num_hosts):
                 host_id = f"pod_{pod_idx}_host_{edge}_{host}"
                 graph.add_node(
                     host_id, type="host", capacity=1000.0, status="up", location=f"pod_{pod_idx}"
                 )
 
                 # Connect Host <--> Edge Switch (bidirectional)
-                host_bw = default_attrs.get("host_bandwidth", 1000.0)
-                host_lat = default_attrs.get("host_latency", 0.5)
-
                 for u, v in [(host_id, edge_id), (edge_id, host_id)]:
                     graph.add_edge(
                         u,
@@ -159,8 +155,13 @@ class TopologyGenerator:
                         status="up",
                         weight=host_lat,
                     )
+        return edge_nodes
 
-        # Connect Edge <--> Aggregation Switches inside Pod
+    @staticmethod
+    def _connect_edge_to_agg(
+        graph: nx.DiGraph, edge_nodes: list[str], agg_nodes: list[str], **default_attrs: Any
+    ) -> None:
+        """Connect Edge and Aggregation switches inside a pod."""
         pod_bw = default_attrs.get("pod_bandwidth", 10000.0)
         pod_lat = default_attrs.get("pod_latency", 1.0)
         for edge_id in edge_nodes:
@@ -178,10 +179,17 @@ class TopologyGenerator:
                         weight=pod_lat,
                     )
 
-        # Connect Aggregation <--> Core Switches
+    @staticmethod
+    def _connect_agg_to_core(
+        graph: nx.DiGraph,
+        agg_nodes: list[str],
+        core_nodes: list[str],
+        stride: int,
+        **default_attrs: Any,
+    ) -> None:
+        """Connect Aggregation switches to Core switches."""
         core_bw = default_attrs.get("core_bandwidth", 40000.0)
         core_lat = default_attrs.get("core_latency", 2.0)
-        stride = k // 2
         for j, agg_id in enumerate(agg_nodes):
             start_core_idx = j * stride
             for offset in range(stride):
@@ -198,6 +206,32 @@ class TopologyGenerator:
                         status="up",
                         weight=core_lat,
                     )
+
+    @staticmethod
+    def _add_fat_tree_pod(
+        graph: nx.DiGraph, k: int, pod_idx: int, core_nodes: list[str], **default_attrs: Any
+    ) -> None:
+        """Add a single pod (switches and hosts) and its connections to the Fat-Tree graph."""
+        num_agg_per_pod = k // 2
+        num_edge_per_pod = k // 2
+        num_hosts_per_edge = k // 2
+
+        # 1. Add Aggregation Switches
+        agg_nodes = TopologyGenerator._add_pod_agg_switches(graph, pod_idx, num_agg_per_pod)
+
+        # 2. Add Edge Switches and Hosts
+        edge_nodes = TopologyGenerator._add_pod_edge_switches_and_hosts(
+            graph, pod_idx, num_edge_per_pod, num_hosts_per_edge, **default_attrs
+        )
+
+        # 3. Connect Edge <--> Aggregation Switches inside Pod
+        TopologyGenerator._connect_edge_to_agg(graph, edge_nodes, agg_nodes, **default_attrs)
+
+        # 4. Connect Aggregation <--> Core Switches
+        stride = k // 2
+        TopologyGenerator._connect_agg_to_core(
+            graph, agg_nodes, core_nodes, stride, **default_attrs
+        )
 
     @classmethod
     def random(
