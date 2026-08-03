@@ -92,6 +92,14 @@ class ECMPRouter(BaseRouter):
 
         return weight_func_callable
 
+    def compute_all_equal_cost_paths(
+        self,
+        topology: Topology,
+        query: RoutingQuery | None = None,
+        source: str | None = None,
+        destination: str | None = None,
+        weight: str | Callable[[dict[str, Any]], float] | None = None,
+=======
 
             def weight_func_attr(u: str, v: str, d: dict[str, Any]) -> float:
                 return float(d.get(weight_attr, 1.0))
@@ -112,6 +120,12 @@ class ECMPRouter(BaseRouter):
         """
         Find all shortest paths of equal minimum cost between source and destination.
         """
+        source_val, dest_val, weight_val, _ = self._resolve_query_params(
+            query, source, destination, weight
+        )
+        subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
+        weight_func = self._resolve_weight_function(weight_val)
+=======
         source_val = query.source
         dest_val = query.destination
         weight_val = query.weight
@@ -181,6 +195,10 @@ class ECMPRouter(BaseRouter):
         """
         Internal implementation of finding and validating top K shortest simple paths.
         """
+        source_val, dest_val, weight_val, k_val = self._resolve_query_params(
+            query, source, destination, weight, k
+        )
+=======
         source_val = query.source
         dest_val = query.destination
         weight_val = query.weight

@@ -35,17 +35,6 @@ class GeneralConfig(BaseModel):
         description="API Token for authenticating FastAPI requests (HTTP Bearer)",
     )
 
-    @field_validator("cors_origins", mode="before")
-    @classmethod
-    def validate_cors_origins(cls, v: Any) -> list[str]:
-        if isinstance(v, str):
-            v = [o.strip() for o in v.split(",") if o.strip()]
-        if not isinstance(v, list):
-            v = [v]
-        cleaned = [str(o).strip() for o in v if o and str(o).strip() != "*"]
-        if not cleaned:
-            return DEFAULT_CORS_ORIGINS
-        return cleaned
 
 
 class TopologyConfig(BaseModel):
