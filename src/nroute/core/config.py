@@ -30,6 +30,22 @@ class GeneralConfig(BaseModel):
         default_factory=lambda: DEFAULT_CORS_ORIGINS,
         description="CORS allowed origins for the API server",
     )
+    api_token: str | None = Field(
+        default=None,
+        description="API Token for authenticating FastAPI requests (HTTP Bearer)",
+    )
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def validate_cors_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            v = [o.strip() for o in v.split(",") if o.strip()]
+        if not isinstance(v, list):
+            v = [v]
+        cleaned = [str(o).strip() for o in v if o and str(o).strip() != "*"]
+        if not cleaned:
+            return DEFAULT_CORS_ORIGINS
+        return cleaned
 
     @field_validator("cors_origins", mode="before")
     @classmethod
