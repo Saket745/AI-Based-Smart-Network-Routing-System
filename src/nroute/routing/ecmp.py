@@ -93,6 +93,18 @@ class ECMPRouter(BaseRouter):
 
         return weight_func_callable
 
+    def _compute_equal_cost_paths_impl(
+        self,
+        topology: Topology,
+        subgraph: nx.DiGraph,
+        source: str,
+        destination: str,
+        weight_func: Callable[[str, str, dict[str, Any]], float],
+    ) -> list[list[str]]:
+        """
+        Internal implementation of finding and validating equal cost paths.
+        """
+=======
     def compute_all_equal_cost_paths(
         self,
         topology: Topology,
@@ -143,17 +155,17 @@ class ECMPRouter(BaseRouter):
         try:
             paths = nx.all_shortest_paths(
                 subgraph,
-                source=source_val,
-                target=dest_val,
+                source=source,
+                target=destination,
                 weight=weight_func,
             )
             res_paths = [list(p) for p in paths]
             for p in res_paths:
-                self.validate_path(topology, p, source_val, dest_val)
+                self.validate_path(topology, p, source, destination)
             return res_paths
         except nx.NetworkXNoPath as e:
             raise RoutingError(
-                f"No active path found between '{source_val}' and '{dest_val}'."
+                f"No active path found between '{source}' and '{destination}'."
             ) from e
         except Exception as e:
             if isinstance(e, RoutingError):
@@ -163,10 +175,16 @@ class ECMPRouter(BaseRouter):
     def compute_k_shortest_paths(
         self,
         topology: Topology,
+        subgraph: nx.DiGraph,
+        source: str,
+        destination: str,
+        k: int,
+        weight_func: Callable[[str, str, dict[str, Any]], float],
+=======
 
       query: RoutingQuery,
     ) -> list[list[str]]:
-        """
+        
         Find the top K shortest simple paths using Yen's algorithm.
 =======
         query: RoutingQuery | None = None,
@@ -175,11 +193,12 @@ class ECMPRouter(BaseRouter):
         weight: str | Callable[[dict[str, Any]], float] | None = None,
         k: int | None = None,
     ) -> list[list[str]]:
-        """
+        
+=======
         Find the top K shortest simple paths using NetworkX shortest_simple_paths (Yen-like).
         Accepts either a RoutingQuery or explicit source/destination/weight/k params.
 
-      """
+      
         source_val, dest_val, weight_val, k_val = self._resolve_query_params(
             query, source, destination, weight, k
         )
@@ -190,18 +209,18 @@ class ECMPRouter(BaseRouter):
         try:
             generator = nx.shortest_simple_paths(
                 subgraph,
-                source=source_val,
-                target=dest_val,
+                source=source,
+                target=destination,
                 weight=weight_func,
             )
             paths = list(itertools.islice(generator, k_val))
             res_paths = [list(p) for p in paths]
             for p in res_paths:
-                self.validate_path(topology, p, source_val, dest_val)
+                self.validate_path(topology, p, source, destination)
             return res_paths
         except (nx.NetworkXNoPath, StopIteration) as e:
             raise RoutingError(
-                f"No active path found between '{source_val}' and '{dest_val}'."
+                f"No active path found between '{source}' and '{destination}'."
             ) from e
         except Exception as e:
             if isinstance(e, RoutingError):

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+=======
 from typing import TYPE_CHECKING, Any
 
 import click
@@ -19,11 +21,40 @@ if TYPE_CHECKING:
 console = Console()
 
 
-@click.group(name="detect")
-def detect_cmd() -> None:
-    """Detect network traffic anomalies."""
+class AnomalyDetectArgs(BaseModel):
+    """Parameter Object encapsulating anomaly command arguments."""
+
+    traffic_path: str
+    model_path: str
+    allow_unsafe: bool
+    is_json: bool
 
 
+def _handle_error(e: Exception, message: str, is_json: bool) -> None:
+    """Consistent JSON and console error reporting and terminates execution."""
+    if is_json:
+        import json
+
+        click.echo(json.dumps({"error": f"{message}: {e}"}), err=True)
+    else:
+        console.print(f"[red]x {message}:[/red] {e}")
+    raise SystemExit(1) from e
+
+
+def _load_traffic_data(args: AnomalyDetectArgs) -> pd.DataFrame:
+    """Load traffic features from CSV file."""
+    import pandas as pd
+
+    try:
+        return pd.read_csv(args.traffic_path)
+    except Exception as e:
+        _handle_error(e, "Failed to load traffic data", args.is_json)
+
+
+def _init_detector(args: AnomalyDetectArgs) -> AnomalyDetector:
+    """Initialize and load the anomaly detector model."""
+    from nroute.ml.anomaly import AnomalyDetector
+=======
 class AnomalyDetectArgs(BaseModel):
     """Arguments for the anomalies detection command."""
 
@@ -57,13 +88,56 @@ def _load_traffic_data(traffic_path: str, is_json: bool) -> pd.DataFrame:
         # Unreachable but for mypy
         raise SystemExit(1) from e
 
-
 def _init_detector(model_path: str, allow_unsafe: bool, is_json: bool) -> AnomalyDetector:
     """Initialize detector and load model."""
     from nroute.ml.anomaly import AnomalyDetector
 
     try:
         detector = AnomalyDetector()
+        detector.load(args.model_path, allow_unsafe=args.allow_unsafe)
+        return detector
+    except ModelError as e:
+        _handle_error(e, "Failed to load model", args.is_json)
+
+
+def _run_detection(
+    detector: AnomalyDetector, features: pd.DataFrame, is_json: bool
+) -> pd.DataFrame:
+    """Execute anomaly detection using the model."""
+    try:
+        return detector.detect(features)
+    except ModelError as e:
+        _handle_error(e, "Detection failed", is_json)
+
+
+def _output_json_results(results: pd.DataFrame) -> None:
+    """Output detection results in JSON format."""
+    import json
+
+    samples = []
+    for idx, row in results.iterrows():
+        samples.append(
+            {
+                "sample_id": int(idx),
+                "anomaly_score": float(row["anomaly_score"]),
+                "is_anomaly": bool(row["is_anomaly"]),
+                "anomaly_type": str(row["anomaly_type"]),
+            }
+        )
+
+    type_counts = results[results["is_anomaly"]]["anomaly_type"].value_counts().to_dict()
+    out = {
+        "total_samples": len(results),
+        "anomalies_detected": int(results["is_anomaly"].sum()),
+        "anomaly_type_breakdown": {str(k): int(v) for k, v in type_counts.items()},
+        "samples": samples,
+    }
+    click.echo(json.dumps(out, indent=2))
+
+
+def _output_console_results(results: pd.DataFrame) -> None:
+    """Output detection results to console with styled tables."""
+=======
         detector.load(model_path, allow_unsafe=allow_unsafe)
         return detector
     except ModelError as e:
@@ -169,6 +243,10 @@ def _output_console_results(results: pd.DataFrame) -> None:
     console.print()
 
 
+@click.group(name="detect")
+def detect_cmd() -> None:
+    """Detect network traffic anomalies."""
+
 @detect_cmd.command(name="anomalies")
 @click.option(
     "--traffic",
@@ -193,6 +271,26 @@ def _output_console_results(results: pd.DataFrame) -> None:
     help="Allow loading of unsafe models (joblib/pickle).",
 )
 @click.pass_context
+def anomalies(
+    ctx: click.Context,
+    /,
+    traffic_path: str,
+    model_path: str,
+    allow_unsafe: bool,
+) -> None:
+    """Detect anomalies in network traffic data."""
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
+
+    args = AnomalyDetectArgs(
+        traffic_path=traffic_path,
+        model_path=model_path,
+        allow_unsafe=allow_unsafe,
+        is_json=is_json,
+    )
+
+    features = _load_traffic_data(args)
+    detector = _init_detector(args)
+=======
 def anomalies(ctx: click.Context, /, **kwargs: Any) -> None:
     """Detect anomalies in network traffic data."""
     args = AnomalyDetectArgs(**kwargs)
