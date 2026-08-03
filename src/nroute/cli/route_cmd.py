@@ -170,6 +170,12 @@ def _init_router(
         if "topology" in sig.parameters:
             return cast("BaseRouter", router_cls(topology=topo))
         return cast("BaseRouter", router_cls())
+=======
+        router: BaseRouter = (
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        )
+        return router
+=======
 
         router: BaseRouter = (
             router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
