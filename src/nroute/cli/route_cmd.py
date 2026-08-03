@@ -169,6 +169,16 @@ def _init_router(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
         sig = inspect.signature(router_cls)
+        router_instance = (
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        )
+    else:
+        router_instance = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
+
+    if not isinstance(router_instance, BaseRouter):
+        raise TypeError(f"Initialized class {type(router_instance)} is not a BaseRouter")
+    return router_instance
+=======
         instance = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         if not isinstance(instance, BaseRouter):
             raise TypeError(f"Custom router '{custom_router}' is not an instance of BaseRouter")
