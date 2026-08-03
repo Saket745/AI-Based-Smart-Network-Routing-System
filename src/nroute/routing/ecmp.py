@@ -73,8 +73,32 @@ class ECMPRouter(BaseRouter):
         Adapt weight attribute or callable into a standard NetworkX weight function.
         """
         if weight is None:
+
+    def _resolve_weight_function(
+        self, weight: str | Callable[[dict[str, Any]], float] | None
+    ) -> Callable[[str, str, dict[str, Any]], float]:
+        """
+        Adapt weight attribute or callable into a standard NetworkX weight function.
+        """
+        if weight is None:
             def weight_func(u: str, v: str, d: dict[str, Any]) -> float:
                 return float(d.get("weight", 1.0))
+
+            return weight_func
+        if isinstance(weight, str):
+            weight_attr = weight
+
+            def weight_func_attr(u: str, v: str, d: dict[str, Any]) -> float:
+                return float(d.get(weight_attr, 1.0))
+
+            return weight_func_attr
+        wt_callable = weight
+
+        def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
+            return float(wt_callable(d))
+
+        return weight_func_callable
+
             return weight_func
         if isinstance(weight, str):
             weight_attr = weight

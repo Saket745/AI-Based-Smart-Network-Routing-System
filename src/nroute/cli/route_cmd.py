@@ -156,6 +156,7 @@ def _init_router(
                 "Option '--custom-router' is required when using algorithm 'custom'."
             )
         import inspect
+        import typing
 
         from nroute.utils.loader import load_custom_class
 
