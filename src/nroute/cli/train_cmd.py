@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+=======
 from typing import Any
 =======
 from typing import TYPE_CHECKING, Any
@@ -89,6 +90,8 @@ def train_cmd() -> None:
 )
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
+def train_congestion(ctx: click.Context, **kwargs: Any) -> None:
+=======
 def train_congestion(ctx: click.Context, /, **kwargs: Any) -> None:
     """Train a congestion prediction model from simulation data."""
     import numpy as np
@@ -176,6 +179,8 @@ def train_congestion(ctx: click.Context, /, **kwargs: Any) -> None:
 )
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
+def train_anomaly(ctx: click.Context, **kwargs: Any) -> None:
+=======
 def train_anomaly(ctx: click.Context, /, **kwargs: Any) -> None:
     """Train an anomaly detection model from normal traffic patterns."""
     import numpy as np
@@ -260,6 +265,8 @@ def train_anomaly(ctx: click.Context, /, **kwargs: Any) -> None:
 )
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
+def train_rl(ctx: click.Context, **kwargs: Any) -> None:
+=======
 def train_rl(ctx: click.Context, /, **kwargs: Any) -> None:
     """Train a reinforcement learning routing agent."""
     from nroute.routing.rl_router import RLRouter
@@ -348,13 +355,17 @@ def train_rl(ctx: click.Context, /, **kwargs: Any) -> None:
 @click.pass_context
 def train_gnn(ctx: click.Context, **kwargs: Any) -> None:
 =======
+=======
 def train_gnn(ctx: click.Context, /, **kwargs: Any) -> None:
     """Train a Graph Neural Network (GCN/GraphSAGE) on network topologies."""
     from nroute.ml.training.trainer import GNNTrainer, GNNTrainingConfig
 
     args = GNNTrainArgs(**kwargs)
 
+    args = GNNTrainArgs(**kwargs)
+
     try:
+=======
         config = GNNTrainingConfig(**kwargs)
         console.print(
             f"\n[cyan]Starting GNN training workflow for {config.model_type.upper()}...[/cyan]"

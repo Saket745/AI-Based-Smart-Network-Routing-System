@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from typing import TYPE_CHECKING
+=======
 from typing import TYPE_CHECKING
 =======
 from typing import TYPE_CHECKING, Any
@@ -29,6 +32,59 @@ class AnomalyDetectArgs(BaseModel):
     allow_unsafe: bool
     is_json: bool
 
+@detect_cmd.command(name="anomalies")
+@click.option(
+    "--traffic",
+    "-t",
+    "traffic_path",
+    type=click.Path(exists=True),
+    required=True,
+    help="Path to a traffic features CSV file.",
+)
+@click.option(
+    "--model",
+    "-m",
+    "model_path",
+    type=click.Path(exists=True),
+    required=True,
+    help="Path to a trained anomaly detection model.",
+)
+@click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading of unsafe models (joblib/pickle).",
+)
+@click.pass_context
+def anomalies(
+    ctx: click.Context,
+    traffic_path: str,
+    model_path: str,
+    allow_unsafe: bool,
+) -> None:
+    """Detect anomalies in network traffic data."""
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
+
+    # Load data
+    features = _load_traffic_data(traffic_path, is_json)
+
+    # Load model
+    detector = _init_detector(model_path, allow_unsafe, is_json)
+
+    # Perform detection
+    results = _run_detection(detector, features, is_json)
+
+    # Output results
+    if is_json:
+        _output_json_results(results)
+    else:
+        _output_console_results(results)
+
+
+def _handle_error(msg: str, is_json: bool, e: Exception | None = None) -> None:
+    """Handle errors consistently based on output format."""
+    if is_json:
+=======
 
 def _handle_error(e: Exception, message: str, is_json: bool) -> None:
     """Consistent JSON and console error reporting and terminates execution."""
@@ -78,6 +134,8 @@ def _handle_error(msg: str, is_json: bool, e: Exception | None = None) -> None:
 
 
 def _load_traffic_data(traffic_path: str, is_json: bool) -> pd.DataFrame:
+    """Load traffic data from CSV."""
+=======
     """Load traffic features from CSV."""
     import pandas as pd
 
@@ -85,6 +143,13 @@ def _load_traffic_data(traffic_path: str, is_json: bool) -> pd.DataFrame:
         return pd.read_csv(traffic_path)
     except Exception as e:
         _handle_error(f"Failed to load traffic data: {e}", is_json, e)
+        raise  # unreachable due to SystemExit
+
+
+def _init_detector(model_path: str, allow_unsafe: bool, is_json: bool) -> AnomalyDetector:
+    """Initialize and load the anomaly detector."""
+    from nroute.ml.anomaly import AnomalyDetector
+=======
         # Unreachable but for mypy
         raise SystemExit(1) from e
 
@@ -94,6 +159,12 @@ def _init_detector(model_path: str, allow_unsafe: bool, is_json: bool) -> Anomal
 
     try:
         detector = AnomalyDetector()
+        detector.load(model_path, allow_unsafe=allow_unsafe)
+        return detector
+    except ModelError as e:
+        _handle_error(f"Failed to load model: {e}", is_json, e)
+        raise  # unreachable
+=======
         detector.load(args.model_path, allow_unsafe=args.allow_unsafe)
         return detector
     except ModelError as e:
@@ -103,6 +174,17 @@ def _init_detector(model_path: str, allow_unsafe: bool, is_json: bool) -> Anomal
 def _run_detection(
     detector: AnomalyDetector, features: pd.DataFrame, is_json: bool
 ) -> pd.DataFrame:
+    """Run anomaly detection on features."""
+    try:
+        return detector.detect(features)
+    except ModelError as e:
+        _handle_error(f"Detection failed: {e}", is_json, e)
+        raise  # unreachable
+
+
+def _output_json_results(results: pd.DataFrame) -> None:
+    """Output detection results in JSON format."""
+=======
     """Execute anomaly detection using the model."""
     try:
         return detector.detect(features)
@@ -184,6 +266,8 @@ def _output_json_results(results: pd.DataFrame) -> None:
 
 
 def _output_console_results(results: pd.DataFrame) -> None:
+    """Output detection results to the console with Rich formatting."""
+=======
     """Format and output detection results to console with Rich."""
     console.print()
     console.rule("[bold cyan]Anomaly Detection Results[/bold cyan]")

@@ -34,6 +34,13 @@ class ECMPRouter(BaseRouter):
 
     def _resolve_query_params(
         self,
+        topology: Topology,
+        query: RoutingQuery | None = None,
+        source: str | None = None,
+        destination: str | None = None,
+        weight: str | Callable[[dict[str, Any]], float] | None = None,
+    ) -> list[list[str]]:
+=======
         query: RoutingQuery | None,
         source: str | None,
         destination: str | None,
@@ -57,6 +64,13 @@ class ECMPRouter(BaseRouter):
         """
         Get active subgraph and validate that source and destination are present and up.
         """
+        if query is not None:
+            source = query.source
+            destination = query.destination
+            weight = query.weight
+        elif source is None or destination is None:
+            raise ValueError("Either 'query' or ('source' and 'destination') must be provided.")
+
         subgraph = self._get_active_subgraph(topology)
 
         if source not in subgraph:
@@ -175,6 +189,12 @@ class ECMPRouter(BaseRouter):
     def compute_k_shortest_paths(
         self,
         topology: Topology,
+        query: RoutingQuery | None = None,
+        source: str | None = None,
+        destination: str | None = None,
+        k: int | None = None,
+        weight: str | Callable[[dict[str, Any]], float] | None = None,
+=======
         subgraph: nx.DiGraph,
         source: str,
         destination: str,
@@ -184,6 +204,18 @@ class ECMPRouter(BaseRouter):
         """
         Internal implementation of finding and validating top K shortest simple paths.
         """
+        if query is not None:
+            source = query.source
+            destination = query.destination
+            weight = query.weight
+            k_val = query.k if query.k is not None else self.k
+        elif source is None or destination is None:
+            raise ValueError("Either 'query' or ('source' and 'destination') must be provided.")
+        else:
+            k_val = k if k is not None else self.k
+
+        subgraph = self._get_active_subgraph(topology)
+=======
 =======
 =======
 
@@ -240,10 +272,17 @@ class ECMPRouter(BaseRouter):
         weight: str | Callable[[dict[str, Any]], float] | None = None,
         **kwargs: Any,
     ) -> list[str]:
-        """
         Compute a single path. Uses ECMP (equal-cost paths) and selects one
         deterministically using the hash of flow_key.
-        """
+
+        Args:
+            topology: The network topology.
+            source: Source node ID.
+            destination: Destination node ID.
+            weight: Routing metric.
+            **kwargs: Additional parameters including 'flow_key'.
+=======
+        
         flow_key = kwargs.get("flow_key")
         query = RoutingQuery(
             source=source,
