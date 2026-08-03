@@ -50,7 +50,7 @@ def test_bellman_ford_negative_cycle() -> None:
     # Use custom attribute 'cost' instead of standard validated 'weight' to support negative weights
     topo.add_edge("A", "B", cost=2.0)
     topo.add_edge("B", "C", cost=-5.0)  # negative cost
-    topo.add_edge("C", "A", cost=1.0)  # negative cycle (2 - 5 + 1 = -2)
+    topo.add_edge("C", "A", cost=1.0)  # negative cycle (2 - 5 + 1  =  -2)
 
     router = BellmanFordRouter()
 
@@ -105,9 +105,7 @@ def test_bellman_ford_weights(small_graph_data: dict[str, Any]) -> None:
     assert path_callable is not None
 
 
-def test_bellman_ford_generic_exception(
-    small_graph_data: dict[str, Any], monkeypatch: Any
-) -> None:
+def test_bellman_ford_generic_exception(small_graph_data: dict[str, Any], monkeypatch: Any) -> None:
     """Test handling of generic exceptions during route computation."""
     topo = _get_topo(small_graph_data)
     router = BellmanFordRouter()
