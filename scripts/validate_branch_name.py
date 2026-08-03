@@ -5,8 +5,8 @@ Enforces standard prefixes for branches to ensure governance compliance.
 """
 
 import re
-import sys
 import subprocess
+import sys
 
 # Allowed branch prefixes based on Governance V2 Spec
 ALLOWED_PREFIXES = [
