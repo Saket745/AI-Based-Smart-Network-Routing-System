@@ -179,6 +179,11 @@ def _init_router(
         raise TypeError(f"Initialized class {type(router_instance)} is not a BaseRouter")
     return router_instance
 =======
+        instance = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        if not isinstance(instance, BaseRouter):
+            raise TypeError(f"Custom router '{custom_router}' is not an instance of BaseRouter")
+        return instance
+=======
 =======
         return cast(
             "BaseRouter",
