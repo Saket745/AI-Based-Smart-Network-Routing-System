@@ -107,7 +107,6 @@ def test_k_shortest_paths() -> None:
     paths = router.compute_k_shortest_paths(topo, query)
     assert len(paths) == 3
 
-
     assert paths[0] == ["A", "B", "D"]  # cost: 2
     assert paths[1] == ["A", "C", "D"]  # cost: 4
     assert paths[2] == ["A", "E", "D"]  # cost: 6
