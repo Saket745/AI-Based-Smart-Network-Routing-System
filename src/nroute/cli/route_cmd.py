@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import cast
 =======
+=======
 import typing
 
 import click
@@ -169,6 +170,7 @@ def _init_router(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
         sig = inspect.signature(router_cls)
+=======
         router_instance = (
             router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         )
@@ -189,6 +191,7 @@ def _init_router(
             "BaseRouter",
             router_cls(topology=topo) if "topology" in sig.parameters else router_cls(),
         )
+=======
 =======
         if "topology" in sig.parameters:
             return cast("BaseRouter", router_cls(topology=topo))
