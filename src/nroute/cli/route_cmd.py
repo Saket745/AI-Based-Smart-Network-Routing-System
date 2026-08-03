@@ -165,6 +165,12 @@ def _init_router(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
         sig = inspect.signature(router_cls)
+
+        router: BaseRouter = (
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        )
+        return router
+
         import typing
 
         inst = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
@@ -180,7 +186,8 @@ def _init_router(
         res = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         return typing.cast("BaseRouter", res)
 
-    return get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
+    router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
+    return router
 
 
 def _print_json_metrics(
