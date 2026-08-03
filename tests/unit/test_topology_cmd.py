@@ -6,6 +6,8 @@ import json
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
+import pytest
+=======
 
 =======
 if TYPE_CHECKING:
@@ -18,6 +20,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 from click.testing import CliRunner
 
+from nroute.cli.topology_cmd import topology_cmd
+=======
 
 =======
 if TYPE_CHECKING:
@@ -30,11 +34,10 @@ from nroute.exceptions import TopologyError
 
 
 =======
+=======
 if TYPE_CHECKING:
     from pathlib import Path
 
-
-    
 @pytest.fixture
 def runner() -> CliRunner:
     """Create a Click CLI test runner."""
@@ -212,6 +215,9 @@ class TestTopologyShowCLI:
         assert "Failed to load topology: Load failed" in result.output
 
     @patch("nroute.cli.topology_cmd.Topology.load")
+    def test_show_load_error_json(self, mock_load: MagicMock, runner: CliRunner, tmp_path: Path) -> None:
+        """Test handling of errors when loading a topology with JSON output."""
+=======
 
     def test_show_load_error_json(self, mock_load: MagicMock, runner: CliRunner, tmp_path: Path) -> None:
 =======
