@@ -48,6 +48,59 @@ class NegotiationRouter(BaseRouter):
                 f"Unknown negotiation profile '{profile}'. Supported: latency, congestion, balanced."
             )
 
+    def _resolve_edge_weight(self, u: str, v: str, edge_data: dict[str, Any]) -> float:
+        """Resolve edge weight based on the selected negotiation profile."""
+        latency = float(edge_data.get("latency", 5.0))
+        utilization = float(edge_data.get("utilization", 0.0))
+        packet_loss = float(edge_data.get("packet_loss", 0.0))
+
+        if self.profile == "latency":
+            return latency
+        if self.profile == "congestion":
+            return latency / max(0.01, 1.0 - utilization)
+        # balanced
+        return latency + 50.0 * packet_loss + 5.0 / max(0.01, 1.0 - utilization)
+
+    def _calculate_local_link_cost(
+        self,
+        u: str,
+        v: str,
+        edge_data: dict[str, Any],
+        weight_func: Callable[[str, str, dict[str, Any]], float] | None,
+    ) -> float:
+        """Calculate local link cost between u and v."""
+        if weight_func is not None:
+            return weight_func(u, v, edge_data)
+        return self._resolve_edge_weight(u, v, edge_data)
+
+    def _calculate_remaining_cost(
+        self,
+        v: str,
+        context: NegotiationContext,
+    ) -> float | None:
+        """
+        Estimate remaining cost from v to the destination.
+
+        Returns:
+            The remaining cost as a float, or None if no path exists.
+        """
+        if v == context.destination:
+            return 0.0
+
+        rem_weight = context.weight_func or self._resolve_edge_weight
+
+        try:
+            return float(
+                nx.shortest_path_length(
+                    context.subgraph,
+                    source=v,
+                    target=context.destination,
+                    weight=rem_weight,
+                )
+            )
+        except (nx.NetworkXNoPath, nx.NodeNotFound):
+            return None
+
     def _calculate_bid(
         self,
         u: str,
@@ -66,51 +119,13 @@ class NegotiationRouter(BaseRouter):
             The bid cost as a float, or None if the neighbor cannot reach the destination.
         """
         # Calculate local link cost u -> v
-        d = context.subgraph.edges[u, v]
-        if context.weight_func is not None:
-            link_cost = context.weight_func(u, v, d)
-        else:
-            latency = float(d.get("latency", 5.0))
-            utilization = float(d.get("utilization", 0.0))
-            packet_loss = float(d.get("packet_loss", 0.0))
-
-            if self.profile == "latency":
-                link_cost = latency
-            elif self.profile == "congestion":
-                # Avoid congestion: scale latency by remaining capacity
-                link_cost = latency / max(0.01, 1.0 - utilization)
-            else:  # balanced
-                # Hybrid of latency, packet loss, and congestion penalty
-                link_cost = latency + 50.0 * packet_loss + 5.0 / max(0.01, 1.0 - utilization)
+        edge_data = context.subgraph.edges[u, v]
+        link_cost = self._calculate_local_link_cost(u, v, edge_data, context.weight_func)
 
         # Estimate remaining cost from v to destination
-        if v == context.destination:
-            remaining_cost = 0.0
-        else:
-            try:
-                if context.weight_func is not None:
-                    rem_weight = context.weight_func
-                else:
-
-                    def rem_weight(x: str, y: str, edge_data: dict[str, Any]) -> float:
-                        lat = float(edge_data.get("latency", 5.0))
-                        util = float(edge_data.get("utilization", 0.0))
-                        loss = float(edge_data.get("packet_loss", 0.0))
-                        if self.profile == "latency":
-                            return lat
-                        elif self.profile == "congestion":
-                            return lat / max(0.01, 1.0 - util)
-                        else:
-                            return lat + 50.0 * loss + 5.0 / max(0.01, 1.0 - util)
-
-                remaining_cost = nx.shortest_path_length(
-                    context.subgraph,
-                    source=v,
-                    target=context.destination,
-                    weight=rem_weight,
-                )
-            except (nx.NetworkXNoPath, nx.NodeNotFound):
-                return None
+        remaining_cost = self._calculate_remaining_cost(v, context)
+        if remaining_cost is None:
+            return None
 
         return link_cost + remaining_cost
 
