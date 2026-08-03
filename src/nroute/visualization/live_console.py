@@ -15,7 +15,7 @@ from rich.table import Table
 from rich.text import Text
 
 if TYPE_CHECKING:
-    from nroute.core.metrics import MetricsCollectionResult
+    from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
     from nroute.simulation.engine import SimulationEngine
 
 
@@ -153,6 +153,15 @@ class LiveSimulationConsole:
     def _update_header(self, layout: Layout, tick: int, last_metric: Any) -> None:
         """Update the header section of the layout."""
         algo_name = self.engine.router.__class__.__name__
+=======
+    def _update_history(self, tick: int, last_metric: SimulationMetrics) -> None:
+        """Update historical tick, throughput, and average latency metrics."""
+        self.ticks_history.append(tick)
+        self.throughput_history.append(last_metric.throughput)
+        self.latency_history.append(last_metric.avg_latency)
+
+    def _build_header(self, tick: int, last_metric: SimulationMetrics, algo_name: str) -> Panel:
+        """Build the header panel displaying key simulation stats."""
         header_text = Text.assemble(
             ("nroute LIVE SIMULATION CONSOLE", "bold cyan"),
             ("  |  Algorithm: ", "white"),
@@ -166,6 +175,11 @@ class LiveSimulationConsole:
 
     def _update_link_status_table(self, layout: Layout, engine: SimulationEngine) -> None:
         """Update the link status table in the layout."""
+=======
+        return Panel(header_text, style="cyan")
+
+    def _build_link_status_table(self, engine: SimulationEngine) -> Table:
+        """Build a Table displaying active and inactive links and their utilizations."""
         table = Table(
             title="Link Status & Utilization",
             show_header=True,
@@ -208,6 +222,26 @@ class LiveSimulationConsole:
 
     def _update_plots(self, layout: Layout) -> None:
         """Update the throughput and latency plots in the layout."""
+=======
+        return table
+
+    def _update_layout(
+        self,
+        layout: Layout,
+        tick: int,
+        last_metric: SimulationMetrics,
+        algo_name: str,
+        engine: SimulationEngine,
+    ) -> None:
+        """Update all layout parts (header, left panel, right panel plots, and footer)."""
+        # Header
+        layout["header"].update(self._build_header(tick, last_metric, algo_name))
+
+        # Left Panel: Link Status Table
+        table = self._build_link_status_table(engine)
+        layout["left"].update(Panel(table, style="magenta"))
+
+        # Right Panel: Plots
         layout["right"]["throughput_plot"].update(
             Panel(PlotextRenderable(self.plot_throughput), style="cyan")
         )
@@ -217,6 +251,8 @@ class LiveSimulationConsole:
 
     def _update_footer(self, layout: Layout) -> None:
         """Update the event log footer in the layout."""
+=======
+        # Footer: Event Log
         events_to_show = self.event_log[-5:] if self.event_log else ["No events yet."]
         footer_text = Text("\n".join(events_to_show))
         layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
@@ -239,6 +275,9 @@ class LiveSimulationConsole:
 
     def _create_layout(self) -> Layout:
         """Create the Rich layout for the live console."""
+=======
+    def run(self) -> MetricsCollectionResult:
+        """Run the simulation while displaying the live console interface."""
         layout = Layout()
         layout.split_column(
             Layout(name="header", size=3),
@@ -262,6 +301,11 @@ class LiveSimulationConsole:
         def tick_callback(tick: int, engine: SimulationEngine) -> None:
             self._update_all(layout, tick, engine)
             # Force sleep to pace the visualization
+=======
+            last_metric = engine.collector.results[-1]
+            self._update_history(tick, last_metric)
+            self.update_events(tick)
+            self._update_layout(layout, tick, last_metric, algo_name, engine)
             time.sleep(self.delay)
 
         # Start live context

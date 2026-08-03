@@ -45,7 +45,7 @@ EXPOSE 8000
 
 # Add a healthcheck instruction to monitor API server status securely
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=2)" || exit 1
+  CMD python3 -c 'import urllib.request, os; t=os.environ.get("NROUTE_API_TOKEN") or os.environ.get("NROUTE_GENERAL_API_TOKEN") or ""; req=urllib.request.Request("http://localhost:8000/api/health"); req.add_header("Authorization", "Bearer "+t) if t else None; urllib.request.urlopen(req, timeout=2)' || exit 1
 
 # Expose CLI globally
 ENTRYPOINT ["nroute"]

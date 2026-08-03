@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import json
+from typing import cast
+=======
+=======
+import typing
 
 import click
 from rich.console import Console
@@ -95,7 +99,7 @@ def compute(
 
     # Initialize router and compute path
     try:
-        router = _init_router(algorithm, topo, allow_unsafe, custom_router)
+        router: BaseRouter = _init_router(algorithm, topo, allow_unsafe, custom_router)
         path = router.compute_path(topo, source, destination, weight=weight)
     except RoutingError as e:
         _handle_error(f"Routing error: {e}", is_json, e)
@@ -148,6 +152,9 @@ def _init_router(
     custom_router: str | None,
 ) -> BaseRouter:
     """Initialize the appropriate router based on algorithm name."""
+    import typing
+
+
     if algorithm.lower() == "custom":
         if not custom_router:
             raise click.UsageError(
@@ -155,15 +162,74 @@ def _init_router(
             )
         import inspect
 
+        =======
+        from typing import cast
+
+        import typing
+
+        
         from nroute.utils.loader import load_custom_class
 
         router_cls = load_custom_class(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
         sig = inspect.signature(router_cls)
-        return router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
 
-    return get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
+        =======
+=======
+        router_instance = (
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        )
+    else:
+        router_instance = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
+
+    if not isinstance(router_instance, BaseRouter):
+        raise TypeError(f"Initialized class {type(router_instance)} is not a BaseRouter")
+    return router_instance
+=======
+        instance = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        if not isinstance(instance, BaseRouter):
+            raise TypeError(f"Custom router '{custom_router}' is not an instance of BaseRouter")
+        return instance
+=======
+=======
+        return cast(
+            "BaseRouter",
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls(),
+        )
+=======
+=======
+        if "topology" in sig.parameters:
+            return cast("BaseRouter", router_cls(topology=topo))
+        return cast("BaseRouter", router_cls())
+=======
+        router: BaseRouter = (
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        )
+        return router
+=======
+
+        router: BaseRouter = (
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        )
+        return router
+
+    
+        import typing
+
+        inst = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        return typing.cast("BaseRouter", inst)
+
+        return typing.cast(
+            "BaseRouter",
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls(),
+        )
+
+        res = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        return typing.cast("BaseRouter", res)
+
+    router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
+    return router
 
 
 def _print_json_metrics(
