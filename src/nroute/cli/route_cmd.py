@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import typing
 
 import click
 from rich.console import Console
@@ -164,6 +165,11 @@ def _init_router(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
         sig = inspect.signature(router_cls)
+        return typing.cast(
+            "BaseRouter",
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls(),
+        )
+=======
 
 =======
         res = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
