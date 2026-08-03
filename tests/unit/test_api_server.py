@@ -1,4 +1,16 @@
 """Unit tests for FastAPI API server authentication and path traversal security."""
+=======
+
+"""Unit tests for FastAPI API server authentication."""
+
+from __future__ import annotations
+
+import pytest
+from fastapi.testclient import TestClient
+
+from nroute.api.server import _FALLBACK_TOKEN, app
+
+"""Unit tests for the FastAPI API server endpoints, focusing on security and path traversal."""
 
 from __future__ import annotations
 
@@ -11,6 +23,8 @@ from fastapi.testclient import TestClient
 from nroute.api.server import _FALLBACK_TOKEN, app
 from nroute.core.topology import Topology
 
+from nroute.api.server import app
+from nroute.core.topology import Topology
 
 @pytest.fixture
 def client() -> TestClient:
@@ -100,6 +114,7 @@ def test_api_load_topology_success_cwd(client: TestClient) -> None:
     try:
         headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
         response = client.post("/api/topology/load", json={"path": str(temp_file)}, headers=headers)
+        response = client.post("/api/topology/load", json={"path": str(temp_file)})
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ok"
@@ -122,6 +137,8 @@ def test_api_load_topology_success_temp(client: TestClient) -> None:
         topo.save(temp_path)
         headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
         response = client.post("/api/topology/load", json={"path": str(temp_path)}, headers=headers)
+
+        response = client.post("/api/topology/load", json={"path": str(temp_path)})
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ok"
@@ -137,6 +154,8 @@ def test_api_load_topology_not_found(client: TestClient) -> None:
     response = client.post(
         "/api/topology/load", json={"path": "non_existent_file_xyz.json"}, headers=headers
     )
+
+    response = client.post("/api/topology/load", json={"path": "non_existent_file_xyz.json"})
     assert response.status_code == 404
     assert "File not found" in response.json()["detail"]
 
@@ -145,6 +164,8 @@ def test_api_load_topology_outside_cwd_relative(client: TestClient) -> None:
     """Test relative path traversal outside the allowed directories returns 403."""
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     response = client.post("/api/topology/load", json={"path": "../../etc/passwd"}, headers=headers)
+
+    response = client.post("/api/topology/load", json={"path": "../../etc/passwd"})
     assert response.status_code == 403
     assert "Access denied: Path is outside allowed directories" in response.json()["detail"]
 
@@ -153,5 +174,7 @@ def test_api_load_topology_outside_cwd_absolute(client: TestClient) -> None:
     """Test absolute path traversal outside the allowed directories returns 403."""
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     response = client.post("/api/topology/load", json={"path": "/etc/passwd"}, headers=headers)
+
+    response = client.post("/api/topology/load", json={"path": "/etc/passwd"})
     assert response.status_code == 403
     assert "Access denied: Path is outside allowed directories" in response.json()["detail"]

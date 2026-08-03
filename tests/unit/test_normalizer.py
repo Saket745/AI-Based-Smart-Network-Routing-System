@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+
 import pytest
 
 from nroute.exceptions import IngestionError
@@ -211,7 +212,7 @@ def test_normalize_topology_happy_path() -> None:
 
 def test_normalize_topology_missing_node_id() -> None:
     """Test that node missing ID/name raises IngestionError."""
-    raw_nodes = [{"type": "router"}]
+
     with pytest.raises(IngestionError, match=r"Node at index 0 is missing 'id' or 'name'"):
         Normalizer.normalize_topology(raw_nodes, [])
 
@@ -235,3 +236,4 @@ def test_normalize_topology_edge_speed_fallback() -> None:
 
 def test_normalize_topology_exceptions() -> None:
     """Test that exception raised during node or edge creation is wrapped in IngestionError."""
+
