@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import inspect
+=======
 =======
 import inspect
 =======
@@ -26,6 +28,7 @@ console = Console()
 class SimulationArgs(BaseModel):
     """Arguments for the simulation run command."""
 
+=======
     allow_unsafe: bool
     topo_path: str
     algorithm: str
@@ -38,11 +41,14 @@ class SimulationArgs(BaseModel):
     visualize_delay: float
     model_path: str | None
     custom_router: str | None
+    allow_unsafe: bool
+=======
 
 
 class ComparisonArgs(BaseModel):
     """Arguments for the simulation compare command."""
 
+=======
     allow_unsafe: bool
     topo_path: str
     algorithms: str
@@ -53,6 +59,8 @@ class ComparisonArgs(BaseModel):
     output: str | None
     model_path: str | None
     custom_router: str | None
+    allow_unsafe: bool
+=======
 
 
 @click.group(name="simulate")
@@ -60,6 +68,16 @@ def simulate_cmd() -> None:
     """Run and compare network simulations."""
 
 
+def _load_topology(topo_path: str, is_json: bool) -> Topology:
+    """Load topology from path or exit on error."""
+    try:
+        return Topology.load(topo_path)
+    except Exception as e:
+        if is_json:
+            click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
+        else:
+            console.print(f"[red]x Failed to load topology:[/red] {e}")
+=======
 def _handle_error(msg: str, is_json: bool, e: Exception | None = None) -> None:
     """Helper to handle errors consistently based on output format."""
     if is_json:
@@ -86,6 +104,13 @@ def _setup_router(
     algorithm: str,
     topo: Topology,
     allow_unsafe: bool,
+    custom_router: str | None = None,
+    model_path: str | None = None,
+) -> Any:
+    """Initialize router and load pretrained model if provided."""
+    from nroute.routing.base import BaseRouter
+
+=======
     custom_router: str | None,
     model_path: str | None,
     is_json: bool,
@@ -96,12 +121,18 @@ def _setup_router(
             raise click.UsageError(
                 "Option '--custom-router' is required when using algorithm 'custom'."
             )
+
+=======
         from nroute.utils.loader import load_custom_class
 
         router_cls = load_custom_class(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
         sig = inspect.signature(router_cls)
+        router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+    else:
+        router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
+=======
         router_instance = (
             router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         )
@@ -115,11 +146,26 @@ def _setup_router(
     # Load pretrained model if provided
     if model_path and hasattr(router, "load"):
         try:
+
             sig = inspect.signature(router.load)
             if "allow_unsafe" in sig.parameters:
                 router.load(model_path, allow_unsafe=allow_unsafe)
             else:
                 router.load(model_path)
+            console.print(
+                f"[green]+[/green] Loaded pretrained model from [bold]{model_path}[/bold]"
+            )
+        except Exception as e:
+            console.print(f"[yellow]! Failed to load model for {algorithm.upper()}:[/yellow] {e}")
+
+    return router
+
+
+def _get_metrics_summary(
+    result: Any, algorithm: str, duration: int, traffic_model: str, seed: int | None
+) -> dict[str, Any]:
+    """Compute summary metrics from simulation results."""
+=======
             if not is_json:
                 console.print(
                     f"[green]+[/green] Loaded pretrained model from [bold]{model_path}[/bold]"
@@ -169,6 +215,13 @@ def _get_metrics_data(
     }
 
 
+def _save_json_results(
+    metrics_data: dict[str, Any], output: str | None = None, echo: bool = True
+) -> None:
+    """Print metrics as JSON and optionally save to file."""
+    if echo:
+        click.echo(json.dumps(metrics_data, indent=2))
+=======
 def _save_json_results(metrics_data: dict[str, Any], output: str | None, echo: bool = True) -> None:
     """Save metrics to JSON file and optionally echo to stdout."""
     json_str = json.dumps(metrics_data, indent=2)
@@ -178,6 +231,51 @@ def _save_json_results(metrics_data: dict[str, Any], output: str | None, echo: b
     if output:
         out_path = Path(output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(metrics_data, indent=2))
+
+
+def _render_comparison_table(results: dict[str, Any], algo_list: list[str]) -> None:
+    """Build and print comparison table using Rich."""
+    table = Table(
+        title="Algorithm Comparison",
+        show_header=True,
+        header_style="bold magenta",
+    )
+    table.add_column("Metric", style="cyan")
+    for algo in algo_list:
+        table.add_column(algo.upper(), style="green", justify="right")
+
+    def _total_reroutes(r: Any) -> str:
+        return str(sum(m.reroute_count for m in r.results))
+
+    def _avg_loss(r: Any) -> str:
+        if not r.results:
+            return "0.0%"
+        avg = sum(m.packet_loss_rate for m in r.results) / len(r.results)
+        return f"{avg:.2%}"
+
+    metrics_rows = [
+        ("Total Throughput", lambda r: f"{r.total_throughput():.0f}"),
+        ("Mean Latency (ms)", lambda r: f"{r.mean_latency():.2f}"),
+        ("Avg Packet Loss Rate", _avg_loss),
+        ("Total Reroutes", _total_reroutes),
+    ]
+
+    for label, extractor in metrics_rows:
+        row_values = []
+        for algo in algo_list:
+            r = results[algo]
+            if r is not None:
+                try:
+                    row_values.append(extractor(r))  # type: ignore[no-untyped-call]
+                except Exception:
+                    row_values.append("ERR")
+            else:
+                row_values.append("FAILED")
+        table.add_row(label, *row_values)
+
+    console.print(table)
+=======
         out_path.write_text(json_str)
         if not echo:
             console.print(f"[green]+[/green] Metrics saved to [bold]{out_path}[/bold]")
@@ -281,6 +379,8 @@ def _save_json_results(metrics_data: dict[str, Any], output: str | None, echo: b
 def run_sim(ctx: click.Context, /, **kwargs: Any) -> None:
     """Run a network simulation."""
     args = SimulationArgs(**kwargs)
+    seed = args.seed or (ctx.obj.get("seed") if ctx.obj is not None else None)
+=======
     is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
     seed = args.seed or (ctx.obj.get("seed") if ctx.obj is not None else None)
 
@@ -288,6 +388,8 @@ def run_sim(ctx: click.Context, /, **kwargs: Any) -> None:
 
     try:
         router = _setup_router(
+            args.algorithm, topo, args.allow_unsafe, args.custom_router, args.model_path
+=======
             args.algorithm,
             topo,
             args.allow_unsafe,
@@ -313,6 +415,12 @@ def run_sim(ctx: click.Context, /, **kwargs: Any) -> None:
             )
             result = visualizer.run()
         else:
+            console.print(
+                f"\n[cyan]Running simulation:[/cyan] {args.algorithm.upper()} on "
+                f"{topo.node_count} nodes, {args.duration} ticks, "
+                f"{args.traffic_model} traffic ({args.flows_per_tick} flows/tick)\n"
+            )
+=======
             if not is_json:
                 console.print(
                     f"\n[cyan]Running simulation:[/cyan] {args.algorithm.upper()} on "
@@ -330,6 +438,10 @@ def run_sim(ctx: click.Context, /, **kwargs: Any) -> None:
         result, args.algorithm, args.duration, args.traffic_model, seed
     )
 
+    metrics_data = _get_metrics_summary(
+        result, args.algorithm, args.duration, args.traffic_model, seed
+    )
+
     if is_json:
         _save_json_results(metrics_data, args.output, echo=True)
         return
@@ -340,6 +452,8 @@ def run_sim(ctx: click.Context, /, **kwargs: Any) -> None:
     # Save to file if requested
     if args.output:
         _save_json_results(metrics_data, args.output, echo=False)
+        console.print(f"[green]+[/green] Metrics saved to [bold]{args.output}[/bold]")
+=======
 
 
 def _build_comparison_data(results: dict[str, Any], algo_list: list[str]) -> dict[str, Any]:
@@ -550,6 +664,9 @@ def _save_compare_results(output: str, comparison_data: dict[str, Any]) -> None:
 def compare(ctx: click.Context, /, **kwargs: Any) -> None:
     """Compare multiple routing algorithms on the same topology and traffic."""
     args = ComparisonArgs(**kwargs)
+    seed = args.seed or (ctx.obj.get("seed") if ctx.obj is not None else None)
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
+=======
     is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
     seed = args.seed or (ctx.obj.get("seed") if ctx.obj is not None else None)
     algo_list = [a.strip() for a in args.algorithms.split(",") if a.strip()]
@@ -563,6 +680,8 @@ def compare(ctx: click.Context, /, **kwargs: Any) -> None:
         console.print(
             f"\n[cyan]Comparing algorithms:[/cyan] {', '.join(a.upper() for a in algo_list)}\n"
             f"  Topology: {topo.node_count} nodes, {topo.edge_count} edges\n"
+            f"  Duration: {args.duration} ticks | Traffic: {args.traffic_model} ({args.flows_per_tick} flows/tick)\n"
+=======
             f"  Duration: {args.duration} ticks | Traffic: {args.traffic_model} "
             f"({args.flows_per_tick} flows/tick)\n"
         )
@@ -581,10 +700,12 @@ def compare(ctx: click.Context, /, **kwargs: Any) -> None:
     )
 =======
     results: dict[str, Any] = {}
-
     for algo in algo_list:
         try:
             router = _setup_router(
+                algo, topo, args.allow_unsafe, args.custom_router, args.model_path
+            )
+=======
                 algo,
                 topo,
                 args.allow_unsafe,
@@ -609,6 +730,17 @@ def compare(ctx: click.Context, /, **kwargs: Any) -> None:
     comparison_data = _build_comparison_data(results, algo_list)
 
     if is_json:
+        _save_json_results(comparison_data, args.output, echo=True)
+        return
+
+    # Build and print comparison table
+    _render_comparison_table(results, algo_list)
+
+    # Save comparison if requested
+    if args.output:
+        _save_json_results(comparison_data, args.output, echo=False)
+        console.print(f"\n[green]+[/green] Comparison saved to [bold]{args.output}[/bold]")
+=======
 
       click.echo(json.dumps(comparison_data, indent=2))
         if output:
