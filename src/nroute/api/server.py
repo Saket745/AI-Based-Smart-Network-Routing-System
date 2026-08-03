@@ -88,10 +88,33 @@ DEFAULT_CORS_ORIGINS = [
 try:
     _cfg = load_config()
     _cors_origins = _cfg.general.cors_origins
-except Exception:
+    if "*" in _cors_origins:
+        raise ValueError(
+            "Wildcard '*' is not allowed for CORS origins due to security risks. "
+            "Please specify explicit origins."
+        )
+except Exception as e:
+    if isinstance(e, ValueError) and "CORS origins due to security risks" in str(e):
+        raise
     import os
 
     _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "")
+
+    if not _cors_origins_raw:
+        _cors_origins = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ]
+    else:
+        _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+        if "*" in _cors_origins:
+            raise ValueError(
+                "Wildcard '*' is not allowed in NROUTE_CORS_ORIGINS due to security risks. "
+                "Please specify explicit origins."
+            ) from e
+
     _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
 
 # Filter out '*' and empty strings, ensure secure local development defaults as fallback

@@ -27,6 +27,14 @@ class GeneralConfig(BaseModel):
     seed: int | None = Field(default=None, description="Global random seed")
     output_dir: str = Field(default="./output", description="Default output directory")
     cors_origins: list[str] = Field(
+=======
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ],
+
         default_factory=lambda: DEFAULT_CORS_ORIGINS,
         description="CORS allowed origins for the API server",
     )
@@ -34,7 +42,6 @@ class GeneralConfig(BaseModel):
         default=None,
         description="API Token for authenticating FastAPI requests (HTTP Bearer)",
     )
-
     @field_validator("cors_origins", mode="before")
     @classmethod
     def validate_cors_origins(cls, v: Any) -> list[str]:
@@ -47,6 +54,35 @@ class GeneralConfig(BaseModel):
             return DEFAULT_CORS_ORIGINS
         return cleaned
 
+    @field_validator("cors_origins")
+    @classmethod
+    def validate_cors_origins(cls, v: list[str]) -> list[str]:
+        """Validate that cors_origins does not contain wildcard '*' for secure credentials handling."""
+        if "*" in v:
+            raise ValueError(
+                "Wildcard '*' is not allowed for cors_origins due to security risks. "
+                "Please specify explicit origins."
+            )
+        for origin in v:
+            if origin == "*":
+                raise ValueError(
+                    "Wildcard '*' is not allowed for cors_origins due to security risks. "
+                    "Please specify explicit origins."
+                )
+        return v
+
+=======
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def validate_cors_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            v = [o.strip() for o in v.split(",") if o.strip()]
+        if not isinstance(v, list):
+            v = [v]
+        cleaned = [str(o).strip() for o in v if o and str(o).strip() != "*"]
+        if not cleaned:
+            return DEFAULT_CORS_ORIGINS
+        return cleaned
 
 class TopologyConfig(BaseModel):
     """Default topology parameters."""
