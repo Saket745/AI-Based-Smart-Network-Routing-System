@@ -88,6 +88,7 @@ class ECMPRouter(BaseRouter):
         wt_callable = weight
 
         def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
+            # If the callable expects the edge data dict, call it with d
             return float(wt_callable(d))
 
         return weight_func_callable
@@ -103,6 +104,54 @@ class ECMPRouter(BaseRouter):
         """
         Internal implementation of finding and validating equal cost paths.
         """
+
+    def compute_all_equal_cost_paths(
+        self,
+        topology: Topology,
+        query: RoutingQuery | None = None,
+        source: str | None = None,
+        destination: str | None = None,
+        weight: str | Callable[[dict[str, Any]], float] | None = None,
+
+      
+            def weight_func_attr(u: str, v: str, d: dict[str, Any]) -> float:
+                return float(d.get(weight_attr, 1.0))
+
+            return weight_func_attr
+        wt_callable = weight
+
+        def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
+            return float(wt_callable(d))
+
+        return weight_func_callable
+
+    def compute_all_equal_cost_paths(
+        self,
+        topology: Topology,
+        query: RoutingQuery,
+=======
+
+    ) -> list[list[str]]:
+        """
+        Find all shortest paths of equal minimum cost between source and destination.
+        Accepts either a RoutingQuery or explicit source/destination/weight params.
+        """
+        source_val, dest_val, weight_val, _ = self._resolve_query_params(
+            query, source, destination, weight
+        )
+        subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
+        weight_func = self._resolve_weight_function(weight_val)
+
+      =======
+        source_val = query.source
+        dest_val = query.destination
+        weight_val = query.weight
+
+        subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
+        weight_func = self._resolve_weight_function(weight_val)
+=======
+
+      
         try:
             paths = nx.all_shortest_paths(
                 subgraph,
@@ -123,7 +172,7 @@ class ECMPRouter(BaseRouter):
                 raise
             raise RoutingError(f"ECMP equal cost path computation failed: {e}") from e
 
-    def _compute_k_shortest_paths_impl(
+    def compute_k_shortest_paths(
         self,
         topology: Topology,
         subgraph: nx.DiGraph,
@@ -135,6 +184,33 @@ class ECMPRouter(BaseRouter):
         """
         Internal implementation of finding and validating top K shortest simple paths.
         """
+=======
+=======
+
+      query: RoutingQuery,
+    ) -> list[list[str]]:
+        
+        Find the top K shortest simple paths using Yen's algorithm.
+=======
+        query: RoutingQuery | None = None,
+        source: str | None = None,
+        destination: str | None = None,
+        weight: str | Callable[[dict[str, Any]], float] | None = None,
+        k: int | None = None,
+    ) -> list[list[str]]:
+        
+=======
+        Find the top K shortest simple paths using NetworkX shortest_simple_paths (Yen-like).
+        Accepts either a RoutingQuery or explicit source/destination/weight/k params.
+
+      
+        source_val, dest_val, weight_val, k_val = self._resolve_query_params(
+            query, source, destination, weight, k
+        )
+
+        subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
+        weight_func = self._resolve_weight_function(weight_val)
+
         try:
             generator = nx.shortest_simple_paths(
                 subgraph,
@@ -142,7 +218,7 @@ class ECMPRouter(BaseRouter):
                 target=destination,
                 weight=weight_func,
             )
-            paths = list(itertools.islice(generator, k))
+            paths = list(itertools.islice(generator, k_val))
             res_paths = [list(p) for p in paths]
             for p in res_paths:
                 self.validate_path(topology, p, source, destination)
@@ -156,47 +232,6 @@ class ECMPRouter(BaseRouter):
                 raise
             raise RoutingError(f"K-shortest path computation failed: {e}") from e
 
-    def compute_all_equal_cost_paths(
-        self,
-        topology: Topology,
-        query: RoutingQuery | None = None,
-        source: str | None = None,
-        destination: str | None = None,
-        weight: str | Callable[[dict[str, Any]], float] | None = None,
-    ) -> list[list[str]]:
-        """
-        Find all shortest paths of equal minimum cost between source and destination.
-        """
-        source_val, dest_val, weight_val, _ = self._resolve_query_params(
-            query, source, destination, weight
-        )
-        subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
-        weight_func = self._resolve_weight_function(weight_val)
-        return self._compute_equal_cost_paths_impl(
-            topology, subgraph, source_val, dest_val, weight_func
-        )
-
-    def compute_k_shortest_paths(
-        self,
-        topology: Topology,
-        query: RoutingQuery | None = None,
-        source: str | None = None,
-        destination: str | None = None,
-        k: int | None = None,
-        weight: str | Callable[[dict[str, Any]], float] | None = None,
-    ) -> list[list[str]]:
-        """
-        Find the top K shortest simple paths using Yen's algorithm.
-        """
-        source_val, dest_val, weight_val, k_val = self._resolve_query_params(
-            query, source, destination, weight, k
-        )
-        subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
-        weight_func = self._resolve_weight_function(weight_val)
-        return self._compute_k_shortest_paths_impl(
-            topology, subgraph, source_val, dest_val, k_val, weight_func
-        )
-
     def compute_path(
         self,
         topology: Topology,
@@ -208,13 +243,6 @@ class ECMPRouter(BaseRouter):
         """
         Compute a single path. Uses ECMP (equal-cost paths) and selects one
         deterministically using the hash of flow_key.
-
-        Args:
-            topology: The network topology.
-            source: Source node ID.
-            destination: Destination node ID.
-            weight: Routing metric.
-            **kwargs: Additional parameters including 'flow_key'.
         """
         flow_key = kwargs.get("flow_key")
         query = RoutingQuery(

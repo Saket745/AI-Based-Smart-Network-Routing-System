@@ -41,11 +41,13 @@ def test_ecmp_equal_cost_paths() -> None:
     paths = router.compute_all_equal_cost_paths(topo, query)
     assert len(paths) == 2
 
+
     # Test backward compatible style
     paths_compat = router.compute_all_equal_cost_paths(
         topo, source="A", destination="D", weight="weight"
     )
     assert paths_compat == paths
+
     assert ["A", "B", "D"] in paths
     assert ["A", "C", "D"] in paths
 
@@ -111,6 +113,7 @@ def test_k_shortest_paths() -> None:
     query = RoutingQuery(source="A", destination="D", weight="weight")
     paths = router.compute_k_shortest_paths(topo, query)
     assert len(paths) == 3
+
 
     # Test backward compatible style
     paths_compat = router.compute_k_shortest_paths(
