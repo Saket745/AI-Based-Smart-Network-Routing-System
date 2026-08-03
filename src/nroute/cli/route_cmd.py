@@ -152,6 +152,7 @@ def _init_router(
     custom_router: str | None,
 ) -> BaseRouter:
     """Initialize the appropriate router based on algorithm name."""
+    import typing
 
 
     if algorithm.lower() == "custom":
@@ -160,16 +161,21 @@ def _init_router(
                 "Option '--custom-router' is required when using algorithm 'custom'."
             )
         import inspect
+
+        =======
         from typing import cast
 
         import typing
 
+        
         from nroute.utils.loader import load_custom_class
 
         router_cls = load_custom_class(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
         sig = inspect.signature(router_cls)
+
+        =======
 =======
         router_instance = (
             router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
@@ -208,6 +214,7 @@ def _init_router(
         )
         return router
 
+    
         import typing
 
         inst = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
@@ -217,8 +224,6 @@ def _init_router(
             "BaseRouter",
             router_cls(topology=topo) if "topology" in sig.parameters else router_cls(),
         )
-
-
 
         res = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         return typing.cast("BaseRouter", res)
