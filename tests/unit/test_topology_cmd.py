@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
+=======
 from click.testing import CliRunner
 
 if TYPE_CHECKING:
@@ -29,6 +30,7 @@ from click.testing import CliRunner
 
 from nroute.cli.topology_cmd import topology_cmd
 =======
+=======
 
 =======
 if TYPE_CHECKING:
@@ -40,6 +42,7 @@ from nroute.core.topology import Topology
 from nroute.exceptions import TopologyError
 
 
+=======
 =======
 =======
 =======
@@ -227,6 +230,7 @@ class TestTopologyShowCLI:
         self, mock_load: MagicMock, runner: CliRunner, tmp_path: Path
     ) -> None:
         """Test handling of errors when loading a topology with JSON output."""
+=======
 =======
     def test_show_load_error_json(self, mock_load: MagicMock, runner: CliRunner, tmp_path: Path) -> None:
         """Test handling of errors when loading a topology with JSON output."""

@@ -150,6 +150,10 @@ class LiveSimulationConsole:
         plt_ctx.title("Average Latency (ms)")
         plt_ctx.grid(True)
 
+    def _update_header(self, layout: Layout, tick: int, last_metric: Any) -> None:
+        """Update the header section of the layout."""
+        algo_name = self.engine.router.__class__.__name__
+=======
     def _update_history(self, tick: int, last_metric: SimulationMetrics) -> None:
         """Update historical tick, throughput, and average latency metrics."""
         self.ticks_history.append(tick)
@@ -167,6 +171,11 @@ class LiveSimulationConsole:
             ("  |  Active Flows: ", "white"),
             (str(last_metric.active_flows), "bold magenta"),
         )
+        layout["header"].update(Panel(header_text, style="cyan"))
+
+    def _update_link_status_table(self, layout: Layout, engine: SimulationEngine) -> None:
+        """Update the link status table in the layout."""
+=======
         return Panel(header_text, style="cyan")
 
     def _build_link_status_table(self, engine: SimulationEngine) -> Table:
@@ -209,6 +218,11 @@ class LiveSimulationConsole:
 
             table.add_row(f"{u} ➔ {v}", status_str, bw, lat, util_str)
 
+        layout["left"].update(Panel(table, style="magenta"))
+
+    def _update_plots(self, layout: Layout) -> None:
+        """Update the throughput and latency plots in the layout."""
+=======
         return table
 
     def _update_layout(
@@ -235,11 +249,33 @@ class LiveSimulationConsole:
             Panel(PlotextRenderable(self.plot_latency), style="yellow")
         )
 
+    def _update_footer(self, layout: Layout) -> None:
+        """Update the event log footer in the layout."""
+=======
         # Footer: Event Log
         events_to_show = self.event_log[-5:] if self.event_log else ["No events yet."]
         footer_text = Text("\n".join(events_to_show))
         layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
 
+    def _update_history(self, tick: int, last_metric: Any) -> None:
+        """Update simulation history for plotting."""
+        self.ticks_history.append(tick)
+        self.throughput_history.append(last_metric.throughput)
+        self.latency_history.append(last_metric.avg_latency)
+
+    def _update_all(self, layout: Layout, tick: int, engine: SimulationEngine) -> None:
+        """Update all layout components based on the current simulation state."""
+        last_metric = engine.collector.results[-1]
+        self._update_history(tick, last_metric)
+        self.update_events(tick)
+        self._update_header(layout, tick, last_metric)
+        self._update_link_status_table(layout, engine)
+        self._update_plots(layout)
+        self._update_footer(layout)
+
+    def _create_layout(self) -> Layout:
+        """Create the Rich layout for the live console."""
+=======
     def run(self) -> MetricsCollectionResult:
         """Run the simulation while displaying the live console interface."""
         layout = Layout()
@@ -256,10 +292,16 @@ class LiveSimulationConsole:
             Layout(name="throughput_plot", ratio=1),
             Layout(name="latency_plot", ratio=1),
         )
+        return layout
 
-        algo_name = self.engine.router.__class__.__name__
+    def run(self) -> MetricsCollectionResult:
+        """Run the simulation while displaying the live console interface."""
+        layout = self._create_layout()
 
         def tick_callback(tick: int, engine: SimulationEngine) -> None:
+            self._update_all(layout, tick, engine)
+            # Force sleep to pace the visualization
+=======
             last_metric = engine.collector.results[-1]
             self._update_history(tick, last_metric)
             self.update_events(tick)
