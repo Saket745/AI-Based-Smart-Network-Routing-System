@@ -15,7 +15,7 @@ from rich.table import Table
 from rich.text import Text
 
 if TYPE_CHECKING:
-    from nroute.core.metrics import MetricsCollectionResult
+    from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
     from nroute.simulation.engine import SimulationEngine
 
 
@@ -150,6 +150,96 @@ class LiveSimulationConsole:
         plt_ctx.title("Average Latency (ms)")
         plt_ctx.grid(True)
 
+    def _update_history(self, tick: int, last_metric: SimulationMetrics) -> None:
+        """Update historical tick, throughput, and average latency metrics."""
+        self.ticks_history.append(tick)
+        self.throughput_history.append(last_metric.throughput)
+        self.latency_history.append(last_metric.avg_latency)
+
+    def _build_header(self, tick: int, last_metric: SimulationMetrics, algo_name: str) -> Panel:
+        """Build the header panel displaying key simulation stats."""
+        header_text = Text.assemble(
+            ("nroute LIVE SIMULATION CONSOLE", "bold cyan"),
+            ("  |  Algorithm: ", "white"),
+            (algo_name, "bold green"),
+            ("  |  Tick: ", "white"),
+            (f"{tick + 1}/{self.duration_ticks}", "bold yellow"),
+            ("  |  Active Flows: ", "white"),
+            (str(last_metric.active_flows), "bold magenta"),
+        )
+        return Panel(header_text, style="cyan")
+
+    def _build_link_status_table(self, engine: SimulationEngine) -> Table:
+        """Build a Table displaying active and inactive links and their utilizations."""
+        table = Table(
+            title="Link Status & Utilization",
+            show_header=True,
+            header_style="bold magenta",
+            expand=True,
+        )
+        table.add_column("Link (U ➔ V)", style="cyan")
+        table.add_column("Status", justify="center")
+        table.add_column("Bandwidth", justify="right")
+        table.add_column("Latency", justify="right")
+        table.add_column("Utilization", justify="right")
+
+        # Sort edges for stable rendering
+        sorted_edges = sorted(engine.topology.edges)
+        for u, v in sorted_edges:
+            edge_data = engine.topology.get_edge(u, v)
+            status = str(edge_data.get("status", "up")).upper()
+            if status == "DOWN":
+                status_str = "[bold red]🔴 DOWN[/bold red]"
+            else:
+                status_str = "[bold green]🟢 UP[/bold green]"
+
+            bw = f"{edge_data.get('bandwidth', 1000):.0f} Mbps"
+            lat = f"{edge_data.get('latency', 5):.1f} ms"
+            util = float(edge_data.get("utilization", 0.0))
+
+            # Color coding based on utilization
+            if status == "DOWN":
+                util_str = "[grey]--[/grey]"
+            elif util > 0.85:
+                util_str = f"[bold red]{util:.1%}[/bold red] 🔴"
+            elif util > 0.60:
+                util_str = f"[bold yellow]{util:.1%}[/bold yellow] 🟡"
+            else:
+                util_str = f"[bold green]{util:.1%}[/bold green] 🟢"
+
+            table.add_row(f"{u} ➔ {v}", status_str, bw, lat, util_str)
+
+        return table
+
+    def _update_layout(
+        self,
+        layout: Layout,
+        tick: int,
+        last_metric: SimulationMetrics,
+        algo_name: str,
+        engine: SimulationEngine,
+    ) -> None:
+        """Update all layout parts (header, left panel, right panel plots, and footer)."""
+        # Header
+        layout["header"].update(self._build_header(tick, last_metric, algo_name))
+
+        # Left Panel: Link Status Table
+        table = self._build_link_status_table(engine)
+        layout["left"].update(Panel(table, style="magenta"))
+
+        # Right Panel: Plots
+        layout["right"]["throughput_plot"].update(
+            Panel(PlotextRenderable(self.plot_throughput), style="cyan")
+        )
+        layout["right"]["latency_plot"].update(
+            Panel(PlotextRenderable(self.plot_latency), style="yellow")
+        )
+
+        # Footer: Event Log
+        events_to_show = self.event_log[-5:] if self.event_log else ["No events yet."]
+        footer_text = Text("\n".join(events_to_show))
+        layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
+
     def run(self) -> MetricsCollectionResult:
         """Run the simulation while displaying the live console interface."""
         layout = Layout()
@@ -170,83 +260,10 @@ class LiveSimulationConsole:
         algo_name = self.engine.router.__class__.__name__
 
         def tick_callback(tick: int, engine: SimulationEngine) -> None:
-            # Update history
             last_metric = engine.collector.results[-1]
-            self.ticks_history.append(tick)
-            self.throughput_history.append(last_metric.throughput)
-            self.latency_history.append(last_metric.avg_latency)
-
-            # Update event log
+            self._update_history(tick, last_metric)
             self.update_events(tick)
-
-            # Build elements for render
-            # Header
-            header_text = Text.assemble(
-                ("nroute LIVE SIMULATION CONSOLE", "bold cyan"),
-                ("  |  Algorithm: ", "white"),
-                (algo_name, "bold green"),
-                ("  |  Tick: ", "white"),
-                (f"{tick + 1}/{self.duration_ticks}", "bold yellow"),
-                ("  |  Active Flows: ", "white"),
-                (str(last_metric.active_flows), "bold magenta"),
-            )
-            layout["header"].update(Panel(header_text, style="cyan"))
-
-            # Left Panel: Link Status Table
-            table = Table(
-                title="Link Status & Utilization",
-                show_header=True,
-                header_style="bold magenta",
-                expand=True,
-            )
-            table.add_column("Link (U ➔ V)", style="cyan")
-            table.add_column("Status", justify="center")
-            table.add_column("Bandwidth", justify="right")
-            table.add_column("Latency", justify="right")
-            table.add_column("Utilization", justify="right")
-
-            # Sort edges for stable rendering
-            sorted_edges = sorted(engine.topology.edges)
-            for u, v in sorted_edges:
-                edge_data = engine.topology.get_edge(u, v)
-                status = str(edge_data.get("status", "up")).upper()
-                if status == "DOWN":
-                    status_str = "[bold red]🔴 DOWN[/bold red]"
-                else:
-                    status_str = "[bold green]🟢 UP[/bold green]"
-
-                bw = f"{edge_data.get('bandwidth', 1000):.0f} Mbps"
-                lat = f"{edge_data.get('latency', 5):.1f} ms"
-                util = float(edge_data.get("utilization", 0.0))
-
-                # Color coding based on utilization
-                if status == "DOWN":
-                    util_str = "[grey]--[/grey]"
-                elif util > 0.85:
-                    util_str = f"[bold red]{util:.1%}[/bold red] 🔴"
-                elif util > 0.60:
-                    util_str = f"[bold yellow]{util:.1%}[/bold yellow] 🟡"
-                else:
-                    util_str = f"[bold green]{util:.1%}[/bold green] 🟢"
-
-                table.add_row(f"{u} ➔ {v}", status_str, bw, lat, util_str)
-
-            layout["left"].update(Panel(table, style="magenta"))
-
-            # Right Panel: Plots
-            layout["right"]["throughput_plot"].update(
-                Panel(PlotextRenderable(self.plot_throughput), style="cyan")
-            )
-            layout["right"]["latency_plot"].update(
-                Panel(PlotextRenderable(self.plot_latency), style="yellow")
-            )
-
-            # Footer: Event Log
-            events_to_show = self.event_log[-5:] if self.event_log else ["No events yet."]
-            footer_text = Text("\n".join(events_to_show))
-            layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
-
-            # Force sleep to pace the visualization
+            self._update_layout(layout, tick, last_metric, algo_name, engine)
             time.sleep(self.delay)
 
         # Start live context
