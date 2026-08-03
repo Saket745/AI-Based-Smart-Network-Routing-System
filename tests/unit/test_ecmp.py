@@ -41,7 +41,6 @@ def test_ecmp_equal_cost_paths() -> None:
     paths = router.compute_all_equal_cost_paths(topo, query)
     assert len(paths) == 2
 
-
     assert ["A", "B", "D"] in paths
     assert ["A", "C", "D"] in paths
 
@@ -107,7 +106,6 @@ def test_k_shortest_paths() -> None:
     query = RoutingQuery(source="A", destination="D", weight="weight")
     paths = router.compute_k_shortest_paths(topo, query)
     assert len(paths) == 3
-
 
     assert paths[0] == ["A", "B", "D"]  # cost: 2
     assert paths[1] == ["A", "C", "D"]  # cost: 4

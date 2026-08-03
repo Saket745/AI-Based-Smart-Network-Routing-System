@@ -30,10 +30,6 @@ class GeneralConfig(BaseModel):
         default_factory=lambda: DEFAULT_CORS_ORIGINS,
         description="CORS allowed origins for the API server",
     )
-    api_token: str | None = Field(
-        default=None,
-        description="API Token for authenticating FastAPI requests (HTTP Bearer)",
-    )
 
     @field_validator("cors_origins", mode="before")
     @classmethod

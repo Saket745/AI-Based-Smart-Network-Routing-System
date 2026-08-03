@@ -73,20 +73,13 @@ class ECMPRouter(BaseRouter):
         Adapt weight attribute or callable into a standard NetworkX weight function.
         """
         if weight is None:
+
             def weight_func(u: str, v: str, d: dict[str, Any]) -> float:
                 return float(d.get("weight", 1.0))
 
             return weight_func
         if isinstance(weight, str):
             weight_attr = weight
-            def weight_func_attr(u: str, v: str, d: dict[str, Any]) -> float:
-                return float(d.get(weight_attr, 1.0))
-            return weight_func_attr
-        wt_callable = weight
-        def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
-            return float(wt_callable(d))
-        return weight_func_callable
-
 
             def weight_func_attr(u: str, v: str, d: dict[str, Any]) -> float:
                 return float(d.get(weight_attr, 1.0))
@@ -114,33 +107,6 @@ class ECMPRouter(BaseRouter):
         subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
         weight_func = self._resolve_weight_function(weight_val)
 
-        def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
-            return float(wt_callable(d))
-
-        return weight_func_callable
-
-            return weight_func
-        if isinstance(weight, str):
-            weight_attr = weight
-            def weight_func_attr(u: str, v: str, d: dict[str, Any]) -> float:
-                return float(d.get(weight_attr, 1.0))
-            return weight_func_attr
-        wt_callable = weight
-        def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
-            return float(wt_callable(d))
-        return weight_func_callable
-
-    def _compute_equal_cost_paths_impl(
-        self,
-        topology: Topology,
-        subgraph: nx.DiGraph,
-        source: str,
-        destination: str,
-        weight_func: Callable[[str, str, dict[str, Any]], float],
-    ) -> list[list[str]]:
-        """
-        Internal implementation of finding and validating equal cost paths.
-        """
         try:
             paths = nx.all_shortest_paths(
                 subgraph,
@@ -161,20 +127,13 @@ class ECMPRouter(BaseRouter):
                 raise
             raise RoutingError(f"ECMP equal cost path computation failed: {e}") from e
 
-    def _compute_k_shortest_paths_impl(
+    def compute_k_shortest_paths(
         self,
         topology: Topology,
         query: RoutingQuery,
-
-        subgraph: nx.DiGraph,
-        source: str,
-        destination: str,
-        k: int,
-        weight_func: Callable[[str, str, dict[str, Any]], float],
-
     ) -> list[list[str]]:
         """
-        Internal implementation of finding and validating top K shortest simple paths.
+        Find the top K shortest simple paths using Yen's algorithm.
         """
         source_val = query.source
         dest_val = query.destination
@@ -191,7 +150,7 @@ class ECMPRouter(BaseRouter):
                 target=dest_val,
                 weight=weight_func,
             )
-            paths = list(itertools.islice(generator, k))
+            paths = list(itertools.islice(generator, k_val))
             res_paths = [list(p) for p in paths]
             for p in res_paths:
                 self.validate_path(topology, p, source_val, dest_val)
@@ -204,47 +163,6 @@ class ECMPRouter(BaseRouter):
             if isinstance(e, RoutingError):
                 raise
             raise RoutingError(f"K-shortest path computation failed: {e}") from e
-
-    def compute_all_equal_cost_paths(
-        self,
-        topology: Topology,
-        query: RoutingQuery | None = None,
-        source: str | None = None,
-        destination: str | None = None,
-        weight: str | Callable[[dict[str, Any]], float] | None = None,
-    ) -> list[list[str]]:
-        """
-        Find all shortest paths of equal minimum cost between source and destination.
-        """
-        source_val, dest_val, weight_val, _ = self._resolve_query_params(
-            query, source, destination, weight
-        )
-        subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
-        weight_func = self._resolve_weight_function(weight_val)
-        return self._compute_equal_cost_paths_impl(
-            topology, subgraph, source_val, dest_val, weight_func
-        )
-
-    def compute_k_shortest_paths(
-        self,
-        topology: Topology,
-        query: RoutingQuery | None = None,
-        source: str | None = None,
-        destination: str | None = None,
-        k: int | None = None,
-        weight: str | Callable[[dict[str, Any]], float] | None = None,
-    ) -> list[list[str]]:
-        """
-        Find the top K shortest simple paths using Yen's algorithm.
-        """
-        source_val, dest_val, weight_val, k_val = self._resolve_query_params(
-            query, source, destination, weight, k
-        )
-        subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
-        weight_func = self._resolve_weight_function(weight_val)
-        return self._compute_k_shortest_paths_impl(
-            topology, subgraph, source_val, dest_val, k_val, weight_func
-        )
 
     def compute_path(
         self,
