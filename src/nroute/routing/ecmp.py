@@ -75,7 +75,7 @@ class ECMPRouter(BaseRouter):
         if weight is None:
             def weight_func(u: str, v: str, d: dict[str, Any]) -> float:
                 return float(d.get("weight", 1.0))
-              
+
             return weight_func
         if isinstance(weight, str):
             weight_attr = weight
@@ -87,15 +87,32 @@ class ECMPRouter(BaseRouter):
             return float(wt_callable(d))
         return weight_func_callable
 
-            return weight_func
-        if isinstance(weight, str):
-            weight_attr = weight
 
             def weight_func_attr(u: str, v: str, d: dict[str, Any]) -> float:
                 return float(d.get(weight_attr, 1.0))
 
             return weight_func_attr
         wt_callable = weight
+
+        def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
+            return float(wt_callable(d))
+
+        return weight_func_callable
+
+    def compute_all_equal_cost_paths(
+        self,
+        topology: Topology,
+        query: RoutingQuery,
+    ) -> list[list[str]]:
+        """
+        Find all shortest paths of equal minimum cost between source and destination.
+        """
+        source_val = query.source
+        dest_val = query.destination
+        weight_val = query.weight
+
+        subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
+        weight_func = self._resolve_weight_function(weight_val)
 
         def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
             return float(wt_callable(d))
@@ -127,17 +144,17 @@ class ECMPRouter(BaseRouter):
         try:
             paths = nx.all_shortest_paths(
                 subgraph,
-                source=source,
-                target=destination,
+                source=source_val,
+                target=dest_val,
                 weight=weight_func,
             )
             res_paths = [list(p) for p in paths]
             for p in res_paths:
-                self.validate_path(topology, p, source, destination)
+                self.validate_path(topology, p, source_val, dest_val)
             return res_paths
         except nx.NetworkXNoPath as e:
             raise RoutingError(
-                f"No active path found between '{source}' and '{destination}'."
+                f"No active path found between '{source_val}' and '{dest_val}'."
             ) from e
         except Exception as e:
             if isinstance(e, RoutingError):
@@ -147,30 +164,41 @@ class ECMPRouter(BaseRouter):
     def _compute_k_shortest_paths_impl(
         self,
         topology: Topology,
+        query: RoutingQuery,
+
         subgraph: nx.DiGraph,
         source: str,
         destination: str,
         k: int,
         weight_func: Callable[[str, str, dict[str, Any]], float],
+
     ) -> list[list[str]]:
         """
         Internal implementation of finding and validating top K shortest simple paths.
         """
+        source_val = query.source
+        dest_val = query.destination
+        weight_val = query.weight
+        k_val = query.k if query.k is not None else self.k
+
+        subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
+        weight_func = self._resolve_weight_function(weight_val)
+
         try:
             generator = nx.shortest_simple_paths(
                 subgraph,
-                source=source,
-                target=destination,
+                source=source_val,
+                target=dest_val,
                 weight=weight_func,
             )
             paths = list(itertools.islice(generator, k))
             res_paths = [list(p) for p in paths]
             for p in res_paths:
-                self.validate_path(topology, p, source, destination)
+                self.validate_path(topology, p, source_val, dest_val)
             return res_paths
         except (nx.NetworkXNoPath, StopIteration) as e:
             raise RoutingError(
-                f"No active path found between '{source}' and '{destination}'."
+                f"No active path found between '{source_val}' and '{dest_val}'."
             ) from e
         except Exception as e:
             if isinstance(e, RoutingError):
