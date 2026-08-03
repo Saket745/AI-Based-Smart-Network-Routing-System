@@ -46,9 +46,6 @@ def test_ecmp_equal_cost_paths() -> None:
         topo, source="A", destination="D", weight="weight"
     )
     assert paths_compat == paths
-
-=======
-=======
     assert ["A", "B", "D"] in paths
     assert ["A", "C", "D"] in paths
 
