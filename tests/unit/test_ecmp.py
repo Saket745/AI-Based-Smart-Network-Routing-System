@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable  # noqa: TC003
 from typing import Any
 
 import pytest
@@ -35,7 +36,7 @@ def test_ecmp_equal_cost_paths() -> None:
 
     router = ECMPRouter()
 
-    # Test new query object style
+    # Test query object style
     query = RoutingQuery(source="A", destination="D", weight="weight")
     paths = router.compute_all_equal_cost_paths(topo, query)
     assert len(paths) == 2
@@ -45,6 +46,7 @@ def test_ecmp_equal_cost_paths() -> None:
         topo, source="A", destination="D", weight="weight"
     )
     assert paths_compat == paths
+=======
     assert ["A", "B", "D"] in paths
     assert ["A", "C", "D"] in paths
 
@@ -106,7 +108,7 @@ def test_k_shortest_paths() -> None:
 
     router = ECMPRouter(k=3)
 
-    # Test new query object style
+    # Test query object style
     query = RoutingQuery(source="A", destination="D", weight="weight")
     paths = router.compute_k_shortest_paths(topo, query)
     assert len(paths) == 3
@@ -141,7 +143,12 @@ def test_fallback_router() -> None:
     # Let's mock a router that fails
     class FailingRouter(DijkstraRouter):
         def compute_path(
-            self, topology: Topology, source: str, destination: str, weight: Any | None = None
+            self,
+            topology: Topology,
+            source: str,
+            destination: str,
+            weight: str | Callable[[dict[str, Any]], float] | None = None,
+            **kwargs: Any,
         ) -> list[str]:
             raise RoutingError("Simulated algorithm failure")
 
