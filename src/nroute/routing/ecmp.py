@@ -104,7 +104,7 @@ class ECMPRouter(BaseRouter):
         """
         Internal implementation of finding and validating equal cost paths.
         """
-=======
+
     def compute_all_equal_cost_paths(
         self,
         topology: Topology,
@@ -180,6 +180,11 @@ class ECMPRouter(BaseRouter):
         destination: str,
         k: int,
         weight_func: Callable[[str, str, dict[str, Any]], float],
+    ) -> list[list[str]]:
+        """
+        Internal implementation of finding and validating top K shortest simple paths.
+        """
+=======
 =======
 
       query: RoutingQuery,
