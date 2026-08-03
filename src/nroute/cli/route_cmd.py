@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import typing
 
 import click
 from rich.console import Console
