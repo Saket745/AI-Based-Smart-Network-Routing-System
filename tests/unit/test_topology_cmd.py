@@ -6,11 +6,17 @@ import json
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
 from click.testing import CliRunner
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from nroute.cli.topology_cmd import topology_cmd
 from nroute.core.topology import Topology
