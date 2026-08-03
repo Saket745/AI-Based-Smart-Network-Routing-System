@@ -47,7 +47,6 @@ class GeneralConfig(BaseModel):
             return DEFAULT_CORS_ORIGINS
         return cleaned
 
-
 class TopologyConfig(BaseModel):
     """Default topology parameters."""
 

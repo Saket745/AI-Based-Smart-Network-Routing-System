@@ -236,4 +236,3 @@ def test_normalize_topology_edge_speed_fallback() -> None:
 
 def test_normalize_topology_exceptions() -> None:
     """Test that exception raised during node or edge creation is wrapped in IngestionError."""
-

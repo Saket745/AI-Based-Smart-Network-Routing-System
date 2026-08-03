@@ -41,7 +41,6 @@ def test_ecmp_equal_cost_paths() -> None:
     paths = router.compute_all_equal_cost_paths(topo, query)
     assert len(paths) == 2
 
-
     assert ["A", "B", "D"] in paths
     assert ["A", "C", "D"] in paths
 
