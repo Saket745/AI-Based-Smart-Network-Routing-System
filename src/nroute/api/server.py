@@ -99,6 +99,7 @@ except Exception as e:
     import os
 
     _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "")
+
     if not _cors_origins_raw:
         _cors_origins = [
             "http://localhost:3000",
@@ -113,7 +114,7 @@ except Exception as e:
                 "Wildcard '*' is not allowed in NROUTE_CORS_ORIGINS due to security risks. "
                 "Please specify explicit origins."
             ) from e
-=======
+
     _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
 
 # Filter out '*' and empty strings, ensure secure local development defaults as fallback

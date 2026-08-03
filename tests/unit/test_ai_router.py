@@ -80,3 +80,42 @@ def test_ai_router_congestion_avoidance(small_graph_data: dict[str, Any]) -> Non
     # Thus, AIRouter should choose A -> B -> E -> D to avoid the congested link B->D!
     path = router.compute_path(topo, "A", "D")
     assert path == ["A", "B", "E", "D"]
+
+
+def test_ai_router_prediction_cache_invalidation(small_graph_data: dict[str, Any]) -> None:
+    """Test that AIRouter prediction cache is invalidated when topology changes."""
+    from nroute.ml.feature_eng import extract_congestion_features
+
+    topo = _get_topo(small_graph_data)
+    router = AIRouter(topology=topo)
+
+    # Train the predictor (duplicate dataset to satisfy XGBoost split constraints)
+    df = extract_congestion_features(topo, [])
+    labels = np.zeros(len(df))
+    train_df = pd.concat([df] * 10)
+    train_labels = np.concatenate([labels] * 10)
+    router.train(features_congestion=train_df, labels_congestion=train_labels)
+
+    # Mock the predictor.predict to count invocations
+    original_predict = router.congestion_predictor.predict
+    predict_calls = 0
+
+    def mock_predict(*args: Any, **kwargs: Any) -> Any:
+        nonlocal predict_calls
+        predict_calls += 1
+        return original_predict(*args, **kwargs)
+
+    router.congestion_predictor.predict = mock_predict
+
+    # 1. First path computation - cache miss
+    router.compute_path(topo, "A", "D")
+    assert predict_calls == 1
+
+    # 2. Second path computation with identical topology - cache hit!
+    router.compute_path(topo, "A", "D")
+    assert predict_calls == 1  # Should not increase!
+
+    # 3. Third path computation after updating edge status - cache miss/invalidation!
+    topo.update_edge("A", "B", status="down")
+    router.compute_path(topo, "A", "D")
+    assert predict_calls == 2  # Must increase!

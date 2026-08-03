@@ -63,6 +63,39 @@ class AIRouter(BaseRouter):
         # Rolling traffic history for congestion prediction
         self.traffic_history: list[TrafficMatrix] = []
 
+        # Cache for predictions to avoid redundant feature extraction/inference in same tick
+        self._cached_key: tuple[Any, ...] | None = None
+        self._cached_predictions: pd.DataFrame | None = None
+
+    def _get_cache_key(
+        self, topology: Topology, traffic_history: list[TrafficMatrix] | None = None
+    ) -> tuple[Any, ...]:
+        """Compute a fast and unique cache key for the topology state and traffic history."""
+        edge_states = tuple(
+            (
+                u,
+                v,
+                d.get("utilization", 0.0),
+                d.get("status", "up"),
+                d.get("latency", 5.0),
+                d.get("bandwidth", 1000.0),
+            )
+            for u, v, d in topology.graph.edges(data=True)
+        )
+        hist = self.traffic_history if traffic_history is None else traffic_history
+        history_id = id(hist)
+        history_len = len(hist)
+        last_history_id = id(hist[-1]) if hist else None
+
+        return (
+            id(topology),
+            topology.edge_count,
+            edge_states,
+            history_id,
+            history_len,
+            last_history_id,
+        )
+
     def train(
         self,
         features_congestion: pd.DataFrame | None = None,
@@ -87,6 +120,8 @@ class AIRouter(BaseRouter):
         # 1. Train Congestion Predictor if features are provided
         if features_congestion is not None and labels_congestion is not None:
             logger.info("Training congestion prediction model...")
+            self._cached_key = None
+            self._cached_predictions = None
             results["congestion"] = self.congestion_predictor.train(
                 features_congestion, labels_congestion, epochs=epochs
             )
@@ -145,8 +180,14 @@ class AIRouter(BaseRouter):
         self, topology: Topology, traffic_history: list[TrafficMatrix]
     ) -> pd.DataFrame:
         """Extract features and predict link congestion probabilities."""
+        cache_key = self._get_cache_key(topology, traffic_history)
+        if self._cached_key == cache_key and self._cached_predictions is not None:
+            return self._cached_predictions
         features = extract_congestion_features(topology, traffic_history)
-        return self.congestion_predictor.predict(features)
+        predictions = self.congestion_predictor.predict(features)
+        self._cached_key = cache_key
+        self._cached_predictions = predictions
+        return predictions
 
     def detect_anomalies(self, traffic: TrafficMatrix) -> pd.DataFrame:
         """Extract features and detect anomalies in traffic matrix."""
@@ -189,9 +230,15 @@ class AIRouter(BaseRouter):
 
         # Extract features and predict congestion probabilities
         try:
-            history = self.traffic_history if self.traffic_history else []
-            features = extract_congestion_features(topology, history)
-            predictions = self.congestion_predictor.predict(features)
+            cache_key = self._get_cache_key(topology)
+            if self._cached_key == cache_key and self._cached_predictions is not None:
+                predictions = self._cached_predictions
+            else:
+                history = self.traffic_history if self.traffic_history else []
+                features = extract_congestion_features(topology, history)
+                predictions = self.congestion_predictor.predict(features)
+                self._cached_key = cache_key
+                self._cached_predictions = predictions
         except Exception as e:
             logger.error(
                 "Failed to predict congestion in AIRouter. Using cascade fallback.", error=str(e)
@@ -240,3 +287,5 @@ class AIRouter(BaseRouter):
         self.congestion_predictor.load(f"{path}.congestion")
         self.anomaly_detector.load(f"{path}.anomaly")
         self.is_trained = self.congestion_predictor.is_trained or self.anomaly_detector.is_trained
+        self._cached_key = None
+        self._cached_predictions = None

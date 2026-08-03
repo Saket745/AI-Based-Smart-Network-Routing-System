@@ -47,8 +47,6 @@ def test_ecmp_equal_cost_paths() -> None:
     )
     assert paths_compat == paths
 
-=======
-=======
     assert ["A", "B", "D"] in paths
     assert ["A", "C", "D"] in paths
 

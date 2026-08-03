@@ -95,6 +95,17 @@ class ECMPRouter(BaseRouter):
     def compute_all_equal_cost_paths(
         self,
         topology: Topology,
+        query: RoutingQuery,
+    ) -> list[list[str]]:
+        """
+        Find all shortest paths of equal minimum cost between source and destination.
+        """
+        source_val = query.source
+        dest_val = query.destination
+        weight_val = query.weight
+
+        subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
+        weight_func = self._resolve_weight_function(weight_val)
         query: RoutingQuery | None = None,
         source: str | None = None,
         destination: str | None = None,
@@ -125,7 +136,7 @@ class ECMPRouter(BaseRouter):
         )
         subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
         weight_func = self._resolve_weight_function(weight_val)
-=======
+
         source_val = query.source
         dest_val = query.destination
         weight_val = query.weight
@@ -185,6 +196,7 @@ class ECMPRouter(BaseRouter):
         topology: Topology,
         query: RoutingQuery,
 
+
         subgraph: nx.DiGraph,
         source: str,
         destination: str,
@@ -195,6 +207,7 @@ class ECMPRouter(BaseRouter):
         """
         Internal implementation of finding and validating top K shortest simple paths.
         """
+
         source_val, dest_val, weight_val, k_val = self._resolve_query_params(
             query, source, destination, weight, k
         )
