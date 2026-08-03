@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from typing import Any
 
 import click
 
@@ -67,15 +68,7 @@ from nroute.cli.twin_cmd import twin_cmd
     help="Global random seed for reproducibility.",
 )
 @click.pass_context
-def cli(
-    ctx: click.Context,
-    verbose: bool,
-    quiet: bool,
-    no_color: bool,
-    output_format: str,
-    config: str | None,
-    seed: int | None,
-) -> None:
+def cli(ctx: click.Context, /, **kwargs: Any) -> None:
     """nroute - AI-Based Smart Network Routing System.
 
     Simulate, visualize, and optimize network routing
@@ -83,21 +76,17 @@ def cli(
     and intelligent path rerouting.
     """
     ctx.ensure_object(dict)
-    ctx.obj["verbose"] = verbose
-    ctx.obj["quiet"] = quiet
-    ctx.obj["no_color"] = no_color
-    ctx.obj["output_format"] = output_format
-    ctx.obj["config"] = config
+    ctx.obj.update(kwargs)
 
     # Handle NO_COLOR environment variable setting
-    if no_color:
+    if ctx.obj.get("no_color"):
         os.environ["NO_COLOR"] = "1"
 
     # Load configuration
     from nroute.core.config import load_config
 
     try:
-        cfg = load_config(config)
+        cfg = load_config(ctx.obj.get("config"))
     except Exception as exc:
         click.echo(f"Error loading configuration: {exc}", err=True)
         sys.exit(1)
@@ -106,6 +95,7 @@ def cli(
 
     # Resolve global seed
     # Precedence: CLI --seed flag, then config file seed
+    seed = ctx.obj.get("seed")
     resolved_seed = seed if seed is not None else cfg.general.seed
     ctx.obj["seed"] = resolved_seed
 
@@ -118,10 +108,10 @@ def cli(
         json_format = True
 
     configure_logging(
-        verbose=verbose,
-        quiet=quiet,
+        verbose=ctx.obj.get("verbose", False),
+        quiet=ctx.obj.get("quiet", False),
         json_format=json_format,
-        colors=not no_color,
+        colors=not ctx.obj.get("no_color", False),
         log_level_override=cfg.general.log_level,
     )
 
