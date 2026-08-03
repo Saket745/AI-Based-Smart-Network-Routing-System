@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable  # noqa: TC003
 from typing import Any
 
 import pytest
 
-from nroute.core.query import RoutingQuery
 from nroute.core.topology import Topology
 from nroute.exceptions import RoutingError
 from nroute.routing.base import FallbackRouter
@@ -36,18 +34,8 @@ def test_ecmp_equal_cost_paths() -> None:
 
     router = ECMPRouter()
 
-    # Test query object style
-    query = RoutingQuery(source="A", destination="D", weight="weight")
-    paths = router.compute_all_equal_cost_paths(topo, query)
+    paths = router.compute_all_equal_cost_paths(topo, "A", "D", weight="weight")
     assert len(paths) == 2
-
-
-    # Test backward compatible style
-    paths_compat = router.compute_all_equal_cost_paths(
-        topo, source="A", destination="D", weight="weight"
-    )
-    assert paths_compat == paths
-
     assert ["A", "B", "D"] in paths
     assert ["A", "C", "D"] in paths
 
@@ -109,17 +97,8 @@ def test_k_shortest_paths() -> None:
 
     router = ECMPRouter(k=3)
 
-    # Test query object style
-    query = RoutingQuery(source="A", destination="D", weight="weight")
-    paths = router.compute_k_shortest_paths(topo, query)
+    paths = router.compute_k_shortest_paths(topo, "A", "D", weight="weight")
     assert len(paths) == 3
-
-
-    # Test backward compatible style
-    paths_compat = router.compute_k_shortest_paths(
-        topo, source="A", destination="D", weight="weight"
-    )
-    assert paths_compat == paths
     assert paths[0] == ["A", "B", "D"]  # cost: 2
     assert paths[1] == ["A", "C", "D"]  # cost: 4
     assert paths[2] == ["A", "E", "D"]  # cost: 6
@@ -145,12 +124,7 @@ def test_fallback_router() -> None:
     # Let's mock a router that fails
     class FailingRouter(DijkstraRouter):
         def compute_path(
-            self,
-            topology: Topology,
-            source: str,
-            destination: str,
-            weight: str | Callable[[dict[str, Any]], float] | None = None,
-            **kwargs: Any,
+            self, topology: Topology, source: str, destination: str, weight: Any | None = None
         ) -> list[str]:
             raise RoutingError("Simulated algorithm failure")
 

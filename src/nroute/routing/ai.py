@@ -159,7 +159,6 @@ class AIRouter(BaseRouter):
         source: str,
         destination: str,
         weight: str | Callable[[dict[str, Any]], float] | None = None,
-        **kwargs: Any,
     ) -> list[str]:
         """
         Compute path from source to destination routing around predicted congestion.
@@ -180,7 +179,7 @@ class AIRouter(BaseRouter):
         # Cascade fallback helper: AI -> Dijkstra -> BFS
         def _cascade_fallback() -> list[str]:
             fallback = FallbackRouter([DijkstraRouter(), BFSRouter()])
-            return fallback.compute_path(topology, source, destination, weight=weight, **kwargs)
+            return fallback.compute_path(topology, source, destination, weight=weight)
 
         # If model is not trained, fallback to classical routing
         if not self.congestion_predictor.is_trained:

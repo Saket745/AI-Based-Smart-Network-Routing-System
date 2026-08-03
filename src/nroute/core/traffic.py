@@ -80,37 +80,18 @@ class TrafficMatrix(BaseModel):
         if missing_cols:
             raise IngestionError(f"DataFrame is missing required flow columns: {missing_cols}.")
 
-        indices = df.index.tolist()
-        sources = df["source"].tolist()
-        destinations = df["destination"].tolist()
-        bytes_col = df["bytes"].tolist()
-        packets_col = df["packets"].tolist()
-        durations = df["duration"].tolist()
-        protocols = df["protocol"].tolist()
-        timestamps = df["timestamp"].tolist()
-
         flows = []
-        for idx, src, dst, b, p, dur, proto, ts in zip(
-            indices,
-            sources,
-            destinations,
-            bytes_col,
-            packets_col,
-            durations,
-            protocols,
-            timestamps,
-            strict=True,
-        ):
+        for idx, row in df.iterrows():
             try:
                 flows.append(
                     FlowRecord(
-                        source=str(src),
-                        destination=str(dst),
-                        bytes=int(b),
-                        packets=int(p),
-                        duration=float(dur),
-                        protocol=str(proto),
-                        timestamp=float(ts),
+                        source=str(row["source"]),
+                        destination=str(row["destination"]),
+                        bytes=int(row["bytes"]),
+                        packets=int(row["packets"]),
+                        duration=float(row["duration"]),
+                        protocol=str(row["protocol"]),
+                        timestamp=float(row["timestamp"]),
                     )
                 )
             except Exception as e:

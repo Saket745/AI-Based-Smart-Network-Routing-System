@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Any
 
 import click
 
@@ -68,7 +67,15 @@ from nroute.cli.twin_cmd import twin_cmd
     help="Global random seed for reproducibility.",
 )
 @click.pass_context
-def cli(ctx: click.Context, /, **kwargs: Any) -> None:
+def cli(
+    ctx: click.Context,
+    verbose: bool,
+    quiet: bool,
+    no_color: bool,
+    output_format: str,
+    config: str | None,
+    seed: int | None,
+) -> None:
     """nroute - AI-Based Smart Network Routing System.
 
     Simulate, visualize, and optimize network routing
@@ -76,17 +83,21 @@ def cli(ctx: click.Context, /, **kwargs: Any) -> None:
     and intelligent path rerouting.
     """
     ctx.ensure_object(dict)
-    ctx.obj.update(kwargs)
+    ctx.obj["verbose"] = verbose
+    ctx.obj["quiet"] = quiet
+    ctx.obj["no_color"] = no_color
+    ctx.obj["output_format"] = output_format
+    ctx.obj["config"] = config
 
     # Handle NO_COLOR environment variable setting
-    if ctx.obj.get("no_color"):
+    if no_color:
         os.environ["NO_COLOR"] = "1"
 
     # Load configuration
     from nroute.core.config import load_config
 
     try:
-        cfg = load_config(ctx.obj.get("config"))
+        cfg = load_config(config)
     except Exception as exc:
         click.echo(f"Error loading configuration: {exc}", err=True)
         sys.exit(1)
@@ -95,7 +106,6 @@ def cli(ctx: click.Context, /, **kwargs: Any) -> None:
 
     # Resolve global seed
     # Precedence: CLI --seed flag, then config file seed
-    seed = ctx.obj.get("seed")
     resolved_seed = seed if seed is not None else cfg.general.seed
     ctx.obj["seed"] = resolved_seed
 
@@ -108,10 +118,10 @@ def cli(ctx: click.Context, /, **kwargs: Any) -> None:
         json_format = True
 
     configure_logging(
-        verbose=ctx.obj.get("verbose", False),
-        quiet=ctx.obj.get("quiet", False),
+        verbose=verbose,
+        quiet=quiet,
         json_format=json_format,
-        colors=not ctx.obj.get("no_color", False),
+        colors=not no_color,
         log_level_override=cfg.general.log_level,
     )
 

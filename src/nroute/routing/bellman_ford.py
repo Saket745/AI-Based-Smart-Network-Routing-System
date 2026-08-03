@@ -24,7 +24,6 @@ class BellmanFordRouter(BaseRouter):
         source: str,
         destination: str,
         weight: str | Callable[[dict[str, Any]], float] | None = None,
-        **kwargs: Any,
     ) -> list[str]:
         # Get active subgraph
         subgraph = self._get_active_subgraph(topology)

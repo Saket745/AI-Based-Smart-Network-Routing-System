@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from nroute.core.config import NRouteConfig, load_config
 from nroute.core.metrics import MetricsCollectionResult, RouteMetrics, SimulationMetrics
-from nroute.core.query import RoutingQuery
 from nroute.core.topology import Topology
 from nroute.core.traffic import FlowRecord, TrafficMatrix
 
@@ -13,7 +12,6 @@ __all__ = [
     "MetricsCollectionResult",
     "NRouteConfig",
     "RouteMetrics",
-    "RoutingQuery",
     "SimulationMetrics",
     "Topology",
     "TrafficMatrix",

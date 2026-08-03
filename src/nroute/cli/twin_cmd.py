@@ -16,35 +16,8 @@ from pathlib import Path
 from typing import Any
 
 import click
-from pydantic import BaseModel
 
 from nroute.utils.logging import configure_logging
-
-
-class ImpactArgs(BaseModel):
-    """Arguments for the impact command."""
-
-    topology: str
-    change: str
-    config: str | None = None
-    weight: str = "latency"
-    output: str | None = None
-
-
-class RCAArgs(BaseModel):
-    """Arguments for the rca command."""
-
-    topology: str
-    events: str
-    output: str | None = None
-
-
-class AuditArgs(BaseModel):
-    """Arguments for the audit command."""
-
-    log: str
-    output: str | None = None
-    action: str | None = None
 
 
 @click.group(name="twin", help="Digital Twin Engine commands.")
@@ -126,26 +99,31 @@ def health_cmd(ctx: click.Context, topology: str, config: str | None) -> None:
     help="Write blast-radius report to JSON file.",
 )
 @click.pass_context
-def impact_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
+def impact_cmd(
+    ctx: click.Context,
+    topology: str,
+    change: str,
+    config: str | None,
+    weight: str,
+    output: str | None,
+) -> None:
     """Simulate a config change and report blast-radius."""
-    args = ImpactArgs(**kwargs)
     from nroute.simulation.digital_twin import DigitalTwinEngine
 
     twin = DigitalTwinEngine()
-    twin.load_topology(args.topology)
+    twin.load_topology(topology)
 
-    if args.config:
-        twin.ingest_config(args.config)
+    if config:
+        twin.ingest_config(config)
 
-    result = twin.simulate_change(args.change, weight=args.weight)
+    result = twin.simulate_change(change, weight=weight)
     report = result.to_dict()
 
-    if args.output:
-        out_path = Path(args.output)
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        with out_path.open("w", encoding="utf-8") as f:
+    if output:
+        Path(output).parent.mkdir(parents=True, exist_ok=True)
+        with open(output, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
-        click.echo(f"Blast-radius report written to {args.output}")
+        click.echo(f"Blast-radius report written to {output}")
     else:
         click.echo(json.dumps(report, indent=2))
 
@@ -176,23 +154,26 @@ def impact_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
     help="Write RCA report to JSON file.",
 )
 @click.pass_context
-def rca_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
+def rca_cmd(
+    ctx: click.Context,
+    topology: str,
+    events: str,
+    output: str | None,
+) -> None:
     """Run Root-Cause Analysis on a set of events."""
-    args = RCAArgs(**kwargs)
     from nroute.simulation.digital_twin import DigitalTwinEngine
 
     twin = DigitalTwinEngine()
-    twin.load_topology(args.topology)
+    twin.load_topology(topology)
 
-    result = twin.diagnose(args.events)
+    result = twin.diagnose(events)
     report = result.to_dict()
 
-    if args.output:
-        out_path = Path(args.output)
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        with out_path.open("w", encoding="utf-8") as f:
+    if output:
+        Path(output).parent.mkdir(parents=True, exist_ok=True)
+        with open(output, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
-        click.echo(f"RCA report written to {args.output}")
+        click.echo(f"RCA report written to {output}")
     else:
         click.echo(json.dumps(report, indent=2, default=str))
 
@@ -267,12 +248,16 @@ def reachability_cmd(
     help="Filter by action type.",
 )
 @click.pass_context
-def audit_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
+def audit_cmd(
+    ctx: click.Context,
+    log: str,
+    output: str | None,
+    action: str | None,
+) -> None:
     """View or export the audit trail."""
-    args = AuditArgs(**kwargs)
     records: list[dict[str, Any]] = []
     try:
-        with open(args.log, encoding="utf-8") as f:
+        with open(log, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line:
@@ -281,15 +266,14 @@ def audit_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
         click.echo(f"Error reading audit log: {exc}", err=True)
         sys.exit(1)
 
-    if args.action:
-        records = [r for r in records if r.get("action") == args.action]
+    if action:
+        records = [r for r in records if r.get("action") == action]
 
-    if args.output:
-        out_path = Path(args.output)
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        with out_path.open("w", encoding="utf-8") as f:
+    if output:
+        Path(output).parent.mkdir(parents=True, exist_ok=True)
+        with open(output, "w", encoding="utf-8") as f:
             json.dump(records, f, indent=2)
-        click.echo(f"Exported {len(records)} audit records to {args.output}")
+        click.echo(f"Exported {len(records)} audit records to {output}")
     else:
         click.echo(f"Audit trail: {len(records)} record(s)")
         click.echo(json.dumps(records, indent=2))

@@ -232,11 +232,10 @@ class RLRouter(BaseRouter):
         source: str,
         destination: str,
         weight: str | Callable[[dict[str, Any]], float] | None = None,
-        **kwargs: Any,
     ) -> list[str]:
         """Cascade fallback: Dijkstra -> BFS -> RoutingError."""
         fallback = FallbackRouter([DijkstraRouter(), BFSRouter()])
-        return fallback.compute_path(topology, source, destination, weight=weight, **kwargs)
+        return fallback.compute_path(topology, source, destination, weight=weight)
 
     def _get_action_confidence(self, obs: np.ndarray) -> tuple[int, float]:
         """Extract action and its probability from the RL model.
@@ -274,7 +273,6 @@ class RLRouter(BaseRouter):
         source: str,
         destination: str,
         weight: str | Callable[[dict[str, Any]], float] | None = None,
-        **kwargs: Any,
     ) -> list[str]:
         """
         Compute path from source to destination.
@@ -296,7 +294,7 @@ class RLRouter(BaseRouter):
                     "RLRouter is not trained. Using cascade fallback (suppressing future warnings)."
                 )
                 self._warned_untrained = True
-            return self._cascade_fallback(topology, source, destination, weight=weight, **kwargs)
+            return self._cascade_fallback(topology, source, destination, weight=weight)
 
         # 2. Check topology compatibility with training topology
         is_compatible, reason = self._check_topology_compatibility(topology)
@@ -306,7 +304,7 @@ class RLRouter(BaseRouter):
                     f"Topology incompatible with training topology: {reason}. Using cascade fallback (suppressing future warnings)."
                 )
                 self._warned_incompatible = True
-            return self._cascade_fallback(topology, source, destination, weight=weight, **kwargs)
+            return self._cascade_fallback(topology, source, destination, weight=weight)
 
         # 3. Run RL inference step-by-step
         try:
@@ -346,9 +344,7 @@ class RLRouter(BaseRouter):
                         f"RL action confidence {confidence:.3f} below threshold "
                         f"{self.confidence_threshold}. Using cascade fallback."
                     )
-                    return self._cascade_fallback(
-                        topology, source, destination, weight=weight, **kwargs
-                    )
+                    return self._cascade_fallback(topology, source, destination, weight=weight)
 
                 obs, _reward, terminated, truncated, info = env.step(action)
 
@@ -362,13 +358,13 @@ class RLRouter(BaseRouter):
                 f"RL path computation failed (env status: {info.get('status')}). "
                 "Using cascade fallback."
             )
-            return self._cascade_fallback(topology, source, destination, weight=weight, **kwargs)
+            return self._cascade_fallback(topology, source, destination, weight=weight)
 
         except Exception as e:
             if isinstance(e, RoutingError):
                 raise
             logger.error(f"RL path inference encountered an error: {e}. Using cascade fallback.")
-            return self._cascade_fallback(topology, source, destination, weight=weight, **kwargs)
+            return self._cascade_fallback(topology, source, destination, weight=weight)
 
     def save(self, path: str) -> None:
         """Save the trained model weights and type information."""

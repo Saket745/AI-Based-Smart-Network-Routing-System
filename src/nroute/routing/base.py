@@ -27,7 +27,6 @@ class BaseRouter(ABC):
         source: str,
         destination: str,
         weight: str | Callable[[dict[str, Any]], float] | None = None,
-        **kwargs: Any,
     ) -> list[str]:
         """
         Compute a single path between source and destination nodes.
@@ -37,7 +36,6 @@ class BaseRouter(ABC):
             source: Source node ID.
             destination: Destination node ID.
             weight: Edge attribute name or weight function to use as routing metric.
-            **kwargs: Additional routing parameters (algorithm-specific).
 
         Returns:
             A list of node IDs representing the path from source to destination.
@@ -52,7 +50,6 @@ class BaseRouter(ABC):
         topology: Topology,
         traffic_matrix: TrafficMatrix,
         weight: str | Callable[[dict[str, Any]], float] | None = None,
-        **kwargs: Any,
     ) -> dict[tuple[str, str], list[str]]:
         """
         Compute paths for all flow records in a traffic matrix.
@@ -61,7 +58,6 @@ class BaseRouter(ABC):
             topology: The network topology.
             traffic_matrix: The traffic matrix containing flow demands.
             weight: Edge attribute name or weight function to use as routing metric.
-            **kwargs: Additional routing parameters passed to compute_path.
 
         Returns:
             A dictionary mapping (source, destination) to the computed path.
@@ -72,9 +68,7 @@ class BaseRouter(ABC):
             if pair in routes:
                 continue
             try:
-                path = self.compute_path(
-                    topology, flow.source, flow.destination, weight=weight, **kwargs
-                )
+                path = self.compute_path(topology, flow.source, flow.destination, weight=weight)
                 routes[pair] = path
             except RoutingError:
                 # Flow is unreachable on current topology configuration
@@ -175,12 +169,11 @@ class FallbackRouter(BaseRouter):
         source: str,
         destination: str,
         weight: str | Callable[[dict[str, Any]], float] | None = None,
-        **kwargs: Any,
     ) -> list[str]:
         errors = []
         for router in self.routers:
             try:
-                path = router.compute_path(topology, source, destination, weight=weight, **kwargs)
+                path = router.compute_path(topology, source, destination, weight=weight)
                 # Ensure the path is valid before returning it
                 self.validate_path(topology, path, source, destination)
                 return path
