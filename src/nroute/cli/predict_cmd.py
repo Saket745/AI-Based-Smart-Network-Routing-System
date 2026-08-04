@@ -94,6 +94,10 @@ def _load_topology(topo_path: str, is_json: bool) -> Topology:
     "--allow-unsafe",
     is_flag=True,
     default=False,
+    help="Allow loading insecure model files (joblib/pickle).",
+)
+def congestion(topo_path: str, model_path: str, threshold: float, allow_unsafe: bool) -> None:
+=======
     help="Allow insecure deserialization (pickle/joblib) of models.",
 )
 def congestion(topo_path: str, model_path: str, threshold: float, allow_unsafe: bool) -> None:
@@ -125,6 +129,8 @@ def congestion(ctx: click.Context, /, **kwargs: Any) -> None:
     try:
         predictor = CongestionPredictor()
         predictor.load(model_path, allow_unsafe=allow_unsafe)
+ refactor/simulation-engine-run-method-6889885359234180347
+=======
 
         predictor.load(args.model_path, allow_unsafe=args.allow_unsafe)
     except ModelError as e:
@@ -325,6 +331,11 @@ class GNNPredictArgs(BaseModel):
     "--allow-unsafe",
     is_flag=True,
     default=False,
+    help="Allow loading insecure model files (joblib/pickle).",
+)
+def predict_gnn(
+    topo_path: str, model_type: str, model_dir: str, version: str, threshold: float, allow_unsafe: bool
+=======
     help="Allow insecure deserialization (pickle/joblib) of models.",
 )
 def predict_gnn(
@@ -410,6 +421,7 @@ def _load_gnn_model_state(model: Any, args: GNNPredictArgs, is_json: bool) -> No
     try:
         store = ModelStore(base_dir=model_dir)
         store.load_model(model, name=model_type.lower(), version=version, allow_unsafe=allow_unsafe)
+=======
         store = ModelStore(base_dir=args.model_dir)
         store.load_model(
             model,
