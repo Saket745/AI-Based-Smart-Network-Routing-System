@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from nroute.core.topology import Topology
 from nroute.simulation.traffic_gen import TrafficGenerator
 
@@ -118,3 +120,26 @@ def test_traffic_gen_reproducibility(small_graph_data: dict[str, Any]) -> None:
         assert f1.bytes == f2.bytes
         assert f1.packets == f2.packets
         assert f1.protocol == f2.protocol
+
+
+def test_traffic_gen_hotspot_auto_selection(small_graph_data: dict[str, Any]) -> None:
+    """Test hotspot traffic generator auto-selects hotspots if not provided."""
+    topo = _get_topo(small_graph_data)
+    # Give node 'E' a high capacity
+    topo.add_node("E", capacity=50000.0)
+
+    gen = TrafficGenerator(model="hotspot", n_flows_per_tick=20, seed=42)
+    flows = gen.generate(topo, tick=0)
+
+    assert len(flows) == 20
+    # Node E should be one of the top capacity nodes and thus a hotspot
+    e_dest_count = sum(1 for f in flows if f.destination == "E")
+    assert e_dest_count > 0
+
+
+def test_traffic_gen_invalid_model(small_graph_data: dict[str, Any]) -> None:
+    """Test that an invalid traffic model raises ValueError."""
+    topo = _get_topo(small_graph_data)
+    gen = TrafficGenerator(model="invalid_model")
+    with pytest.raises(ValueError, match="Unknown traffic model 'invalid_model'"):
+        gen.generate(topo)

@@ -2,16 +2,39 @@
 
 from __future__ import annotations
 
+import os
+import shutil
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import Dataset
+from pydantic import BaseModel, Field
+from torch.utils.data import DataLoader, Dataset
+
+from nroute.core.topology import Topology
+from nroute.ml.datasets.generator import DatasetGenerator
+from nroute.ml.model_store import ModelStore
+from nroute.ml.models.gcn import GCNModel
+from nroute.ml.models.graphsage import GraphSAGEModel
 
 if TYPE_CHECKING:
     from pandas import DataFrame
+
+
+class GNNTrainingConfig(BaseModel):
+    """Configuration for GNN training."""
+
+    topo_path: str = Field(..., description="Path to topology JSON file")
+    model_type: str = Field(default="gcn", description="gcn | graphsage")
+    epochs: int = Field(default=10, description="Number of training epochs")
+    lr: float = Field(default=0.01, description="Learning rate")
+    hidden_dim: int = Field(default=32, description="Hidden dimension size")
+    seed: int = Field(default=42, description="Random seed")
+    batch_size: int = Field(default=4, description="Batch size for training")
+    dataset_dir: str = Field(default="data/gnn_dataset", description="Directory for datasets")
+    output_dir: str = Field(default="models/gnn", description="Directory for saved model")
 
 
 class GNNGraphDataset(Dataset[dict[str, Any]]):
@@ -205,3 +228,99 @@ class GNNTrainer:
             "val_cls_loss": total_cls_loss / num_batches,
             "val_reg_loss": total_reg_loss / num_batches,
         }
+
+    @staticmethod
+    def run_training_workflow(config: GNNTrainingConfig, logger_callback: Any | None = None) -> str:
+        """
+        Orchestrate the full GNN training workflow:
+        1. Load Topology
+        2. Generate Dataset
+        3. Prepare DataLoaders
+        4. Initialize Model
+        5. Train and Evaluate
+        6. Save Model
+        """
+
+        def log(msg: str) -> None:
+            if logger_callback:
+                logger_callback(msg)
+
+        # 1. Load Topology
+        topo = Topology.load(config.topo_path)
+
+        # 2. Generate Dataset
+        log("Collecting simulation traces and compiling to Parquet...")
+        if os.path.exists(config.dataset_dir):
+            shutil.rmtree(config.dataset_dir, ignore_errors=True)
+
+        generator = DatasetGenerator(
+            topology=topo,
+            router_alg="dijkstra",
+            traffic_model="uniform",
+            duration_ticks=50,
+            flows_per_tick=5,
+            seed=config.seed,
+        )
+
+        snapshots = generator.generate_snapshots()
+        generator.compile_to_parquet(snapshots, config.dataset_dir)
+        log(f"Datasets saved in {config.dataset_dir}")
+
+        node_df, edge_df, _ = DatasetGenerator.load_parquet_dataset(config.dataset_dir)
+        ticks = sorted(node_df["tick"].unique())
+        split_idx = int(len(ticks) * 0.8)
+        train_ticks = ticks[:split_idx]
+        val_ticks = ticks[split_idx:]
+
+        train_node_df = node_df[node_df["tick"].isin(train_ticks)]
+        train_edge_df = edge_df[edge_df["tick"].isin(train_ticks)]
+        val_node_df = node_df[node_df["tick"].isin(val_ticks)]
+        val_edge_df = edge_df[edge_df["tick"].isin(val_ticks)]
+
+        train_dataset = GNNGraphDataset(train_node_df, train_edge_df)
+        val_dataset = GNNGraphDataset(val_node_df, val_edge_df)
+
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=config.batch_size,
+            shuffle=True,
+            collate_fn=collate_dataset_batch,
+        )
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=config.batch_size,
+            shuffle=False,
+            collate_fn=collate_dataset_batch,
+        )
+
+        # 3. Initialize Model
+        node_in_dim = 8
+        edge_in_dim = 6
+
+        model: nn.Module
+        if config.model_type.lower() == "gcn":
+            model = GCNModel(
+                node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=config.hidden_dim
+            )
+        else:
+            model = GraphSAGEModel(
+                node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=config.hidden_dim
+            )
+
+        # 4. Train
+        log(f"Training GNN model ({config.model_type.upper()})...")
+        trainer = GNNTrainer(model=model, lr=config.lr)
+
+        for epoch in range(1, config.epochs + 1):
+            train_metrics = trainer.train_epoch(train_loader)
+            val_metrics = trainer.evaluate(val_loader)
+            log(
+                f"  Epoch {epoch:02d}/{config.epochs:02d} | "
+                f"Loss: {train_metrics['loss']:.4f} (Cls: {train_metrics['cls_loss']:.4f}, Reg: {train_metrics['reg_loss']:.4f}) | "
+                f"Val Loss: {val_metrics['val_loss']:.4f}"
+            )
+
+        # 5. Save
+        model_store = ModelStore(base_dir=config.output_dir)
+        saved_path = model_store.save_model(model, name=config.model_type.lower(), version="1.0.0")
+        return saved_path
