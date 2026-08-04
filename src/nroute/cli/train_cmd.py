@@ -7,15 +7,61 @@ from typing import TYPE_CHECKING, Any
 
 import click
 from pydantic import BaseModel, Field
+=======
+=======
+from typing import Any
+=======
+from typing import TYPE_CHECKING, Any
+
+import click
+from pydantic import BaseModel
 from rich.console import Console
 
 from nroute.core.topology import Topology
 from nroute.exceptions import ModelError
 
-if TYPE_CHECKING:
-    import torch
-
 console = Console()
+
+
+class CongestionTrainArgs(BaseModel):
+    """Arguments for congestion model training."""
+
+    topo_path: str
+    model_type: str
+    output: str
+    seed: int
+
+
+class AnomalyTrainArgs(BaseModel):
+    """Arguments for anomaly model training."""
+
+    topo_path: str
+    model_type: str
+    output: str
+    seed: int
+
+
+class RLTrainArgs(BaseModel):
+    """Arguments for RL model training."""
+
+    topo_path: str
+    algorithm: str
+    timesteps: int
+    output: str
+    seed: int
+
+
+class GNNTrainArgs(BaseModel):
+    """Arguments for GNN model training."""
+
+    topo_path: str
+    model_type: str
+    epochs: int
+    lr: float
+    hidden_dim: int
+    output_dir: str
+    dataset_dir: str
+    seed: int
 
 
 @click.group(name="train")
@@ -49,13 +95,9 @@ def train_cmd() -> None:
 )
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
-def train_congestion(
-    ctx: click.Context,
-    topo_path: str,
-    model_type: str,
-    output: str,
-    seed: int,
-) -> None:
+def train_congestion(ctx: click.Context, **kwargs: Any) -> None:
+=======
+def train_congestion(ctx: click.Context, /, **kwargs: Any) -> None:
     """Train a congestion prediction model from simulation data."""
     import numpy as np
     import pandas as pd
@@ -65,8 +107,10 @@ def train_congestion(
     from nroute.simulation.engine import SimulationEngine
     from nroute.simulation.traffic_gen import TrafficGenerator
 
+    args = CongestionTrainArgs(**kwargs)
+
     try:
-        topo = Topology.load(topo_path)
+        topo = Topology.load(args.topo_path)
     except Exception as e:
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
@@ -77,10 +121,10 @@ def train_congestion(
     router = get_router("dijkstra")
     traffic_gen = TrafficGenerator(model="uniform", n_flows_per_tick=5)
     engine = SimulationEngine(topo, router, traffic_gen)
-    result = engine.run(duration_ticks=100, seed=seed)
+    result = engine.run(duration_ticks=100, seed=args.seed)
 
     # Build feature matrix from simulation ticks
-    rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(args.seed)
     n_samples = max(50, len(result.results) * 2)
     features = pd.DataFrame(
         {
@@ -97,14 +141,14 @@ def train_congestion(
     labels = (features["utilization"] > 0.75).astype(int)
 
     console.print(
-        f"[cyan]Training {model_type.upper()} congestion model on {n_samples} samples...[/cyan]"
+        f"[cyan]Training {args.model_type.upper()} congestion model on {n_samples} samples...[/cyan]"
     )
 
     try:
-        predictor = CongestionPredictor(model_type=model_type)
+        predictor = CongestionPredictor(model_type=args.model_type)
         predictor.train(features, labels)
 
-        out_path = Path(output)
+        out_path = Path(args.output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         predictor.save(str(out_path))
 
@@ -140,21 +184,19 @@ def train_congestion(
 )
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
-def train_anomaly(
-    ctx: click.Context,
-    topo_path: str,
-    model_type: str,
-    output: str,
-    seed: int,
-) -> None:
+def train_anomaly(ctx: click.Context, **kwargs: Any) -> None:
+=======
+def train_anomaly(ctx: click.Context, /, **kwargs: Any) -> None:
     """Train an anomaly detection model from normal traffic patterns."""
     import numpy as np
     import pandas as pd
 
     from nroute.ml.anomaly import AnomalyDetector
 
+    args = AnomalyTrainArgs(**kwargs)
+
     try:
-        Topology.load(topo_path)
+        Topology.load(args.topo_path)
     except Exception as e:
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
@@ -162,7 +204,7 @@ def train_anomaly(
     console.print("\n[cyan]Generating normal traffic features for training...[/cyan]")
 
     # Generate synthetic normal features
-    rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(args.seed)
     n_samples = 200
     features = pd.DataFrame(
         {
@@ -178,14 +220,14 @@ def train_anomaly(
     )
 
     console.print(
-        f"[cyan]Training {model_type.upper()} anomaly detector on {n_samples} samples...[/cyan]"
+        f"[cyan]Training {args.model_type.upper()} anomaly detector on {n_samples} samples...[/cyan]"
     )
 
     try:
-        detector = AnomalyDetector(model_type=model_type)
+        detector = AnomalyDetector(model_type=args.model_type)
         detector.fit(features)
 
-        out_path = Path(output)
+        out_path = Path(args.output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         detector.save(str(out_path))
 
@@ -228,34 +270,31 @@ def train_anomaly(
 )
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
-def train_rl(
-    ctx: click.Context,
-    topo_path: str,
-    algorithm: str,
-    timesteps: int,
-    output: str,
-    seed: int,
-) -> None:
+def train_rl(ctx: click.Context, **kwargs: Any) -> None:
+=======
+def train_rl(ctx: click.Context, /, **kwargs: Any) -> None:
     """Train a reinforcement learning routing agent."""
     from nroute.routing.rl_router import RLRouter
 
+    args = RLTrainArgs(**kwargs)
+
     try:
-        topo = Topology.load(topo_path)
+        topo = Topology.load(args.topo_path)
     except Exception as e:
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
 
     console.print(
-        f"\n[cyan]Training {algorithm.upper()} routing agent for {timesteps} timesteps...[/cyan]"
+        f"\n[cyan]Training {args.algorithm.upper()} routing agent for {args.timesteps} timesteps...[/cyan]"
     )
 
     try:
-        rl_router = RLRouter(topology=topo, algorithm=algorithm)
+        rl_router = RLRouter(topology=topo, algorithm=args.algorithm)
         # Convert total timesteps back to episodes using average episode duration of 20 hops
-        episodes = max(1, timesteps // 20)
-        rl_router.train(episodes=episodes, seed=seed)
+        episodes = max(1, args.timesteps // 20)
+        rl_router.train(episodes=episodes, seed=args.seed)
 
-        out_path = Path(output)
+        out_path = Path(args.output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         rl_router.save(str(out_path))
 
@@ -333,21 +372,27 @@ class GNNTrainArgs(BaseModel):
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
 def train_gnn(ctx: click.Context, **kwargs: Any) -> None:
+def train_gnn(ctx: click.Context, /, **kwargs: Any) -> None:
     """Train a Graph Neural Network (GCN/GraphSAGE) on network topologies."""
-    import os
-    import shutil
+    from nroute.ml.training.trainer import GNNTrainer, GNNTrainingConfig
 
-    from torch.utils.data import DataLoader
+    args = GNNTrainArgs(**kwargs)
 
-    from nroute.ml.datasets.generator import DatasetGenerator
-    from nroute.ml.model_store import ModelStore
-    from nroute.ml.models.gcn import GCNModel
-    from nroute.ml.models.graphsage import GraphSAGEModel
-    from nroute.ml.training.trainer import GNNGraphDataset, GNNTrainer, collate_dataset_batch
+    args = GNNTrainArgs(**kwargs)
 
     args = GNNTrainArgs.model_validate(kwargs)
 
     try:
+        config = GNNTrainingConfig(**kwargs)
+        console.print(
+            f"\n[cyan]Starting GNN training workflow for {config.model_type.upper()}...[/cyan]"
+        )
+
+        saved_path = GNNTrainer.run_training_workflow(
+            config=config, logger_callback=lambda msg: console.print(msg)
+        )
+
+=======
         topo = Topology.load(args.topo_path)
     except Exception as e:
         console.print(f"[red]x Failed to load topology:[/red] {e}")
@@ -423,5 +468,5 @@ def train_gnn(ctx: click.Context, **kwargs: Any) -> None:
         saved_path = model_store.save_model(model, name=args.model_type.lower(), version="1.0.0")
         console.print(f"[green]+[/green] GNN model saved to [bold]{saved_path}[/bold]")
     except Exception as e:
-        console.print(f"[red]x Saving error:[/red] {e}")
+        console.print(f"[red]x GNN Training failed:[/red] {e}")
         raise SystemExit(1) from e
