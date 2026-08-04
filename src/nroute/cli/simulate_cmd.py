@@ -1241,7 +1241,7 @@ def _render_comparison_table(results: dict[str, Any], algo_list: list[str]) -> N
     if args.output:
         out_path = Path(args.output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        comparison_data: dict[str, Any] = {}
+        comparison_data_out: dict[str, Any] = {}
         for algo in algo_list:
             r = results[algo]
             if r is not None:
@@ -1251,15 +1251,15 @@ def _render_comparison_table(results: dict[str, Any], algo_list: list[str]) -> N
                     if r.results
                     else 0.0
                 )
-                comparison_data[algo] = {
+                comparison_data_out[algo] = {
                     "total_throughput": r.total_throughput(),
                     "mean_latency": r.mean_latency(),
                     "avg_packet_loss_rate": avg_loss,
                     "total_reroutes": total_reroutes,
                 }
             else:
-                comparison_data[algo] = {"error": "simulation_failed"}
-        out_path.write_text(json.dumps(comparison_data, indent=2))
+                comparison_data_out[algo] = {"error": "simulation_failed"}
+        out_path.write_text(json.dumps(comparison_data_out, indent=2))
         console.print(f"\n[green]+[/green] Comparison saved to [bold]{out_path}[/bold]")
 =======
 
