@@ -16,6 +16,7 @@ from nroute.exceptions import ModelError
 from nroute.ml.anomaly import AnomalyDetector
 from nroute.ml.congestion import CongestionPredictor
 
+=======
 
 =======
 def test_anomaly_detector_secure_loading_enforcement():
@@ -32,6 +33,14 @@ def test_anomaly_detector_secure_loading_enforcement() -> None:
         # Should fail by default
         with pytest.raises(ModelError, match="Insecure model file detected"):
             detector.load(path, allow_unsafe=False)
+
+        # Should succeed with allow_unsafe=True (well, fail later during processing, but pass the security check)
+
+        # We expect failure later since it's not a real model, but the security block is bypassed
+        with contextlib.suppress(ModelError, KeyError):
+            detector.load(path, allow_unsafe=True)
+
+=======
         with contextlib.suppress(ModelError, KeyError):
             detector.load(path, allow_unsafe=True)
         with contextlib.suppress(ModelError, KeyError):
@@ -56,7 +65,6 @@ def test_anomaly_detector_pytorch_secure_loading_failure() -> None:
                 detector.load(path, allow_unsafe=True)
             assert f"Failed to load model from {path}" in str(excinfo.value)
             assert "Security breach!" in str(excinfo.value)
-
 def test_congestion_predictor_secure_loading_enforcement() -> None:
     """Verify that CongestionPredictor blocks insecure files by default."""
     # CongestionPredictor already has some logic, but let's ensure our changes didn't break it
