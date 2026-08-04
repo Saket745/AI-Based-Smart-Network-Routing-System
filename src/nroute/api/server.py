@@ -15,16 +15,58 @@ Designed for SPA consumption with CORS enabled.
 
 from __future__ import annotations
 
+import asyncio
+import os
+import secrets
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel, Field
 
+from nroute.core.config import load_config
 from nroute.core.openconfig import ConfigChange
 from nroute.simulation.digital_twin import DigitalTwinEngine
+
+# ── Security & Authentication ────────────────────────────────
+
+# Generate a fallback token on startup for security-by-default (prevents CWE-798 hardcoded credentials)
+_FALLBACK_TOKEN = secrets.token_hex(32)
+
+security_scheme = HTTPBearer(auto_error=False)
+
+
+async def verify_token(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),  # noqa: B008
+) -> None:
+    """Verify that the HTTP Bearer token matches the configured API token."""
+    # Exclude API documentation and OpenAPI schemas from token validation
+    # to allow the interactive OpenAPI UI to load without auth.
+    if request.url.path in ("/docs", "/redoc", "/openapi.json"):
+        return
+
+    try:
+        cfg = load_config()
+        configured_token = cfg.general.api_token or os.environ.get("NROUTE_API_TOKEN")
+    except Exception:
+        configured_token = os.environ.get("NROUTE_API_TOKEN")
+
+    if not configured_token:
+        configured_token = _FALLBACK_TOKEN
+
+    if credentials is None or credentials.credentials != configured_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
 
 # ── App factory ──────────────────────────────────────────────
 
@@ -32,11 +74,56 @@ app = FastAPI(
     title="NRoute Digital Twin API",
     description="Phase 1 — Deterministic Digital Twin Platform",
     version="1.0.0",
+    dependencies=[Depends(verify_token)],
 )
+
+DEFAULT_CORS_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+# Load CORS configuration
+from nroute.core.config import load_config
+try:
+    _cfg = load_config()
+    _cors_origins = _cfg.general.cors_origins
+    if "*" in _cors_origins:
+        raise ValueError(
+            "Wildcard '*' is not allowed for CORS origins due to security risks. "
+            "Please specify explicit origins."
+        )
+except Exception as e:
+    # If the exception is the ValueError we raised above, propagate it
+    if isinstance(e, ValueError) and "due to security risks" in str(e):
+        raise
+
+    import os
+
+    _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "*")
+    if _cors_origins_raw == "*":
+        _cors_origins = ["*"]
+=======
+    _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "")
+    if not _cors_origins_raw:
+        _cors_origins = DEFAULT_CORS_ORIGINS
+    else:
+        _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+        if "*" in _cors_origins:
+            raise ValueError(
+                "Wildcard '*' is not allowed in NROUTE_CORS_ORIGINS due to security risks. "
+                "Please specify explicit origins."
+            ) from e
+
+# Filter out empty strings, ensure secure local development defaults as fallback
+_cors_origins = [o for o in _cors_origins if o]
+if not _cors_origins:
+    _cors_origins = DEFAULT_CORS_ORIGINS
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,12 +132,24 @@ app.add_middleware(
 # Global engine instance (per-process)
 _engine: DigitalTwinEngine | None = None
 
+# Thread pool for offloading CPU-bound simulation / graph operations
+_executor = ThreadPoolExecutor(max_workers=4)
+
 
 def get_engine() -> DigitalTwinEngine:
     global _engine
     if _engine is None:
         _engine = DigitalTwinEngine(audit_log="./output/audit_trail.ndjson")
     return _engine
+
+
+async def _run_in_executor(func: Any, *args: Any, **kwargs: Any) -> Any:
+    """Run a blocking function in the thread pool executor.
+
+    Prevents CPU-bound graph computations from blocking the ASGI event loop.
+    """
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_executor, partial(func, *args, **kwargs))
 
 
 # ── Request / Response Models ────────────────────────────────
@@ -65,19 +164,40 @@ class ImpactRequest(BaseModel):
     weight: str = "latency"
 
 
+class NetworkEventInput(BaseModel):
+    """Pydantic schema for a single network event in the RCA endpoint.
+
+    Enforces type validation at the API boundary instead of raw dict parsing.
+    """
+
+    event_id: str = ""
+    timestamp: float = 0.0
+    node_id: str = ""
+    interface: str = ""
+    peer_node: str = ""
+    event_type: str = ""
+    category: str = Field(
+        default="unknown", description="Event category: routing, interface, syslog, unknown"
+    )
+    severity: str = Field(
+        default="info", description="Event severity: critical, error, warning, info"
+    )
+    message: str = ""
+
+
 class RCARequest(BaseModel):
-    events: list[dict[str, Any]]
+    events: list[NetworkEventInput]
 
 
 # ── Endpoints ────────────────────────────────────────────────
 
 
 @app.get("/api/health")
-def health() -> dict[str, Any]:
+async def health() -> dict[str, Any]:
     """Return network health summary."""
     engine = get_engine()
     try:
-        return engine.health_summary()
+        return cast("dict[str, Any]", await _run_in_executor(engine.health_summary))
     except RuntimeError:
         return {
             "status": "no_topology",
@@ -86,14 +206,22 @@ def health() -> dict[str, Any]:
 
 
 @app.post("/api/topology/load")
-def load_topology(req: TopologyLoadRequest) -> dict[str, Any]:
+async def load_topology(req: TopologyLoadRequest) -> dict[str, Any]:
     """Load a topology from a file path."""
     engine = get_engine()
-    p = Path(req.path)
+    p = Path(req.path).resolve()
+
+    # Path traversal protection: restrict to allowed directories
+    allowed_dirs = [Path.cwd().resolve(), Path(tempfile.gettempdir()).resolve()]
+    if not any(p.is_relative_to(d) for d in allowed_dirs):
+        raise HTTPException(
+            status_code=403, detail="Access denied: Path is outside allowed directories."
+        )
+
     if not p.is_file():
         raise HTTPException(status_code=404, detail=f"File not found: {req.path}")
     try:
-        topo = engine.load_topology(p)
+        topo = await _run_in_executor(engine.load_topology, p)
         return {
             "status": "ok",
             "nodes": topo.node_count,
@@ -104,11 +232,11 @@ def load_topology(req: TopologyLoadRequest) -> dict[str, Any]:
 
 
 @app.get("/api/topology")
-def get_topology() -> dict[str, Any]:
+async def get_topology() -> dict[str, Any]:
     """Return the current topology as JSON."""
     engine = get_engine()
     try:
-        return engine.topology.to_dict()
+        return cast("dict[str, Any]", await _run_in_executor(engine.topology.to_dict))
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail="No topology loaded.") from exc
 
@@ -126,7 +254,7 @@ async def ingest_config(file: UploadFile = File(...)) -> dict[str, Any]:  # noqa
         tmp_path = tmp.name
 
     try:
-        hostnames = engine.ingest_config(tmp_path)
+        hostnames = await _run_in_executor(engine.ingest_config, tmp_path)
         return {
             "status": "ok",
             "devices_applied": hostnames,
@@ -138,13 +266,13 @@ async def ingest_config(file: UploadFile = File(...)) -> dict[str, Any]:  # noqa
 
 
 @app.post("/api/impact")
-def simulate_impact(req: ImpactRequest) -> dict[str, Any]:
+async def simulate_impact(req: ImpactRequest) -> dict[str, Any]:
     """Simulate a change and return blast-radius report."""
     engine = get_engine()
     try:
         change = ConfigChange.model_validate(req.change)
-        result = engine.simulate_change(change, weight=req.weight)
-        return result.to_dict()
+        result = await _run_in_executor(engine.simulate_change, change, weight=req.weight)
+        return cast("dict[str, Any]", result.to_dict())
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -152,7 +280,7 @@ def simulate_impact(req: ImpactRequest) -> dict[str, Any]:
 
 
 @app.post("/api/rca")
-def run_rca(req: RCARequest) -> dict[str, Any]:
+async def run_rca(req: RCARequest) -> dict[str, Any]:
     """Run root-cause analysis on provided events."""
     from nroute.simulation.rca import (
         EventCategory,
@@ -163,47 +291,46 @@ def run_rca(req: RCARequest) -> dict[str, Any]:
 
     engine = get_engine()
     events: list[NetworkEvent] = []
+    valid_categories = {e.value for e in EventCategory}
+    valid_severities = {e.value for e in EventSeverity}
+
     for idx, item in enumerate(req.events):
-        cat = item.get("category", "unknown")
-        sev = item.get("severity", "info")
+        cat = item.category
+        sev = item.severity
         evt = NetworkEvent(
-            event_id=str(item.get("event_id", f"evt_{idx}")),
-            timestamp=float(item.get("timestamp", idx)),
-            node_id=str(item.get("node_id", "")),
-            interface=str(item.get("interface", "")),
-            peer_node=str(item.get("peer_node", "")),
-            event_type=str(item.get("event_type", "")),
-            category=EventCategory(cat)
-            if cat in [e.value for e in EventCategory]
-            else EventCategory.UNKNOWN,
-            severity=EventSeverity(sev)
-            if sev in [e.value for e in EventSeverity]
-            else EventSeverity.INFO,
-            message=str(item.get("message", "")),
-            raw=item,
+            event_id=item.event_id or f"evt_{idx}",
+            timestamp=item.timestamp if item.timestamp else float(idx),
+            node_id=item.node_id,
+            interface=item.interface,
+            peer_node=item.peer_node,
+            event_type=item.event_type,
+            category=EventCategory(cat) if cat in valid_categories else EventCategory.UNKNOWN,
+            severity=EventSeverity(sev) if sev in valid_severities else EventSeverity.INFO,
+            message=item.message,
+            raw=item.model_dump(),
         )
         events.append(classify_event(evt))
 
     try:
-        result = engine.diagnose(events)
-        return result.to_dict()
+        result = await _run_in_executor(engine.diagnose, events)
+        return cast("dict[str, Any]", result.to_dict())
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/reachability")
-def get_reachability() -> dict[str, Any]:
+async def get_reachability() -> dict[str, Any]:
     """Compute pairwise reachability matrix."""
     engine = get_engine()
     try:
-        reach = engine.compute_reachability()
+        reach = await _run_in_executor(engine.compute_reachability)
         return {k: sorted(v) for k, v in reach.items()}
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/audit")
-def get_audit(
+async def get_audit(
     action: str | None = None,
     limit: int | None = None,
 ) -> dict[str, Any]:
