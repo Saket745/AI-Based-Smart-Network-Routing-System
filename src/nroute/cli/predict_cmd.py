@@ -405,9 +405,6 @@ def _load_gnn_model_state(model: Any, args: GNNPredictArgs, is_json: bool) -> No
             click.echo(
                 json.dumps(
                     {"error": f"Failed to load model {model_type} (version {version}): {e}"}
-                    {
-                        "error": f"Failed to load model {args.model_type} (version {args.version}): {e}"
-                    }
                 ),
                 err=True,
             )
@@ -456,7 +453,6 @@ def _run_gnn_inference(model: Any, bundle: Any) -> tuple[list[float], list[float
     if is_json:
         import json
 
-=======
         edges_sorted = sorted(topo.edges)
         links_out = []
         for idx, (u, v) in enumerate(edges_sorted):
