@@ -9,24 +9,49 @@ from typing import TYPE_CHECKING
 import structlog
 
 if TYPE_CHECKING:
-    from structlog.types import FilteringBoundLogger
+    from structlog.types import FilteringBoundLogger, Processor
+
 
 _configured: bool = False
 
 
-def configure_logging(verbose: bool = False, json_format: bool = False) -> None:
+def configure_logging(
+    verbose: bool = False,
+    quiet: bool = False,
+    json_format: bool = False,
+    colors: bool = True,
+    log_level_override: str | None = None,
+) -> None:
     """
     Configure global structlog logging.
 
     Args:
-        verbose: If True, set the logging level to DEBUG. Otherwise, use INFO.
+        verbose: If True, set the logging level to DEBUG.
+        quiet: If True, set the logging level to ERROR.
         json_format: If True, output in JSON format. Otherwise, use human-readable console format.
+        colors: If True, enable colored output.
+        log_level_override: Optional custom log level override string.
     """
     global _configured
     if _configured:
         return
 
-    log_level = logging.DEBUG if verbose else logging.INFO
+    # Resolve logging level
+    if quiet:
+        log_level = logging.ERROR
+    elif verbose:
+        log_level = logging.DEBUG
+    elif log_level_override:
+        level_map = {
+            "DEBUG": logging.DEBUG,
+            "INFO": logging.INFO,
+            "WARNING": logging.WARNING,
+            "ERROR": logging.ERROR,
+            "CRITICAL": logging.CRITICAL,
+        }
+        log_level = level_map.get(log_level_override.upper(), logging.INFO)
+    else:
+        log_level = logging.INFO
 
     # Configure stdlib logging root logger
     logging.basicConfig(
@@ -35,7 +60,7 @@ def configure_logging(verbose: bool = False, json_format: bool = False) -> None:
         stream=sys.stderr,
     )
 
-    processors: list[structlog.types.Processor] = [
+    processors: list[Processor] = [
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         structlog.processors.TimeStamper(fmt="iso"),
@@ -47,7 +72,11 @@ def configure_logging(verbose: bool = False, json_format: bool = False) -> None:
     if json_format:
         processors.append(structlog.processors.JSONRenderer())
     else:
-        processors.append(structlog.dev.ConsoleRenderer(colors=True))
+        import os
+
+        env_no_color = "NO_COLOR" in os.environ
+        use_colors = colors and not env_no_color
+        processors.append(structlog.dev.ConsoleRenderer(colors=use_colors))
 
     structlog.configure(
         processors=processors,

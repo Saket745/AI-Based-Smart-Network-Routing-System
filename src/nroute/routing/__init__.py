@@ -15,15 +15,19 @@ from nroute.routing.ecmp import ECMPRouter
 from nroute.routing.negotiation import NegotiationRouter
 from nroute.routing.registry import ROUTER_REGISTRY, register_router
 from nroute.routing.rl_router import RLRouter
+from nroute.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
-def get_router(algorithm: str, topology: Any = None) -> BaseRouter:
+def get_router(algorithm: str, topology: Any = None, allow_unsafe: bool = False) -> BaseRouter:
     """
     Factory function to get a router instance by name.
 
     Args:
         algorithm: "dijkstra" | "bellman-ford" | "ecmp" | "bfs" | "ai" | "rl" | "ppo" | "dqn" or custom registered name.
         topology: Optional topology context.
+
     """
     alg = algorithm.lower().strip()
 
@@ -43,13 +47,15 @@ def get_router(algorithm: str, topology: Any = None) -> BaseRouter:
         cfg = load_config()
         if alg in cfg.custom_routers:
             import_str = cfg.custom_routers[alg]
-            router_cls = load_custom_class(import_str, expected_superclass=BaseRouter)
+            router_cls = load_custom_class(
+                import_str, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
+            )
             sig = inspect.signature(router_cls.__init__)
             if "topology" in sig.parameters:
                 return router_cls(topology=topology)  # type: ignore[call-arg]
             return router_cls()
     except Exception:
-        pass
+        logger.exception("Failed to load custom router from configuration", algorithm=alg)
 
     if alg == "dijkstra":
         return DijkstraRouter()
