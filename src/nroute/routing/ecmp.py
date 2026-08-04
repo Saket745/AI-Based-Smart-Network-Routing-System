@@ -122,6 +122,7 @@ class ECMPRouter(BaseRouter):
         """
         Internal implementation of finding and validating equal cost paths.
         """
+=======
 
     def compute_all_equal_cost_paths(
         self,
@@ -193,6 +194,7 @@ class ECMPRouter(BaseRouter):
     def compute_k_shortest_paths(
         self,
         topology: Topology,
+=======
         query: RoutingQuery,
 =======
         query: RoutingQuery | None = None,
@@ -210,6 +212,7 @@ class ECMPRouter(BaseRouter):
         """
         Internal implementation of finding and validating top K shortest simple paths.
         """
+=======
         subgraph = self._get_active_subgraph(topology)
         k_val = query.k if query.k is not None else self.k
         source, destination = query.source, query.destination
