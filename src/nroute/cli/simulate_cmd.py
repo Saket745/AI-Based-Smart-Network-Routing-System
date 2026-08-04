@@ -1241,6 +1241,8 @@ def _render_comparison_table(results: dict[str, Any], algo_list: list[str]) -> N
     if args.output:
         out_path = Path(args.output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
+        comparison_dict: dict[str, Any] = {}
+=======
         comparison_export_data: dict[str, Any] = {}
 =======
         comparison_data_out: dict[str, Any] = {}
@@ -1253,8 +1255,9 @@ def _render_comparison_table(results: dict[str, Any], algo_list: list[str]) -> N
                     if r.results
                     else 0.0
                 )
+                comparison_dict[algo] = {
+
                 comparison_export_data[algo] = {
-=======
                 comparison_data_out[algo] = {
                     "total_throughput": r.total_throughput(),
                     "mean_latency": r.mean_latency(),
@@ -1262,6 +1265,9 @@ def _render_comparison_table(results: dict[str, Any], algo_list: list[str]) -> N
                     "total_reroutes": total_reroutes,
                 }
             else:
+                comparison_dict[algo] = {"error": "simulation_failed"}
+        out_path.write_text(json.dumps(comparison_dict, indent=2))
+=======
                 comparison_export_data[algo] = {"error": "simulation_failed"}
         out_path.write_text(json.dumps(comparison_export_data, indent=2))
 =======
