@@ -42,18 +42,17 @@ class RouteMetrics(BaseModel):
         bottleneck_bw = float("inf")
         bottleneck_util = 0.0
 
+        graph = topology.graph
         for i in range(total_hops):
             u, v = path[i], path[i + 1]
-            try:
-                edge = topology.get_edge(u, v)
+            if graph.has_edge(u, v):
+                edge = graph.edges[u, v]
                 total_latency += float(edge.get("latency", 0.0))
                 bw = float(edge.get("bandwidth", float("inf")))
                 util = float(edge.get("utilization", 0.0))
                 if bw < bottleneck_bw:
                     bottleneck_bw = bw
                     bottleneck_util = util
-            except Exception:
-                pass
 
         return cls(
             path=path,

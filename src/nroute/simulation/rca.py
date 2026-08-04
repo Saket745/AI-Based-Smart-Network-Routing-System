@@ -14,6 +14,7 @@ to isolate root failures.
 
 from __future__ import annotations
 
+=======
 import contextlib
 import copy
 import functools
@@ -329,13 +330,11 @@ class RCACorrelator:
         if root_peer:
             downstream_nodes.add(root_peer)
 
-        # Expand to topology neighbours of the failing link
-        if root_node and root_node in self.topology.nodes:
-            with contextlib.suppress(Exception):
-                downstream_nodes.update(self.topology.neighbors(root_node))
-        if root_peer and root_peer in self.topology.nodes:
-            with contextlib.suppress(Exception):
-                downstream_nodes.update(self.topology.neighbors(root_peer))
+        graph = self.topology.graph
+        if root_node and root_node in graph:
+            downstream_nodes.update(graph.successors(root_node))
+        if root_peer and root_peer in graph:
+            downstream_nodes.update(graph.successors(root_peer))
 
         for evt in sorted_events:
             if evt is root_candidate:

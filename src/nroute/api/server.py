@@ -85,6 +85,7 @@ DEFAULT_CORS_ORIGINS = [
 ]
 
 # Load CORS configuration
+from nroute.core.config import load_config
 try:
     _cfg = load_config()
     _cors_origins = _cfg.general.cors_origins
@@ -94,10 +95,16 @@ try:
             "Please specify explicit origins."
         )
 except Exception as e:
-    if isinstance(e, ValueError) and "CORS origins due to security risks" in str(e):
+    # If the exception is the ValueError we raised above, propagate it
+    if isinstance(e, ValueError) and "due to security risks" in str(e):
         raise
+
     import os
 
+    _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "*")
+    if _cors_origins_raw == "*":
+        _cors_origins = ["*"]
+=======
     _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "")
     if not _cors_origins_raw:
         _cors_origins = DEFAULT_CORS_ORIGINS
@@ -109,8 +116,8 @@ except Exception as e:
                 "Please specify explicit origins."
             ) from e
 
-# Filter out '*' and empty strings, ensure secure local development defaults as fallback
-_cors_origins = [o for o in _cors_origins if o and o != "*"]
+# Filter out empty strings, ensure secure local development defaults as fallback
+_cors_origins = [o for o in _cors_origins if o]
 if not _cors_origins:
     _cors_origins = DEFAULT_CORS_ORIGINS
 
@@ -284,6 +291,9 @@ async def run_rca(req: RCARequest) -> dict[str, Any]:
 
     engine = get_engine()
     events: list[NetworkEvent] = []
+    valid_categories = {e.value for e in EventCategory}
+    valid_severities = {e.value for e in EventSeverity}
+
     for idx, item in enumerate(req.events):
         cat = item.category
         sev = item.severity
@@ -294,12 +304,8 @@ async def run_rca(req: RCARequest) -> dict[str, Any]:
             interface=item.interface,
             peer_node=item.peer_node,
             event_type=item.event_type,
-            category=EventCategory(cat)
-            if cat in [e.value for e in EventCategory]
-            else EventCategory.UNKNOWN,
-            severity=EventSeverity(sev)
-            if sev in [e.value for e in EventSeverity]
-            else EventSeverity.INFO,
+            category=EventCategory(cat) if cat in valid_categories else EventCategory.UNKNOWN,
+            severity=EventSeverity(sev) if sev in valid_severities else EventSeverity.INFO,
             message=item.message,
             raw=item.model_dump(),
         )
