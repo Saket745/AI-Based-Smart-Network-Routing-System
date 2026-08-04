@@ -6,7 +6,9 @@ import contextlib
 import os
 import tempfile
 =======
+=======
 from unittest.mock import patch
+ 
 
 import joblib
 import pytest
@@ -16,6 +18,8 @@ from nroute.ml.anomaly import AnomalyDetector
 from nroute.ml.congestion import CongestionPredictor
 
 
+def test_anomaly_detector_secure_loading_enforcement():
+=======
 def test_anomaly_detector_secure_loading_enforcement() -> None:
     """Verify that AnomalyDetector blocks insecure files by default."""
     detector = AnomalyDetector(model_type="isolation_forest")
@@ -34,6 +38,7 @@ def test_anomaly_detector_secure_loading_enforcement() -> None:
             # We expect failure later since it's not a real model, but the security block is bypassed
             detector.load(path, allow_unsafe=True)
 
+=======
 
 =======
 
@@ -55,7 +60,6 @@ def test_anomaly_detector_pytorch_secure_loading_failure() -> None:
                 detector.load(path, allow_unsafe=True)
             assert f"Failed to load model from {path}" in str(excinfo.value)
             assert "Security breach!" in str(excinfo.value)
-
 
 def test_congestion_predictor_secure_loading_enforcement() -> None:
     """Verify that CongestionPredictor blocks insecure files by default."""
