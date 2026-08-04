@@ -34,6 +34,15 @@ class ECMPRouter(BaseRouter):
 
     def _resolve_query_params(
         self,
+        topology: Topology,
+        query: RoutingQuery,
+=======
+        query: RoutingQuery | None = None,
+        source: str | None = None,
+        destination: str | None = None,
+        weight: str | Callable[[dict[str, Any]], float] | None = None,
+    ) -> list[list[str]]:
+=======
         query: RoutingQuery | None,
         source: str | None,
         destination: str | None,
@@ -57,7 +66,16 @@ class ECMPRouter(BaseRouter):
         """
         Get active subgraph and validate that source and destination are present and up.
         """
+        if query is not None:
+            source = query.source
+            destination = query.destination
+            weight = query.weight
+        elif source is None or destination is None:
+            raise ValueError("Either 'query' or ('source' and 'destination') must be provided.")
+
         subgraph = self._get_active_subgraph(topology)
+        source, destination = query.source, query.destination
+        weight = query.weight
 
         if source not in subgraph:
             raise RoutingError(f"Source node '{source}' is down or does not exist.")
@@ -88,65 +106,9 @@ class ECMPRouter(BaseRouter):
         wt_callable = weight
 
         def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
+            # If the callable expects the edge data dict, call it with d
             return float(wt_callable(d))
 
-        return weight_func_callable
-
-    def compute_all_equal_cost_paths(
-        self,
-        topology: Topology,
-        query: RoutingQuery | None = None,
-        source: str | None = None,
-        destination: str | None = None,
-        weight: str | Callable[[dict[str, Any]], float] | None = None,
-
-
-            def weight_func_attr(u: str, v: str, d: dict[str, Any]) -> float:
-                return float(d.get(weight_attr, 1.0))
-
-            return weight_func_attr
-        wt_callable = weight
-
-        def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
-            return float(wt_callable(d))
-
-        return weight_func_callable
-
-    def compute_all_equal_cost_paths(
-        self,
-        topology: Topology,
-        query: RoutingQuery,
-    ) -> list[list[str]]:
-        """
-        Find all shortest paths of equal minimum cost between source and destination.
-        """
-        source_val, dest_val, weight_val, _ = self._resolve_query_params(
-            query, source, destination, weight
-        )
-        subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
-        weight_func = self._resolve_weight_function(weight_val)
-=======
-        source_val = query.source
-        dest_val = query.destination
-        weight_val = query.weight
-
-        subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
-        weight_func = self._resolve_weight_function(weight_val)
-
-        def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
-            return float(wt_callable(d))
-
-        return weight_func_callable
-
-            return weight_func
-        if isinstance(weight, str):
-            weight_attr = weight
-            def weight_func_attr(u: str, v: str, d: dict[str, Any]) -> float:
-                return float(d.get(weight_attr, 1.0))
-            return weight_func_attr
-        wt_callable = weight
-        def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
-            return float(wt_callable(d))
         return weight_func_callable
 
     def _compute_equal_cost_paths_impl(
@@ -160,73 +122,7 @@ class ECMPRouter(BaseRouter):
         """
         Internal implementation of finding and validating equal cost paths.
         """
-        try:
-            paths = nx.all_shortest_paths(
-                subgraph,
-                source=source_val,
-                target=dest_val,
-                weight=weight_func,
-            )
-            res_paths = [list(p) for p in paths]
-            for p in res_paths:
-                self.validate_path(topology, p, source_val, dest_val)
-            return res_paths
-        except nx.NetworkXNoPath as e:
-            raise RoutingError(
-                f"No active path found between '{source_val}' and '{dest_val}'."
-            ) from e
-        except Exception as e:
-            if isinstance(e, RoutingError):
-                raise
-            raise RoutingError(f"ECMP equal cost path computation failed: {e}") from e
-
-    def _compute_k_shortest_paths_impl(
-        self,
-        topology: Topology,
-        query: RoutingQuery,
-
-        subgraph: nx.DiGraph,
-        source: str,
-        destination: str,
-        k: int,
-        weight_func: Callable[[str, str, dict[str, Any]], float],
-
-    ) -> list[list[str]]:
-        """
-        Internal implementation of finding and validating top K shortest simple paths.
-        """
-        source_val, dest_val, weight_val, k_val = self._resolve_query_params(
-            query, source, destination, weight, k
-        )
-
-        source_val = query.source
-        dest_val = query.destination
-        weight_val = query.weight
-        k_val = query.k if query.k is not None else self.k
-
-        subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
-        weight_func = self._resolve_weight_function(weight_val)
-
-        try:
-            generator = nx.shortest_simple_paths(
-                subgraph,
-                source=source_val,
-                target=dest_val,
-                weight=weight_func,
-            )
-            paths = list(itertools.islice(generator, k))
-            res_paths = [list(p) for p in paths]
-            for p in res_paths:
-                self.validate_path(topology, p, source_val, dest_val)
-            return res_paths
-        except (nx.NetworkXNoPath, StopIteration) as e:
-            raise RoutingError(
-                f"No active path found between '{source_val}' and '{dest_val}'."
-            ) from e
-        except Exception as e:
-            if isinstance(e, RoutingError):
-                raise
-            raise RoutingError(f"K-shortest path computation failed: {e}") from e
+=======
 
     def compute_all_equal_cost_paths(
         self,
@@ -235,39 +131,154 @@ class ECMPRouter(BaseRouter):
         source: str | None = None,
         destination: str | None = None,
         weight: str | Callable[[dict[str, Any]], float] | None = None,
+
+      
+            def weight_func_attr(u: str, v: str, d: dict[str, Any]) -> float:
+                return float(d.get(weight_attr, 1.0))
+
+            return weight_func_attr
+        wt_callable = weight
+
+        def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
+            return float(wt_callable(d))
+
+        return weight_func_callable
+
+    def compute_all_equal_cost_paths(
+        self,
+        topology: Topology,
+        query: RoutingQuery,
+=======
+
     ) -> list[list[str]]:
         """
         Find all shortest paths of equal minimum cost between source and destination.
+        Accepts either a RoutingQuery or explicit source/destination/weight params.
         """
         source_val, dest_val, weight_val, _ = self._resolve_query_params(
             query, source, destination, weight
         )
         subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
         weight_func = self._resolve_weight_function(weight_val)
-        return self._compute_equal_cost_paths_impl(
-            topology, subgraph, source_val, dest_val, weight_func
-        )
+
+      =======
+        source_val = query.source
+        dest_val = query.destination
+        weight_val = query.weight
+
+        subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
+        weight_func = self._resolve_weight_function(weight_val)
+=======
+
+      
+        try:
+            paths = nx.all_shortest_paths(
+                subgraph,
+                source=source,
+                target=destination,
+                weight=weight_func,
+            )
+            res_paths = [list(p) for p in paths]
+            for p in res_paths:
+                self.validate_path(topology, p, source, destination)
+            return res_paths
+        except nx.NetworkXNoPath as e:
+            raise RoutingError(
+                f"No active path found between '{source}' and '{destination}'."
+            ) from e
+        except Exception as e:
+            if isinstance(e, RoutingError):
+                raise
+            raise RoutingError(f"ECMP equal cost path computation failed: {e}") from e
 
     def compute_k_shortest_paths(
         self,
         topology: Topology,
+=======
+        query: RoutingQuery,
+=======
         query: RoutingQuery | None = None,
         source: str | None = None,
         destination: str | None = None,
         k: int | None = None,
         weight: str | Callable[[dict[str, Any]], float] | None = None,
+=======
+        subgraph: nx.DiGraph,
+        source: str,
+        destination: str,
+        k: int,
+        weight_func: Callable[[str, str, dict[str, Any]], float],
     ) -> list[list[str]]:
         """
-        Find the top K shortest simple paths using Yen's algorithm.
+        Internal implementation of finding and validating top K shortest simple paths.
         """
+=======
+        subgraph = self._get_active_subgraph(topology)
+        k_val = query.k if query.k is not None else self.k
+        source, destination = query.source, query.destination
+        weight = query.weight
+
+        if source not in subgraph:
+            raise RoutingError(f"Source node '{source}' is down or does not exist.")
+        if destination not in subgraph:
+            raise RoutingError(f"Destination node '{destination}' is down or does not exist.")
+
+        if query is not None:
+            source = query.source
+            destination = query.destination
+            weight = query.weight
+            k_val = query.k if query.k is not None else self.k
+        elif source is None or destination is None:
+            raise ValueError("Either 'query' or ('source' and 'destination') must be provided.")
+        else:
+            k_val = k if k is not None else self.k
+
+        subgraph = self._get_active_subgraph(topology)
+
+      query: RoutingQuery,
+    ) -> list[list[str]]:
+        
+        Find the top K shortest simple paths using Yen's algorithm.
+=======
+        query: RoutingQuery | None = None,
+        source: str | None = None,
+        destination: str | None = None,
+        weight: str | Callable[[dict[str, Any]], float] | None = None,
+        k: int | None = None,
+    ) -> list[list[str]]:
+        
+=======
+        Find the top K shortest simple paths using NetworkX shortest_simple_paths (Yen-like).
+        Accepts either a RoutingQuery or explicit source/destination/weight/k params.
+
+      
         source_val, dest_val, weight_val, k_val = self._resolve_query_params(
             query, source, destination, weight, k
         )
+
         subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
         weight_func = self._resolve_weight_function(weight_val)
-        return self._compute_k_shortest_paths_impl(
-            topology, subgraph, source_val, dest_val, k_val, weight_func
-        )
+
+        try:
+            generator = nx.shortest_simple_paths(
+                subgraph,
+                source=source,
+                target=destination,
+                weight=weight_func,
+            )
+            paths = list(itertools.islice(generator, k_val))
+            res_paths = [list(p) for p in paths]
+            for p in res_paths:
+                self.validate_path(topology, p, source, destination)
+            return res_paths
+        except (nx.NetworkXNoPath, StopIteration) as e:
+            raise RoutingError(
+                f"No active path found between '{source}' and '{destination}'."
+            ) from e
+        except Exception as e:
+            if isinstance(e, RoutingError):
+                raise
+            raise RoutingError(f"K-shortest path computation failed: {e}") from e
 
     def compute_path(
         self,
@@ -277,7 +288,6 @@ class ECMPRouter(BaseRouter):
         weight: str | Callable[[dict[str, Any]], float] | None = None,
         **kwargs: Any,
     ) -> list[str]:
-        """
         Compute a single path. Uses ECMP (equal-cost paths) and selects one
         deterministically using the hash of flow_key.
 
@@ -286,8 +296,13 @@ class ECMPRouter(BaseRouter):
             source: Source node ID.
             destination: Destination node ID.
             weight: Routing metric.
+            flow_key: Key used to hash and select one of the equal-cost paths (e.g. protocol or flow ID) 
+        query = RoutingQuery(
+            source=source, destination=destination, weight=weight, flow_key=flow_key
+=======
             **kwargs: Additional parameters including 'flow_key'.
-        """
+=======
+        
         flow_key = kwargs.get("flow_key")
         query = RoutingQuery(
             source=source,
@@ -300,6 +315,10 @@ class ECMPRouter(BaseRouter):
             raise RoutingError(f"No path found between '{source}' and '{destination}'.")
 
         # Select path using flow_key hashing
+        key = query.flow_key
+        if key is not None:
+            hash_val = int(hashlib.md5(str(key).encode("utf-8")).hexdigest(), 16)
+=======
         if flow_key is not None:
             hash_val = int(hashlib.sha256(str(flow_key).encode("utf-8")).hexdigest(), 16)
             index = hash_val % len(paths)

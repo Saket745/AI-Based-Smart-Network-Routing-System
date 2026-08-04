@@ -32,6 +32,8 @@ def _get_topo(small_graph_data: dict[str, Any]) -> Topology:
 
 
 def test_bfs_routing_basic(small_graph_data: dict[str, Any]) -> None:
+    """Test standard unweighted shortest path computation on small topology."""
+=======
     """Test standard minimum-hop path computation on small topology."""
     topo = _get_topo(small_graph_data)
     router = BFSRouter()
@@ -40,6 +42,32 @@ def test_bfs_routing_basic(small_graph_data: dict[str, Any]) -> None:
     path = router.compute_path(topo, "A", "D")
     assert path == ["A", "B", "D"]
 
+    # Path A -> E should be A -> B -> E or A -> C -> E (both 2 hops)
+    # NetworkX shortest_path for unweighted graph returns one of them.
+    path_e = router.compute_path(topo, "A", "E")
+    assert len(path_e) == 3
+    assert path_e[0] == "A"
+    assert path_e[2] == "E"
+    assert path_e[1] in ["B", "C"]
+
+
+def test_bfs_ignores_weights(small_graph_data: dict[str, Any]) -> None:
+    """Test that BFS router ignores weights and always uses hop count."""
+    topo = _get_topo(small_graph_data)
+    router = BFSRouter()
+
+    # Even if we provide a weight that would favor a longer hop path,
+    # BFS should still return the minimum-hop path.
+    # For A -> D:
+    # A -> B -> D: 2 hops, 15ms latency
+    # A -> C -> E -> D: 3 hops, 25ms latency
+    # Let's make A -> B -> D very "expensive" by latency
+    topo.graph["A"]["B"]["latency"] = 100.0
+    topo.graph["B"]["D"]["latency"] = 100.0
+
+    # Dijkstra with latency would now choose A -> C -> E -> D (25ms)
+    # But BFS should still choose A -> B -> D (2 hops)
+=======
     # Path A -> E should be A -> B -> E (2 hops)
     path_e = router.compute_path(topo, "A", "E")
     assert path_e == ["A", "B", "E"]
@@ -78,6 +106,8 @@ def test_bfs_routing_failure_recovery(small_graph_data: dict[str, Any]) -> None:
 
     # Path should switch to another 3-hop path, e.g., A -> B -> E -> D or A -> C -> E -> D
     path = router.compute_path(topo, "A", "D")
+    assert len(path) == 4
+=======
     assert len(path) == 4  # 3 hops = 4 nodes
     assert path[0] == "A"
     assert path[-1] == "D"
@@ -85,6 +115,8 @@ def test_bfs_routing_failure_recovery(small_graph_data: dict[str, Any]) -> None:
     # Break node B entirely
     topo.set_node_down("B")
 
+    # Path must be A -> C -> E -> D
+=======
     # Path must switch to A -> C -> E -> D (3 hops)
     path_nodes_down = router.compute_path(topo, "A", "D")
     assert path_nodes_down == ["A", "C", "E", "D"]
@@ -95,6 +127,8 @@ def test_bfs_routing_errors(small_graph_data: dict[str, Any]) -> None:
     topo = _get_topo(small_graph_data)
     router = BFSRouter()
 
+    # Make target unreachable by bringing down links
+=======
     # Make target unreachable
     topo.set_link_down("E", "D")
     topo.set_link_down("B", "D")
@@ -109,6 +143,10 @@ def test_bfs_routing_errors(small_graph_data: dict[str, Any]) -> None:
     with pytest.raises(RoutingError, match="does not exist"):
         router.compute_path(topo, "NON_EXISTENT", "D")
 
+    # Node down
+    topo.set_node_down("A")
+    with pytest.raises(RoutingError, match="Source node 'A' is down"):
+=======
 
 def test_bfs_routing_unhandled_exception(
     small_graph_data: dict[str, Any], monkeypatch: pytest.MonkeyPatch
