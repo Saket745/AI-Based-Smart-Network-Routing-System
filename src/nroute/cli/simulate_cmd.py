@@ -421,6 +421,65 @@ def compare(
             f"  Duration: {duration} ticks | Traffic: {traffic_model} ({flows_per_tick} flows/tick)\n"
         )
 
+    results = _run_compare_simulations(
+        topo=topo,
+        algo_list=algo_list,
+        duration=duration,
+        traffic_model=traffic_model,
+        flows_per_tick=flows_per_tick,
+        seed=seed,
+        allow_unsafe=allow_unsafe,
+        model_path=model_path,
+        custom_router=custom_router,
+    )
+
+    # Build comparison data once using helper function
+    comparison_data = _build_comparison_data(results, algo_list)
+
+    if is_json:
+        click.echo(json.dumps(comparison_data, indent=2))
+        if output:
+            _save_compare_results(output, comparison_data)
+        return
+
+    # Build and print comparison table
+    _print_compare_table(algo_list, results)
+
+    # Save comparison if requested
+    if output:
+        _save_compare_results(output, comparison_data)
+        console.print(f"\n[green]+[/green] Comparison saved to [bold]{output}[/bold]")
+
+    console.print()
+
+
+def _run_compare_simulations(
+    topo: Topology,
+    algo_list: list[str],
+    duration: int,
+    traffic_model: str,
+    flows_per_tick: int,
+    seed: int | None,
+    allow_unsafe: bool,
+    model_path: str | None,
+    custom_router: str | None,
+) -> dict[str, Any]:
+    """Run simulation for multiple algorithms and collect results.
+
+    Args:
+        topo: The network topology.
+        algo_list: List of algorithm names to run.
+        duration: Number of simulation ticks.
+        traffic_model: Traffic generation model.
+        flows_per_tick: Number of flows generated per tick.
+        seed: Random seed for reproducibility.
+        allow_unsafe: Allow loading of unsafe models and custom classes.
+        model_path: Path to a pretrained model.
+        custom_router: Import target for custom router class.
+
+    Returns:
+        Dictionary mapping algorithm name to its simulation result (or None on failure).
+    """
     results: dict[str, Any] = {}
 
     for algo in algo_list:
@@ -446,6 +505,8 @@ def compare(
             # Load pretrained model if provided and router supports it
             if model_path and hasattr(router, "load"):
                 try:
+                    import inspect
+
                     sig = inspect.signature(router.load)
                     if "allow_unsafe" in sig.parameters:
                         router.load(model_path, allow_unsafe=allow_unsafe)
@@ -464,18 +525,16 @@ def compare(
             console.print(f"[yellow]⚠ {algo.upper()} failed:[/yellow] {e}")
             results[algo] = None
 
-    # Build comparison data once using helper function
-    comparison_data = _build_comparison_data(results, algo_list)
+    return results
 
-    if is_json:
-        click.echo(json.dumps(comparison_data, indent=2))
-        if output:
-            out_path = Path(output)
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-            out_path.write_text(json.dumps(comparison_data, indent=2))
-        return
 
-    # Build comparison table
+def _print_compare_table(algo_list: list[str], results: dict[str, Any]) -> None:
+    """Build and display a Rich comparison table of algorithm performance.
+
+    Args:
+        algo_list: List of algorithms that were compared.
+        results: Dictionary mapping algorithm name to simulation results.
+    """
     table = Table(
         title="Algorithm Comparison",
         show_header=True,
@@ -516,14 +575,17 @@ def compare(
 
     console.print(table)
 
-    # Save comparison if requested
-    if output:
-        out_path = Path(output)
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(json.dumps(comparison_data, indent=2))
-        console.print(f"\n[green]+[/green] Comparison saved to [bold]{out_path}[/bold]")
 
-    console.print()
+def _save_compare_results(output: str, comparison_data: dict[str, Any]) -> None:
+    """Save comparison data to a JSON file.
+
+    Args:
+        output: File path to save comparison JSON.
+        comparison_data: Dictionary containing serialized comparison metrics.
+    """
+    out_path = Path(output)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(comparison_data, indent=2))
 
 
 def _print_simulation_results(result: Any, algorithm: str) -> None:
