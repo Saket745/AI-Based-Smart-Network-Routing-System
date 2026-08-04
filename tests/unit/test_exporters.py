@@ -16,6 +16,9 @@ from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
 from nroute.core.topology import Topology
 from nroute.visualization.exporters import MetricsExporter, TopologyExporter
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 
 @pytest.fixture
 def sample_topology() -> Topology:
