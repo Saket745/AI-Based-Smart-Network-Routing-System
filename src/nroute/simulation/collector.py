@@ -72,6 +72,9 @@ class MetricsCollector:
         # Average utilization across all links that are up.
         link_utilizations = []
         for _, _, edge_data in topology.graph.edges(data=True):
+            if edge_data.get("status", "up") != "down":
+                link_utilizations.append(float(edge_data.get("utilization", 0.0)))
+=======
             try:
                 if edge_data.get("status", "up") != "down":
                     link_utilizations.append(float(edge_data.get("utilization", 0.0)))

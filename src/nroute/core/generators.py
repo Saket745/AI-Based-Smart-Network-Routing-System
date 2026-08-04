@@ -109,6 +109,20 @@ class TopologyGenerator:
         return core_nodes
 
     @staticmethod
+    def _add_fat_tree_pod(
+        graph: nx.DiGraph, k: int, pod_idx: int, core_nodes: list[str], **default_attrs: Any
+    ) -> None:
+        """Add a single pod (switches and hosts) and its connections to the Fat-Tree graph."""
+        num_agg_per_pod = k // 2
+        num_edge_per_pod = k // 2
+        num_hosts_per_edge = k // 2
+
+        agg_nodes = []
+        edge_nodes = []
+
+        # Add Aggregation Switches
+        for agg in range(num_agg_per_pod):
+=======
     def _add_pod_agg_switches(graph: nx.DiGraph, pod_idx: int, num_agg: int) -> list[str]:
         """Add Aggregation Switches for a pod."""
         agg_nodes = []
@@ -118,6 +132,10 @@ class TopologyGenerator:
                 agg_id, type="switch", capacity=10000.0, status="up", location=f"pod_{pod_idx}"
             )
             agg_nodes.append(agg_id)
+
+        # Add Edge Switches and Hosts
+        for edge in range(num_edge_per_pod):
+=======
         return agg_nodes
 
     @staticmethod
@@ -136,6 +154,9 @@ class TopologyGenerator:
             )
             edge_nodes.append(edge_id)
 
+            # Add Hosts and connect to Edge Switch
+            for host in range(num_hosts_per_edge):
+=======
             for host in range(num_hosts):
                 host_id = f"pod_{pod_idx}_host_{edge}_{host}"
                 graph.add_node(
@@ -143,6 +164,10 @@ class TopologyGenerator:
                 )
 
                 # Connect Host <--> Edge Switch (bidirectional)
+                host_bw = default_attrs.get("host_bandwidth", 1000.0)
+                host_lat = default_attrs.get("host_latency", 0.5)
+
+=======
                 for u, v in [(host_id, edge_id), (edge_id, host_id)]:
                     graph.add_edge(
                         u,
@@ -155,6 +180,8 @@ class TopologyGenerator:
                         status="up",
                         weight=host_lat,
                     )
+
+        # Connect Edge <--> Aggregation Switches inside Pod
         return edge_nodes
 
     @staticmethod
@@ -179,6 +206,11 @@ class TopologyGenerator:
                         weight=pod_lat,
                     )
 
+        # Connect Aggregation <--> Core Switches
+        core_bw = default_attrs.get("core_bandwidth", 40000.0)
+        core_lat = default_attrs.get("core_latency", 2.0)
+        stride = k // 2
+=======
     @staticmethod
     def _connect_agg_to_core(
         graph: nx.DiGraph,

@@ -15,6 +15,7 @@ from nroute.simulation.traffic_gen import TrafficGenerator
 
 if TYPE_CHECKING:
     from nroute.core.topology import Topology
+    from nroute.ml.graph.bundle import GraphTensorBundle
 
 
 class DatasetGenerator:
@@ -70,8 +71,8 @@ class DatasetGenerator:
         def tick_callback(tick: int, sim: SimulationEngine) -> None:
             # Gather node details
             nodes_data = []
-            for node in sim.topology.nodes:
-                attrs = sim.topology.get_node(node)
+            graph = sim.topology.graph
+            for node, attrs in graph.nodes(data=True):
                 nodes_data.append(
                     {
                         "id": node,
@@ -84,8 +85,7 @@ class DatasetGenerator:
 
             # Gather edge details
             edges_data = []
-            for u, v in sim.topology.edges:
-                attrs = sim.topology.get_edge(u, v)
+            for u, v, attrs in graph.edges(data=True):
                 edges_data.append(
                     {
                         "source": u,
@@ -154,6 +154,92 @@ class DatasetGenerator:
         with open(filepath, "w") as f:
             json.dump(snapshots, f, indent=2)
 
+    def _reconstruct_topology(self, snap: dict[str, Any]) -> Topology:
+        """Reconstruct a Topology instance from a snapshot dict."""
+        from nroute.core.topology import Topology
+
+        topo = Topology()
+        for n_dict in snap["nodes"]:
+            node_id = n_dict["id"]
+            topo.add_node(
+                node_id,
+                capacity=n_dict["capacity"],
+                status=n_dict["status"],
+                queue_length=n_dict["queue_length"],
+                packet_load=n_dict["packet_load"],
+            )
+
+        for e_dict in snap["edges"]:
+            topo.add_edge(
+                e_dict["source"],
+                e_dict["destination"],
+                bandwidth=e_dict["bandwidth"],
+                latency=e_dict["latency"],
+                utilization=e_dict["utilization"],
+                packet_loss=e_dict["packet_loss"],
+                status=e_dict["status"],
+                reliability=e_dict.get("reliability", 1.0),
+                failure_frequency=e_dict.get("failure_frequency", 0.0),
+            )
+        return topo
+
+    def _compile_node_features(
+        self,
+        tick: int,
+        nodes_sorted: list[str],
+        bundle: GraphTensorBundle,
+        node_records: list[dict[str, Any]],
+    ) -> None:
+        """Compile and append node features to node_records."""
+        for idx, node_id in enumerate(nodes_sorted):
+            n_feats = bundle.node_features[idx]
+            node_records.append(
+                {
+                    "tick": tick,
+                    "node_id": node_id,
+                    "capacity": float(n_feats[0]),
+                    "status": float(n_feats[1]),
+                    "degree": float(n_feats[2]),
+                    "queue_length": float(n_feats[3]),
+                    "packet_load": float(n_feats[4]),
+                    "congestion_score": float(n_feats[5]),
+                    "betweenness_centrality": float(n_feats[6]),
+                    "closeness_centrality": float(n_feats[7]),
+                }
+            )
+
+    def _compile_edge_features(
+        self,
+        tick: int,
+        edges_sorted: list[tuple[str, str]],
+        bundle: GraphTensorBundle,
+        edge_records: list[dict[str, Any]],
+    ) -> None:
+        """Compile and append edge features to edge_records."""
+        for idx, (src, dst) in enumerate(edges_sorted):
+            e_feats = bundle.edge_features[idx]
+            utilization = float(e_feats[2])
+            node_to_idx = bundle.node_to_idx
+            # Label is 1 if utilization >= 0.85
+            congested_label = 1 if utilization >= 0.85 else 0
+
+            edge_records.append(
+                {
+                    "tick": tick,
+                    "source": src,
+                    "destination": dst,
+                    "source_idx": node_to_idx[src],
+                    "destination_idx": node_to_idx[dst],
+                    "bandwidth": float(e_feats[0]),
+                    "latency": float(e_feats[1]),
+                    "utilization": utilization,
+                    "packet_loss": float(e_feats[3]),
+                    "reliability": float(e_feats[4]),
+                    "failure_frequency": float(e_feats[5]),
+                    "congested_label": congested_label,
+                }
+            )
+
     def compile_to_parquet(self, snapshots: list[dict[str, Any]], output_dir: str) -> None:
         """
         Compile JSON snapshots into DataFrames and save as Parquet files.
@@ -164,43 +250,17 @@ class DatasetGenerator:
         """
         os.makedirs(output_dir, exist_ok=True)
 
-        node_records = []
-        edge_records = []
-        global_records = []
+        node_records: list[dict[str, Any]] = []
+        edge_records: list[dict[str, Any]] = []
+        global_records: list[dict[str, Any]] = []
 
         feature_builder = FeatureBuilder()
-
-        # Re-create Topology objects from snapshots to extract centralities and features cleanly
-        # using our FeatureBuilder.
-        from nroute.core.topology import Topology
 
         for snap in snapshots:
             tick = snap["tick"]
 
             # Reconstruct topology for this tick
-            topo = Topology()
-            for n_dict in snap["nodes"]:
-                node_id = n_dict["id"]
-                topo.add_node(
-                    node_id,
-                    capacity=n_dict["capacity"],
-                    status=n_dict["status"],
-                    queue_length=n_dict["queue_length"],
-                    packet_load=n_dict["packet_load"],
-                )
-
-            for e_dict in snap["edges"]:
-                topo.add_edge(
-                    e_dict["source"],
-                    e_dict["destination"],
-                    bandwidth=e_dict["bandwidth"],
-                    latency=e_dict["latency"],
-                    utilization=e_dict["utilization"],
-                    packet_loss=e_dict["packet_loss"],
-                    status=e_dict["status"],
-                    reliability=e_dict.get("reliability", 1.0),
-                    failure_frequency=e_dict.get("failure_frequency", 0.0),
-                )
+            topo = self._reconstruct_topology(snap)
 
             # Build rich feature tensors
             bundle = feature_builder.build_features(topo)
@@ -208,47 +268,10 @@ class DatasetGenerator:
             edges_sorted = sorted(topo.edges)
 
             # Compile Node Features
-            for idx, node_id in enumerate(nodes_sorted):
-                n_feats = bundle.node_features[idx]
-                node_records.append(
-                    {
-                        "tick": tick,
-                        "node_id": node_id,
-                        "capacity": float(n_feats[0]),
-                        "status": float(n_feats[1]),
-                        "degree": float(n_feats[2]),
-                        "queue_length": float(n_feats[3]),
-                        "packet_load": float(n_feats[4]),
-                        "congestion_score": float(n_feats[5]),
-                        "betweenness_centrality": float(n_feats[6]),
-                        "closeness_centrality": float(n_feats[7]),
-                    }
-                )
+            self._compile_node_features(tick, nodes_sorted, bundle, node_records)
 
             # Compile Edge Features
-            for idx, (src, dst) in enumerate(edges_sorted):
-                e_feats = bundle.edge_features[idx]
-                utilization = float(e_feats[2])
-                node_to_idx = bundle.node_to_idx
-                # Label is 1 if utilization >= 0.85
-                congested_label = 1 if utilization >= 0.85 else 0
-
-                edge_records.append(
-                    {
-                        "tick": tick,
-                        "source": src,
-                        "destination": dst,
-                        "source_idx": node_to_idx[src],
-                        "destination_idx": node_to_idx[dst],
-                        "bandwidth": float(e_feats[0]),
-                        "latency": float(e_feats[1]),
-                        "utilization": utilization,
-                        "packet_loss": float(e_feats[3]),
-                        "reliability": float(e_feats[4]),
-                        "failure_frequency": float(e_feats[5]),
-                        "congested_label": congested_label,
-                    }
-                )
+            self._compile_edge_features(tick, edges_sorted, bundle, edge_records)
 
             # Compile Global Features
             gm = snap["global_metrics"]
