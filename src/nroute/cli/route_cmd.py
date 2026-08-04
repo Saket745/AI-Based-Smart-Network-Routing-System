@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any
 =======
 import json
+
+=======
 from typing import cast
 =======
 =======
@@ -266,7 +268,6 @@ def _init_router(
     """Initialize the appropriate router based on algorithm name."""
     import typing
 
-
     if algorithm.lower() == "custom":
         if not custom_router:
             raise click.UsageError(
@@ -304,6 +305,7 @@ def _init_router(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
         sig = inspect.signature(router_cls)
+=======
 
         =======
 =======

@@ -5,9 +5,8 @@ Enforces standard prefixes for branches to ensure governance compliance.
 """
 
 import re
-import sys
 import subprocess
-=======
+
 import subprocess
 import sys
 

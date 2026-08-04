@@ -202,6 +202,21 @@ def test_netflow_parser_missing_fields(tmp_path: Path) -> None:
 
 
 def test_netflow_parser_read_csv_exception(tmp_path: Path) -> None:
+    """Test that NetFlowParser.parse raises IngestionError when pd.read_csv fails."""
+    csv_file = tmp_path / "corrupt_netflow.csv"
+    csv_file.touch()
+
+    exception_msg = "Simulated pandas read error"
+    with patch("pandas.read_csv", side_effect=Exception(exception_msg)):
+        with pytest.raises(IngestionError) as exc_info:
+            NetFlowParser.parse(csv_file)
+
+        # Assert that the error message includes the CSV path and the underlying exception message
+        assert str(csv_file) in str(exc_info.value)
+        assert exception_msg in str(exc_info.value)
+
+
+=======
     """Test that NetFlowParser.parse correctly handles and wraps exceptions from pd.read_csv."""
     csv_file = tmp_path / "corrupt_netflow.csv"
     csv_file.touch()

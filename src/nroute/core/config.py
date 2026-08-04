@@ -37,6 +37,13 @@ class GeneralConfig(BaseModel):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
+    def validate_cors_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            v = [o.strip() for o in v.split(",") if o.strip()]
+        if not isinstance(v, list):
+            v = [v]
+        cleaned = [str(o).strip() for o in v if o and str(o).strip() != "*"]
+=======
     def validate_cors_origins_before(cls, v: Any) -> list[str]:
         if isinstance(v, str):
             v = [o.strip() for o in v.split(",") if o.strip()]
@@ -93,6 +100,7 @@ class GeneralConfig(BaseModel):
         if not cleaned:
             return DEFAULT_CORS_ORIGINS
         return [str(v).strip()]
+
 
 
 class TopologyConfig(BaseModel):
