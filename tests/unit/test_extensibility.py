@@ -30,16 +30,20 @@ def test_loader_valid_and_invalid() -> None:
     # Create temporary python file with a router class
     with tempfile.TemporaryDirectory() as tmpdir:
         file_path = Path(tmpdir) / "my_custom_module.py"
-        file_path.write_text("""
+        file_path.write_text(
+            """
 class CustomTestRouter:
     def __init__(self, topology=None):
-        self.topology = topology
+        self.topology  =  topology
     def compute_path(self, topology, source, destination, weight=None):
         return [source, destination]
-""")
+"""
+        )
+
+        # Valid loading (requires allow_unsafe=True)
 
         # Valid loading
-        cls = load_custom_class(f"{file_path}:CustomTestRouter")
+        cls = load_custom_class(f"{file_path}:CustomTestRouter", allow_unsafe=True)
         assert cls.__name__ == "CustomTestRouter"
         router = cls()
         assert router.compute_path(None, "A", "B") == ["A", "B"]
@@ -48,7 +52,11 @@ class CustomTestRouter:
         from nroute.routing.base import BaseRouter
 
         with pytest.raises(TypeError, match="does not inherit from"):
-            load_custom_class(f"{file_path}:CustomTestRouter", expected_superclass=BaseRouter)
+            load_custom_class(
+                f"{file_path}:CustomTestRouter",
+                expected_superclass=BaseRouter,
+                allow_unsafe=True,
+            )
 
         # Invalid format (no colon)
         with pytest.raises(ValueError, match="Expected format"):
@@ -56,23 +64,25 @@ class CustomTestRouter:
 
         # Invalid class name
         with pytest.raises(ImportError, match="not found"):
-            load_custom_class(f"{file_path}:NonexistentClass")
+            load_custom_class(f"{file_path}:NonexistentClass", allow_unsafe=True)
 
         # Invalid file path
         with pytest.raises(ImportError, match="not found"):
-            load_custom_class("nonexistent_file.py:SomeClass")
+            load_custom_class("nonexistent_file.py:SomeClass", allow_unsafe=True)
 
 
 def test_config_custom_routers_resolution(monkeypatch: Any) -> None:
     """Test that get_router resolves custom routers configured in yaml/config."""
     with tempfile.TemporaryDirectory() as tmpdir:
         file_path = Path(tmpdir) / "configured_router.py"
-        file_path.write_text("""
+        file_path.write_text(
+            """
 from nroute.routing.base import BaseRouter
 class ConfiguredRouter(BaseRouter):
     def compute_path(self, topology, source, destination, weight=None):
         return [source, "via-config", destination]
-""")
+"""
+        )
 
         # Mock config loading to return a config with custom_routers mapping
         cfg = NRouteConfig()
@@ -83,8 +93,10 @@ class ConfiguredRouter(BaseRouter):
 
         monkeypatch.setattr(nroute.core.config, "load_config", lambda *args, **kwargs: cfg)
 
+        # get_router should resolve and load it (requires allow_unsafe=True)
+=======
         # get_router should resolve and load it
-        router = get_router("my-config-router")
+        router = get_router("my-config-router", allow_unsafe=True)
         assert router.__class__.__name__ == "ConfiguredRouter"
         assert router.compute_path(Topology(), "A", "B") == ["A", "via-config", "B"]
 
@@ -192,16 +204,19 @@ def test_cli_custom_router_integration(tmp_path: Any) -> None:
 
     # Create temporary router file
     router_file = tmp_path / "my_cli_router.py"
-    router_file.write_text("""
+    router_file.write_text(
+        """
 from nroute.routing.base import BaseRouter
 class MyCliRouter(BaseRouter):
     def compute_path(self, topology, source, destination, weight=None):
         return [source, "cli-dynamic-hop", destination]
-""")
+"""
+    )
 
     # Create temporary topology file
     topo_file = tmp_path / "topo.json"
-    topo_file.write_text("""{
+    topo_file.write_text(
+        """{
         "nodes": [
             {"id": "A", "type": "router", "status": "up"},
             {"id": "B", "type": "router", "status": "up"}
@@ -209,13 +224,15 @@ class MyCliRouter(BaseRouter):
         "edges": [
             {"source": "A", "target": "B", "status": "up"}
         ]
-    }""")
+    }"""
+    )
 
     res = runner.invoke(
         cli,
         [
             "route",
             "compute",
+            "--allow-unsafe",
             "-t",
             str(topo_file),
             "-s",
@@ -226,6 +243,7 @@ class MyCliRouter(BaseRouter):
             "custom",
             "--custom-router",
             f"{router_file}:MyCliRouter",
+            "--allow-unsafe",
         ],
     )
     assert res.exit_code == 0
