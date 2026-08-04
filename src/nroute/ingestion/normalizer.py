@@ -54,12 +54,12 @@ class Normalizer:
         # 2. Normalize and add edges
         for idx, edge in enumerate(raw_edges):
             src = edge.get("source") or edge.get("src") or edge.get("from")
-            dst = edge.get("destination") or edge.get("dst") or edge.get("to")
+            dst = edge.get("destination") or edge.get("dst") or edge.get("to") or edge.get("target")
 
             if src is None or dst is None:
                 raise IngestionError(
                     f"Edge at index {idx} is missing source ('source'/'src'/'from') "
-                    "or destination ('destination'/'dst'/'to') node ID."
+                    "or destination ('destination'/'dst'/'to'/'target') node ID."
                 )
 
             src_str = str(src)
