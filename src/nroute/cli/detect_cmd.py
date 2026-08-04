@@ -53,6 +53,10 @@ class AnomalyDetectArgs(BaseModel):
     "--allow-unsafe",
     is_flag=True,
     default=False,
+    help="Allow insecure deserialization of legacy models.",
+)
+def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
+=======
     help="Allow loading legacy joblib/pickle models (insecure).",
 )
 def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
@@ -187,6 +191,7 @@ def _init_detector(model_path: str, allow_unsafe: bool, is_json: bool) -> Anomal
     try:
         detector = AnomalyDetector()
         detector.load(model_path, allow_unsafe=allow_unsafe)
+=======
 
         return detector
     except ModelError as e:
