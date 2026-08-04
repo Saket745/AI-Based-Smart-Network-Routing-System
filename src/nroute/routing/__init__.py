@@ -15,6 +15,9 @@ from nroute.routing.ecmp import ECMPRouter
 from nroute.routing.negotiation import NegotiationRouter
 from nroute.routing.registry import ROUTER_REGISTRY, register_router
 from nroute.routing.rl_router import RLRouter
+from nroute.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def get_router(algorithm: str, topology: Any = None, allow_unsafe: bool = False) -> BaseRouter:
@@ -52,7 +55,7 @@ def get_router(algorithm: str, topology: Any = None, allow_unsafe: bool = False)
                 return router_cls(topology=topology)  # type: ignore[call-arg]
             return router_cls()
     except Exception:
-        pass
+        logger.exception("Failed to load custom router from configuration", algorithm=alg)
 
     if alg == "dijkstra":
         return DijkstraRouter()
