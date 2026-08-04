@@ -895,6 +895,11 @@ def compare(ctx: click.Context, /, **kwargs: Any) -> None:
     if len(algo_list) < 2:
         error_msg = "Please provide at least 2 algorithms to compare."
         if is_json:
+            msg = {"error": "Please provide at least 2 algorithms to compare."}
+            click.echo(json.dumps(msg), err=True)
+            raise SystemExit(1) from None
+        console.print("[red]x Please provide at least 2 algorithms to compare.[/red]")
+=======
             click.echo(json.dumps({"error": error_msg}), err=True)
         else:
             console.print(f"[red]x {error_msg}[/red]")
