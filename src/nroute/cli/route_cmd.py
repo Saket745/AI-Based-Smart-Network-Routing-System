@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+from typing import Any
+=======
+import json
+from typing import cast
+=======
+=======
+import typing
 import click
+from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.table import Table
 
 from nroute.core.metrics import RouteMetrics
 from nroute.core.topology import Topology
 from nroute.exceptions import RoutingError
-from nroute.routing import get_router
+from nroute.routing import BaseRouter, get_router
 
 console = Console()
 
@@ -19,7 +27,25 @@ def route_cmd() -> None:
     """Compute and inspect network routes."""
 
 
+class RouteComputeArgs(BaseModel):
+    """Arguments for route computation."""
+
+    allow_unsafe: bool = Field(default=False, description="Allow loading of unsafe models.")
+    topo_path: str = Field(..., description="Path to a topology JSON file.")
+    algorithm: str = Field(default="dijkstra", description="Routing algorithm to use.")
+    source: str = Field(..., description="Source node ID.")
+    destination: str = Field(..., description="Destination node ID.")
+    weight: str = Field(default="latency", description="Edge weight attribute.")
+    custom_router: str | None = Field(default=None, description="Import target for custom router.")
+
+
 @route_cmd.command(name="compute")
+@click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading of unsafe models (joblib/pickle) and custom classes from file paths.",
+)
 @click.option(
     "--topology",
     "-t",
@@ -68,6 +94,12 @@ def route_cmd() -> None:
     default=None,
     help="Import target for custom router in path/to/file.py:ClassName format (requires -a custom).",
 )
+@click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading custom routers from local Python files (security risk).",
+)
 def compute(
     topo_path: str,
     algorithm: str,
@@ -75,25 +107,100 @@ def compute(
     destination: str,
     weight: str,
     custom_router: str | None,
+    allow_unsafe: bool,
 ) -> None:
+=======
+@click.pass_context
+def compute(ctx: click.Context, **kwargs: Any) -> None:
     """Compute the optimal route between two nodes."""
+    args = RouteComputeArgs.model_validate(kwargs)
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
+
+    # Load and validate topology
+    topo = _load_and_validate_topo(topo_path, source, destination, is_json)
+
+    # Initialize router and compute path
     try:
-        topo = Topology.load(topo_path)
+        topo = Topology.load(args.topo_path)
+=======
+        router: BaseRouter = _init_router(algorithm, topo, allow_unsafe, custom_router)
+        path = router.compute_path(topo, source, destination, weight=weight)
+    except RoutingError as e:
+        _handle_error(f"Routing error: {e}", is_json, e)
     except Exception as e:
+        if is_json:
+            import json
+
+            click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
+            raise SystemExit(1) from e
         console.print(f"[red]x Failed to load topology:[/red] {e}")
+=======
+        _handle_error(f"Failed to compute route: {e}", is_json, e)
+
+    # Compute route metrics
+    metrics = RouteMetrics.from_path(topo, path)
+
+    # Display results
+    if is_json:
+        _print_json_metrics(source, destination, path, metrics)
+    else:
+        _print_console_metrics(algorithm, source, destination, path, metrics, topo)
+
+
+def _handle_error(msg: str, is_json: bool, e: Exception | None = None) -> None:
+    """Helper to handle errors consistently based on output format."""
+    if is_json:
+        click.echo(json.dumps({"error": msg}), err=True)
+    else:
+        console.print(f"[red]x {msg}[/red]")
+
+    if e:
         raise SystemExit(1) from e
+    raise SystemExit(1)
 
     # Validate that source and destination exist
-    if source not in topo.nodes:
+    if args.source not in topo.nodes:
+        if is_json:
+            import json
+
+            click.echo(
+                json.dumps({"error": f"Source node '{source}' not found in topology."}), err=True
+            )
+            raise SystemExit(1)
         console.print(f"[red]x Source node '{source}' not found in topology.[/red]")
         raise SystemExit(1)
     if destination not in topo.nodes:
+=======
+                json.dumps({"error": f"Source node '{args.source}' not found in topology."}),
+                err=True,
+            )
+            raise SystemExit(1) from None
+        console.print(f"[red]x Source node '{args.source}' not found in topology.[/red]")
+        raise SystemExit(1) from None
+    if args.destination not in topo.nodes:
+        if is_json:
+            import json
+
+            click.echo(
+                json.dumps({"error": f"Destination node '{destination}' not found in topology."}),
+                err=True,
+            )
+            raise SystemExit(1)
         console.print(f"[red]x Destination node '{destination}' not found in topology.[/red]")
         raise SystemExit(1)
+=======
+                json.dumps(
+                    {"error": f"Destination node '{args.destination}' not found in topology."}
+                ),
+                err=True,
+            )
+            raise SystemExit(1) from None
+        console.print(f"[red]x Destination node '{args.destination}' not found in topology.[/red]")
+        raise SystemExit(1) from None
 
     try:
-        if algorithm.lower() == "custom":
-            if not custom_router:
+        if args.algorithm.lower() == "custom":
+            if not args.custom_router:
                 raise click.UsageError(
                     "Option '--custom-router' is required when using algorithm 'custom'."
                 )
@@ -102,25 +209,188 @@ def compute(
             from nroute.routing.base import BaseRouter
             from nroute.utils.loader import load_custom_class
 
-            router_cls = load_custom_class(custom_router, expected_superclass=BaseRouter)
+            router_cls = load_custom_class(
+                custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
+
+                args.custom_router, expected_superclass=BaseRouter, allow_unsafe=args.allow_unsafe
+            )
             sig = inspect.signature(router_cls)
             router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         else:
-            router = get_router(algorithm, topology=topo)
+            router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
         path = router.compute_path(topo, source, destination, weight=weight)
+=======
+            router = get_router(args.algorithm, topology=topo, allow_unsafe=args.allow_unsafe)
+        path = router.compute_path(topo, args.source, args.destination, weight=args.weight)
     except RoutingError as e:
+        if is_json:
+            import json
+
+            click.echo(json.dumps({"error": f"Routing error: {e}"}), err=True)
+            raise SystemExit(1) from e
         console.print(f"[red]x Routing error:[/red] {e}")
         raise SystemExit(1) from e
     except Exception as e:
+        if is_json:
+            import json
+
+            click.echo(json.dumps({"error": f"Failed to compute route: {e}"}), err=True)
+            raise SystemExit(1) from e
         console.print(f"[red]x Failed to compute route:[/red] {e}")
         raise SystemExit(1) from e
 
-    # Compute route metrics
-    metrics = RouteMetrics.from_path(topo, path)
 
-    # Display results
+def _load_and_validate_topo(
+    topo_path: str, source: str, destination: str, is_json: bool
+) -> Topology:
+    """Load topology and validate source/destination nodes."""
+    try:
+        topo = Topology.load(topo_path)
+    except Exception as e:
+        _handle_error(f"Failed to load topology: {e}", is_json, e)
+
+    if source not in topo.nodes:
+        _handle_error(f"Source node '{source}' not found in topology.", is_json)
+    if destination not in topo.nodes:
+        _handle_error(f"Destination node '{destination}' not found in topology.", is_json)
+
+    return topo
+
+
+def _init_router(
+    algorithm: str,
+    topo: Topology,
+    allow_unsafe: bool,
+    custom_router: str | None,
+) -> BaseRouter:
+    """Initialize the appropriate router based on algorithm name."""
+    import typing
+
+
+    if algorithm.lower() == "custom":
+        if not custom_router:
+            raise click.UsageError(
+                "Option '--custom-router' is required when using algorithm 'custom'."
+            )
+        import inspect
+        =======
+        from typing import cast
+
+        import typing
+
+        
+        from nroute.utils.loader import load_custom_class
+
+    if is_json:
+        import json
+
+        out = {
+            "source": args.source,
+            "destination": args.destination,
+            "path": path,
+            "metrics": {
+                "hops": metrics.total_hops,
+                "total_latency": metrics.total_latency,
+                "bottleneck_bandwidth": metrics.bottleneck_bandwidth
+                if metrics.bottleneck_bandwidth < float("inf")
+                else None,
+                "bottleneck_utilization": metrics.bottleneck_utilization,
+            },
+        }
+        click.echo(json.dumps(out, indent=2))
+        return
+=======
+        router_cls = load_custom_class(
+            custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
+        )
+        sig = inspect.signature(router_cls)
+
+        =======
+=======
+        router_instance = (
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        )
+    else:
+        router_instance = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
+
+    if not isinstance(router_instance, BaseRouter):
+        raise TypeError(f"Initialized class {type(router_instance)} is not a BaseRouter")
+    return router_instance
+=======
+        instance = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        if not isinstance(instance, BaseRouter):
+            raise TypeError(f"Custom router '{custom_router}' is not an instance of BaseRouter")
+        return instance
+
+        return cast(
+            "BaseRouter",
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls(),
+        )
+
+        if "topology" in sig.parameters:
+            return cast("BaseRouter", router_cls(topology=topo))
+        return cast("BaseRouter", router_cls())
+=======
+        router: BaseRouter = (
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        )
+        return router
+=======
+
+        router: BaseRouter = (
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        )
+        return router
+
+    
+        import typing
+
+        inst = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        return typing.cast("BaseRouter", inst)
+
+        return typing.cast(
+            "BaseRouter",
+            router_cls(topology=topo) if "topology" in sig.parameters else router_cls(),
+        )
+
+        res = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        return typing.cast("BaseRouter", res)
+
+    router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
+    return router
+
+
+def _print_json_metrics(
+    source: str, destination: str, path: list[str], metrics: RouteMetrics
+) -> None:
+    """Output route metrics in JSON format."""
+    out = {
+        "source": source,
+        "destination": destination,
+        "path": path,
+        "metrics": {
+            "hops": metrics.total_hops,
+            "total_latency": metrics.total_latency,
+            "bottleneck_bandwidth": metrics.bottleneck_bandwidth
+            if metrics.bottleneck_bandwidth < float("inf")
+            else None,
+            "bottleneck_utilization": metrics.bottleneck_utilization,
+        },
+    }
+    click.echo(json.dumps(out, indent=2))
+
+
+def _print_console_metrics(
+    algorithm: str,
+    source: str,
+    destination: str,
+    path: list[str],
+    metrics: RouteMetrics,
+    topo: Topology,
+) -> None:
+    """Output route metrics and hop breakdown to console."""
     console.print()
-    console.rule(f"[bold cyan]Route: {source} -> {destination}[/bold cyan]")
+    console.rule(f"[bold cyan]Route: {args.source} -> {args.destination}[/bold cyan]")
 
     # Path display
     path_str = " -> ".join(path)
@@ -131,7 +401,7 @@ def compute(
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green", justify="right")
 
-    table.add_row("Algorithm", algorithm.upper())
+    table.add_row("Algorithm", args.algorithm.upper())
     table.add_row("Hops", str(metrics.total_hops))
     table.add_row("Total Latency", f"{metrics.total_latency:.2f} ms")
     table.add_row(

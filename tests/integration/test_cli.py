@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import json
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
+
 from click.testing import CliRunner
 
 from nroute.cli import cli
@@ -389,6 +390,9 @@ class TestPredictCLI:
         # 2. Run prediction
         result = runner.invoke(
             cli,
+=======
+            ["predict", "congestion", "--topology", topo_file, "--model", model_path, "--allow-unsafe"],
+=======
             [
                 "predict",
                 "congestion",
@@ -444,7 +448,7 @@ class TestDetectCLI:
                 "flow_count": [5, 100],
                 "avg_packet_size": [500.0, 1500.0],
                 "src_ip_entropy": [3.0, 0.5],
-                "dst_port_entropy": [2.5, 0.2],
+                "dst_ip_entropy": [2.5, 0.2],
                 "utilization": [0.2, 0.95],
                 "latency_avg": [5.0, 150.0],
             }
@@ -454,6 +458,9 @@ class TestDetectCLI:
         # 3. Run detection
         result = runner.invoke(
             cli,
+=======
+            ["detect", "anomalies", "--traffic", str(traffic_csv), "--model", model_path, "--allow-unsafe"],
+=======
             [
                 "detect",
                 "anomalies",
@@ -467,3 +474,64 @@ class TestDetectCLI:
         )
         assert result.exit_code == 0
         assert "Anomaly Detection Results" in result.output
+
+
+class TestNewCLIFeatures:
+    """Tests for config, api, completion commands and global JSON output format."""
+
+    def test_config_init_subcommand(self, runner: CliRunner, tmp_path: Path) -> None:
+        """nroute config init should create a default configuration template."""
+        dest = tmp_path / "nroute.yaml"
+        result = runner.invoke(cli, ["config", "init", "-o", str(dest)], catch_exceptions=False)
+        assert result.exit_code == 0
+        assert "Initialized default configuration file" in result.output
+        assert dest.exists()
+        assert "general:" in dest.read_text()
+
+    def test_completion_subcommand(self, runner: CliRunner) -> None:
+        """nroute completion bash should output the bash source eval line."""
+        result = runner.invoke(cli, ["completion", "bash"], catch_exceptions=False)
+        assert result.exit_code == 0
+        assert "bash_source" in result.output
+
+    def test_api_start_subcommand(self, runner: CliRunner, monkeypatch: pytest.MonkeyPatch) -> None:
+        """nroute api start should launch uvicorn server (mocked to prevent blocking)."""
+        import uvicorn
+
+        called = False
+
+        def mock_run(*args: Any, **kwargs: Any) -> None:
+            nonlocal called
+            called = True
+
+        monkeypatch.setattr(uvicorn, "run", mock_run)
+        result = runner.invoke(cli, ["api", "start", "--port", "8999"], catch_exceptions=False)
+        assert result.exit_code == 0
+        assert called is True
+
+    def test_global_options_json_output(self, runner: CliRunner, topo_file: str) -> None:
+        """Global flag -f json / --output-format json should format subcommand outputs as JSON."""
+        result = runner.invoke(
+            cli,
+            ["-f", "json", "topology", "show", "-f", topo_file],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+        # Parse output to verify it is valid JSON
+        data = json.loads(result.output)
+        assert "nodes" in data
+        assert "edges" in data
+        assert "nodes_up" in data
+
+        # Check route compute output format in JSON
+        route_result = runner.invoke(
+            cli,
+            ["--output-format", "json", "route", "compute", "-t", topo_file, "-s", "0", "-d", "1"],
+            catch_exceptions=False,
+        )
+        assert route_result.exit_code == 0
+        route_data = json.loads(route_result.output)
+        assert "source" in route_data
+        assert "destination" in route_data
+        assert "path" in route_data
+        assert "metrics" in route_data

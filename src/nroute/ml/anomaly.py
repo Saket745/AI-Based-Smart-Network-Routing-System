@@ -296,6 +296,8 @@ class AnomalyDetector:
         dirname = os.path.dirname(path)
         if dirname:
             os.makedirs(dirname, exist_ok=True)
+        if os.path.dirname(path):
+            os.makedirs(os.path.dirname(path), exist_ok=True)
 
         save_dict = {
             "model_type": self.model_type,

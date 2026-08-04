@@ -93,8 +93,10 @@ class SNMPParser:
                 try:
                     # SNMP ifSpeed is typically in bps. Convert bps -> Mbps
                     raw_speed = float(speed)
-                    bandwidth = raw_speed / 1e6 if raw_speed > 1e5 else raw_speed
-                except ValueError:
+                    # Heuristic: if it's very large, it's likely bps.
+                    # 100,000 bps = 0.1 Mbps. 1,000 Mbps = 1 Gbps.
+                    bandwidth = raw_speed / 1e6 if raw_speed >= 10000 else raw_speed
+                except (ValueError, TypeError):
                     pass
 
             oper_status = clean_row.get("oper_status") or clean_row.get("ifoperstatus")
@@ -103,21 +105,31 @@ class SNMPParser:
                 status_str = str(oper_status).lower().strip()
                 if status_str in {"down", "2"}:
                     status = "down"
-                elif status_str in {"testing", "degraded"}:
+                elif status_str in {"testing", "degraded", "3"}:
                     status = "degraded"
 
-            in_octets = clean_row.get("in_octets") or clean_row.get("ifincheck") or 0.0
-            out_octets = clean_row.get("out_octets") or clean_row.get("ifoutcheck") or 0.0
+            try:
+                in_octets = float(clean_row.get("in_octets") or clean_row.get("ifincheck") or 0.0)
+            except (ValueError, TypeError):
+                in_octets = 0.0
+
+            try:
+                out_octets = float(
+                    clean_row.get("out_octets") or clean_row.get("ifoutcheck") or 0.0
+                )
+            except (ValueError, TypeError):
+                out_octets = 0.0
+
             # Derive utilization if speed is known
             utilization = 0.0
-            if speed and bandwidth > 0:
+            if bandwidth > 0:
                 try:
                     # Utilization over a default interval (e.g., 10s)
-                    octets = float(in_octets) + float(out_octets)
+                    octets = in_octets + out_octets
                     # utilization = (octets * 8) / (bandwidth * 1e6 * 10)
                     # Simple heuristic: clamp to valid range
                     utilization = min(1.0, max(0.0, (octets * 8) / (bandwidth * 1e6 * 10)))
-                except ValueError:
+                except (ValueError, TypeError):
                     pass
 
             edge_attr = {
