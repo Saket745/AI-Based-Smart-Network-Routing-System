@@ -104,6 +104,135 @@ class SimulationEngine:
                 self._run_tick(tick, tick_duration, callback)
 =======
                 timestamp = tick * tick_duration
+
+                # 1. Apply failures scheduled for this tick
+                if self.failure_injector is not None:
+                    self.failure_injector.apply(self.topology, tick)
+
+                # 2. Update Link Utilizations based on current active flows
+                self._update_link_utilizations()
+
+                # 3. Generate new traffic flows
+                new_flows = self.traffic_generator.generate(self.topology, tick)
+
+                # 4. Route new flows and add them to active flows
+                completed_flows: list[FlowRecord] = []
+                dropped_flows: list[tuple[FlowRecord, str]] = []
+                reroute_count = 0
+
+                for flow in new_flows:
+                    try:
+                        # Compute path using router
+                        path = self.router.compute_path(
+                            self.topology, flow.source, flow.destination
+                        )
+                        self.active_flows.append(
+                            {
+                                "flow": flow,
+                                "path": path,
+                                "current_hop_idx": 0,
+                                "accumulated_latency": 0.0,
+                            }
+                        )
+                    except Exception as e:
+                        # Dropped at ingress: no route found
+                        dropped_flows.append((flow, f"routing_failed_ingress: {e}"))
+
+                # 5. Forward active/in-flight flows
+                still_active: list[dict[str, Any]] = []
+
+                for state in self.active_flows:
+                    flow = state["flow"]
+                    path = state["path"]
+                    hop_idx = state["current_hop_idx"]
+
+                    # Ensure path is valid and not completed
+                    if hop_idx >= len(path) - 1:
+                        completed_flows.append(flow)
+                        continue
+
+                    u = path[hop_idx]
+                    v = path[hop_idx + 1]
+
+                    # Check if the edge or target node is down
+                    edge_down = False
+                    try:
+                        # Direct access to avoid dictionary copies in core loop
+                        edge_data = self.topology.graph.edges[u, v]
+                        edge_down = edge_data.get("status", "up") == "down"
+                    except Exception:
+                        edge_down = True
+
+                    node_down = False
+                    try:
+                        # Direct access to avoid dictionary copies in core loop
+                        node_data = self.topology.graph.nodes[v]
+                        node_down = node_data.get("status", "up") == "down"
+                    except Exception:
+                        node_down = True
+
+                    if edge_down or node_down:
+                        # Link goes down mid-flow: trigger rerouting from current node
+                        try:
+                            new_path = self.router.compute_path(self.topology, u, flow.destination)
+                            state["path"] = new_path
+                            state["current_hop_idx"] = 0
+                            path = new_path
+                            hop_idx = 0
+                            u = path[hop_idx]
+                            v = path[hop_idx + 1]
+                            reroute_count += 1
+                        except Exception as e:
+                            # Rerouting failed: flow dropped
+                            dropped_flows.append((flow, f"rerouting_failed_midflow: {e}"))
+                            continue
+
+                    # Forward across edge u -> v
+                    try:
+                        # Direct access to avoid dictionary copies in core loop
+                        edge_data = self.topology.graph.edges[u, v]
+                        loss_prob = float(edge_data.get("packet_loss", 0.0))
+                        edge_latency = float(edge_data.get("latency", 5.0))
+                    except Exception:
+                        loss_prob = 0.0
+                        edge_latency = 5.0
+
+                    # Apply packet loss probabilistically
+                    if self.rng.random_float() < loss_prob:
+                        dropped_flows.append((flow, "packet_loss_drop"))
+                        continue
+
+                    # Accumulate latency and advance hop
+                    state["accumulated_latency"] += edge_latency
+                    state["current_hop_idx"] += 1
+
+                    # Check if reached destination
+                    if state["current_hop_idx"] >= len(path) - 1:
+                        # Set actual accumulated duration
+                        flow.duration = state["accumulated_latency"] / 1000.0
+                        completed_flows.append(flow)
+                    else:
+                        still_active.append(state)
+
+                self.active_flows = still_active
+
+                # 6. Record tick metrics
+                self.collector.record_tick(
+                    tick=tick,
+                    timestamp=timestamp,
+                    tick_duration=tick_duration,
+                    topology=self.topology,
+                    active_flows_count=len(self.active_flows),
+                    completed_flows=completed_flows,
+                    dropped_flows=dropped_flows,
+                    reroute_count=reroute_count,
+                )
+
+                # Store temporary attributes for dynamic event logging in callbacks
+                self.last_tick_completed_flows = completed_flows
+                self.last_tick_dropped_flows = dropped_flows
+                self.last_tick_reroute_count = reroute_count
+=======
                 self._run_tick(tick, timestamp, tick_duration)
 
                 if callback is not None:
@@ -458,6 +587,11 @@ class SimulationEngine:
         """
         Recalculate link utilization metrics based on current active flows.
         """
+        # 1. Reset all edges to 0 utilization
+        # Iterate over graph data directly to avoid repeated get_edge calls
+        for _, _, edge_data in self.topology.graph.edges(data=True):
+            edge_data["utilization"] = 0.0
+=======
         # 1. Reset all edges to 0 utilization directly in networkx graph for performance
         g = self.topology.graph
         for u, v in g.edges:
@@ -481,13 +615,15 @@ class SimulationEngine:
                 link_demands[(u, v)] += mbps
 
         # 3. Update edge utilization ratios in topology
+        graph_edges = self.topology.graph.edges
         for (u, v), demand in link_demands.items():
             try:
-                edge_data = self.topology.get_edge(u, v)
+                # Use direct access to avoid dictionary copies
+                edge_data = graph_edges[u, v]
                 bandwidth = float(edge_data.get("bandwidth", 1000.0))
                 util = demand / bandwidth if bandwidth > 0.0 else 0.0
                 # Clamp to [0.0, 1.0] for topology validation rules
                 util = min(1.0, max(0.0, util))
-                self.topology.update_edge(u, v, utilization=util)
+                edge_data["utilization"] = util
             except Exception:
                 pass
