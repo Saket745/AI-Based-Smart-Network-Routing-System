@@ -112,6 +112,13 @@ def compute(ctx: click.Context, **kwargs: Any) -> None:
     except RoutingError as e:
         _handle_error(f"Routing error: {e}", is_json, e)
     except Exception as e:
+        if is_json:
+            import json
+
+            click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
+            raise SystemExit(1) from e
+        console.print(f"[red]x Failed to load topology:[/red] {e}")
+=======
         _handle_error(f"Failed to compute route: {e}", is_json, e)
 
     # Compute route metrics
@@ -141,6 +148,13 @@ def _handle_error(msg: str, is_json: bool, e: Exception | None = None) -> None:
             import json
 
             click.echo(
+                json.dumps({"error": f"Source node '{source}' not found in topology."}), err=True
+            )
+            raise SystemExit(1)
+        console.print(f"[red]x Source node '{source}' not found in topology.[/red]")
+        raise SystemExit(1)
+    if destination not in topo.nodes:
+=======
                 json.dumps({"error": f"Source node '{args.source}' not found in topology."}),
                 err=True,
             )
@@ -152,6 +166,13 @@ def _handle_error(msg: str, is_json: bool, e: Exception | None = None) -> None:
             import json
 
             click.echo(
+                json.dumps({"error": f"Destination node '{destination}' not found in topology."}),
+                err=True,
+            )
+            raise SystemExit(1)
+        console.print(f"[red]x Destination node '{destination}' not found in topology.[/red]")
+        raise SystemExit(1)
+=======
                 json.dumps(
                     {"error": f"Destination node '{args.destination}' not found in topology."}
                 ),
@@ -183,7 +204,20 @@ def _handle_error(msg: str, is_json: bool, e: Exception | None = None) -> None:
     except RoutingError as e:
         if is_json:
             import json
-=======
+
+            click.echo(json.dumps({"error": f"Routing error: {e}"}), err=True)
+            raise SystemExit(1) from e
+        console.print(f"[red]x Routing error:[/red] {e}")
+        raise SystemExit(1) from e
+    except Exception as e:
+        if is_json:
+            import json
+
+            click.echo(json.dumps({"error": f"Failed to compute route: {e}"}), err=True)
+            raise SystemExit(1) from e
+        console.print(f"[red]x Failed to compute route:[/red] {e}")
+        raise SystemExit(1) from e
+
 
 def _load_and_validate_topo(
     topo_path: str, source: str, destination: str, is_json: bool

@@ -85,6 +85,7 @@ DEFAULT_CORS_ORIGINS = [
 ]
 
 # Load CORS configuration
+
 try:
     _cfg = load_config()
     _cors_origins = _cfg.general.cors_origins
@@ -100,6 +101,10 @@ except Exception as e:
 
     import os
 
+    _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "*")
+    if _cors_origins_raw == "*":
+        _cors_origins = ["*"]
+=======
     _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "")
     if not _cors_origins_raw:
         _cors_origins = DEFAULT_CORS_ORIGINS

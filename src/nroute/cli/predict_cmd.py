@@ -104,12 +104,32 @@ def congestion(ctx: click.Context, /, **kwargs: Any) -> None:
 
     topo = _load_topology(args.topo_path, is_json)
 
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
+    try:
+        topo = Topology.load(topo_path)
+    except Exception as e:
+        if is_json:
+            import json
+
+            click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
+            raise SystemExit(1) from e
+        console.print(f"[red]x Failed to load topology:[/red] {e}")
+        raise SystemExit(1) from e
+=======
     from nroute.ml.congestion import CongestionPredictor
 
     try:
         predictor = CongestionPredictor()
         predictor.load(args.model_path, allow_unsafe=args.allow_unsafe)
     except ModelError as e:
+        if is_json:
+            import json
+
+            click.echo(json.dumps({"error": f"Failed to load model: {e}"}), err=True)
+            raise SystemExit(1) from e
+        console.print(f"[red]x Failed to load model:[/red] {e}")
+        raise SystemExit(1) from e
+=======
         _handle_error(f"Failed to load model: {e}", is_json, e)
 
     # Extract current link features
@@ -163,7 +183,16 @@ def _extract_congestion_features(topo: Topology) -> tuple[list[str], Any]:
 
     return edge_ids, pd.DataFrame(rows)
 
+    try:
+        predictions = predictor.predict(features)
+    except Exception as e:
+        if is_json:
+            import json
 
+            click.echo(json.dumps({"error": f"Prediction failed: {e}"}), err=True)
+            raise SystemExit(1) from e
+        console.print(f"[red]x Prediction failed:[/red] {e}")
+        raise SystemExit(1) from e
 def _print_congestion_json(edge_ids: list[str], probs: list[Any], threshold: float) -> None:
     """Output congestion predictions in JSON format."""
     import json
@@ -184,7 +213,25 @@ def _print_congestion_json(edge_ids: list[str], probs: list[Any], threshold: flo
     }
     click.echo(json.dumps(out, indent=2))
 
+    if is_json:
+        import json
 
+        out = {
+            "links": [
+                {
+                    "link": edge_id,
+                    "probability": float(prob),
+                    "status": "CONGESTED"
+                    if float(prob) >= threshold
+                    else ("AT RISK" if float(prob) >= threshold * 0.7 else "NORMAL"),
+                }
+                for edge_id, prob in zip(edge_ids, probs, strict=True)
+            ],
+            "threshold": threshold,
+            "congested_count": sum(1 for p in probs if float(p) >= threshold),
+        }
+        click.echo(json.dumps(out, indent=2))
+        return
 def _print_congestion_console(edge_ids: list[str], probs: list[Any], threshold: float) -> None:
     """Output congestion predictions as a table to the console."""
     console.print()
@@ -292,6 +339,12 @@ def predict_gnn(ctx: click.Context, /, **kwargs: Any) -> None:
     except Exception as e:
         if is_json:
             import json
+
+            click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
+            raise SystemExit(1) from e
+        console.print(f"[red]x Failed to load topology:[/red] {e}")
+        raise SystemExit(1) from e
+=======
     # 1. Instantiate the GNN model structure
     model = _init_gnn_model(args.model_type)
 
@@ -351,6 +404,7 @@ def _load_gnn_model_state(model: Any, args: GNNPredictArgs, is_json: bool) -> No
 
             click.echo(
                 json.dumps(
+                    {"error": f"Failed to load model {model_type} (version {version}): {e}"}
                     {
                         "error": f"Failed to load model {args.model_type} (version {args.version}): {e}"
                     }
@@ -358,6 +412,8 @@ def _load_gnn_model_state(model: Any, args: GNNPredictArgs, is_json: bool) -> No
                 err=True,
             )
             raise SystemExit(1) from e
+        console.print(f"[red]x Failed to load model {model_type} (version {version}):[/red] {e}")
+=======
         console.print(
             f"[red]x Failed to load model {args.model_type} (version {args.version}):[/red] {e}"
         )
@@ -374,6 +430,14 @@ def _build_gnn_features(topo: Topology, is_json: bool) -> Any:
         builder = FeatureBuilder()
         return builder.build_features(topo).to_tensors()
     except Exception as e:
+        if is_json:
+            import json
+
+            click.echo(json.dumps({"error": f"Feature engineering failed: {e}"}), err=True)
+            raise SystemExit(1) from e
+        console.print(f"[red]x Feature engineering failed:[/red] {e}")
+        raise SystemExit(1) from e
+
         _handle_error(f"Feature engineering failed: {e}", is_json, e)
 
 
@@ -389,6 +453,10 @@ def _run_gnn_inference(model: Any, bundle: Any) -> tuple[list[float], list[float
     predicted_latencies = pred_lat.tolist()
     return probs, predicted_latencies
 
+    if is_json:
+        import json
+
+=======
         edges_sorted = sorted(topo.edges)
         links_out = []
         for idx, (u, v) in enumerate(edges_sorted):

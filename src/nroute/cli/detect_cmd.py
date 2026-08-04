@@ -142,6 +142,13 @@ def _load_traffic_data(traffic_path: str, is_json: bool) -> pd.DataFrame:
     try:
         return pd.read_csv(traffic_path)
     except Exception as e:
+        if is_json:
+            import json
+
+            click.echo(json.dumps({"error": f"Failed to load traffic data: {e}"}), err=True)
+            raise SystemExit(1) from e
+        console.print(f"[red]x Failed to load traffic data:[/red] {e}")
+=======
         _handle_error(f"Failed to load traffic data: {e}", is_json, e)
         raise  # unreachable due to SystemExit
 
@@ -223,6 +230,13 @@ def _output_console_results(results: pd.DataFrame) -> None:
         detector.load(model_path, allow_unsafe=allow_unsafe)
         return detector
     except ModelError as e:
+        if is_json:
+            import json
+
+            click.echo(json.dumps({"error": f"Failed to load model: {e}"}), err=True)
+            raise SystemExit(1) from e
+        console.print(f"[red]x Failed to load model:[/red] {e}")
+=======
         _handle_error(f"Failed to load model: {e}", is_json, e)
         # Unreachable but for mypy
         raise SystemExit(1) from e
@@ -235,6 +249,40 @@ def _run_detection(
     try:
         return detector.detect(features)
     except ModelError as e:
+        if is_json:
+            import json
+
+            click.echo(json.dumps({"error": f"Detection failed: {e}"}), err=True)
+            raise SystemExit(1) from e
+        console.print(f"[red]x Detection failed:[/red] {e}")
+        raise SystemExit(1) from e
+
+    if is_json:
+        import json
+
+        samples = []
+        for idx, row in results.iterrows():
+            samples.append(
+                {
+                    "sample_id": int(idx),
+                    "anomaly_score": float(row["anomaly_score"]),
+                    "is_anomaly": bool(row["is_anomaly"]),
+                    "anomaly_type": str(row["anomaly_type"]),
+                }
+            )
+
+        type_counts = results[results["is_anomaly"]]["anomaly_type"].value_counts().to_dict()
+        out = {
+            "total_samples": len(results),
+            "anomalies_detected": int(results["is_anomaly"].sum()),
+            "anomaly_type_breakdown": {str(k): int(v) for k, v in type_counts.items()},
+            "samples": samples,
+        }
+        click.echo(json.dumps(out, indent=2))
+        return
+
+    # Display results
+=======
         _handle_error(f"Detection failed: {e}", is_json, e)
         # Unreachable but for mypy
         raise SystemExit(1) from e
