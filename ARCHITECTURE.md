@@ -96,12 +96,15 @@ Example template:
 from nroute.routing.base import BaseRouter
 from nroute.core.topology import Topology
 
+
 class MLPredictiveRouter(BaseRouter):
     def __init__(self, model_path: str):
         # Load your model weights
         pass
 
-    def compute_path(self, topology: Topology, source: str, destination: str, weight=None) -> list[str]:
+    def compute_path(
+        self, topology: Topology, source: str, destination: str, weight=None
+    ) -> list[str]:
         # Implement path choice using graph attributes + model predictions
         pass
 ```

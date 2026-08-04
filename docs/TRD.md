@@ -240,23 +240,23 @@ AI-Based-Smart-Network-Routing-System/
 **Edge Attribute Schema:**
 ```python
 {
-    "bandwidth": float,       # Mbps — total link capacity
-    "latency": float,         # ms — base propagation delay
-    "jitter": float,          # ms — latency variance
-    "packet_loss": float,     # 0.0-1.0 — base packet loss rate
-    "utilization": float,     # 0.0-1.0 — current traffic load
-    "weight": float,          # Computed routing weight (derived metric)
-    "status": str,            # "up" | "down" | "degraded"
+    "bandwidth": float,  # Mbps — total link capacity
+    "latency": float,  # ms — base propagation delay
+    "jitter": float,  # ms — latency variance
+    "packet_loss": float,  # 0.0-1.0 — base packet loss rate
+    "utilization": float,  # 0.0-1.0 — current traffic load
+    "weight": float,  # Computed routing weight (derived metric)
+    "status": str,  # "up" | "down" | "degraded"
 }
 ```
 
 **Node Attribute Schema:**
 ```python
 {
-    "type": str,              # "router" | "switch" | "host" | "gateway"
-    "capacity": float,        # Max throughput in Mbps
-    "status": str,            # "up" | "down"
-    "location": Optional[str] # Logical grouping / area
+    "type": str,  # "router" | "switch" | "host" | "gateway"
+    "capacity": float,  # Max throughput in Mbps
+    "status": str,  # "up" | "down"
+    "location": Optional[str],  # Logical grouping / area
 }
 ```
 
@@ -459,20 +459,26 @@ CLI arguments  >  Environment variables (NROUTE_*)  >  ./nroute.yaml  >  ~/.nrou
 class NRouteError(Exception):
     """Base exception for all nroute errors."""
 
+
 class TopologyError(NRouteError):
     """Invalid topology operations."""
+
 
 class IngestionError(NRouteError):
     """Data import/parsing failures."""
 
+
 class RoutingError(NRouteError):
     """No valid route found, algorithm failure."""
+
 
 class SimulationError(NRouteError):
     """Simulation engine errors."""
 
+
 class ModelError(NRouteError):
     """ML model training/inference failures."""
+
 
 class ConfigError(NRouteError):
     """Invalid configuration."""

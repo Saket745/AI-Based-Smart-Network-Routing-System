@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable  # noqa: TC003
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -13,6 +12,9 @@ from nroute.exceptions import RoutingError
 from nroute.routing.base import FallbackRouter
 from nroute.routing.dijkstra import DijkstraRouter
 from nroute.routing.ecmp import ECMPRouter
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def test_ecmp_equal_cost_paths() -> None:
@@ -47,8 +49,6 @@ def test_ecmp_equal_cost_paths() -> None:
     )
     assert paths_compat == paths
 
-=======
-=======
     assert ["A", "B", "D"] in paths
     assert ["A", "C", "D"] in paths
 
