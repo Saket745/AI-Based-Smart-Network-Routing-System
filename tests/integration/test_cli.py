@@ -10,6 +10,7 @@ import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
+
 from click.testing import CliRunner
 
 from nroute.cli import cli
@@ -389,6 +390,9 @@ class TestPredictCLI:
         # 2. Run prediction
         result = runner.invoke(
             cli,
+=======
+            ["predict", "congestion", "--topology", topo_file, "--model", model_path, "--allow-unsafe"],
+=======
             [
                 "predict",
                 "congestion",
@@ -454,6 +458,9 @@ class TestDetectCLI:
         # 3. Run detection
         result = runner.invoke(
             cli,
+=======
+            ["detect", "anomalies", "--traffic", str(traffic_csv), "--model", model_path, "--allow-unsafe"],
+=======
             [
                 "detect",
                 "anomalies",
