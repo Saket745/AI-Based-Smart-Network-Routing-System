@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 import pandas as pd
+from pydantic import BaseModel, Field
 
 from nroute.exceptions import RoutingError
 from nroute.ml.anomaly import AnomalyDetector
@@ -25,6 +26,22 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+class AIRouterConfig(BaseModel):
+    """Configuration for AIRouter hyperparameters."""
+
+    congestion_model_type: str = Field(default="xgboost", description="xgboost | lstm")
+    anomaly_model_type: str = Field(
+        default="isolation_forest", description="isolation_forest | autoencoder"
+    )
+    alpha: float = Field(
+        default=5.0, description="Scale factor for congestion weight penalty."
+    )
+    anomaly_alpha_scale: float = Field(
+        default=4.0,
+        description="Multiplier applied to alpha when an anomaly is detected.",
+    )
+
+
 class AIRouter(BaseRouter):
     """
     AI-powered router that dynamically routes traffic around congestion
@@ -34,30 +51,31 @@ class AIRouter(BaseRouter):
     def __init__(
         self,
         topology: Topology | None = None,
-        congestion_model_type: str = "xgboost",
-        anomaly_model_type: str = "isolation_forest",
-        alpha: float = 5.0,
-        anomaly_alpha_scale: float = 4.0,
+        config: AIRouterConfig | None = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialize the AIRouter.
 
         Args:
             topology: Optional topology context.
-            congestion_model_type: "xgboost" | "lstm".
-            anomaly_model_type: "isolation_forest" | "autoencoder".
-            alpha: Scale factor for congestion weight penalty (W_e = latency * (1 + alpha * prob)).
-            anomaly_alpha_scale: Multiplier applied to alpha when an anomaly is
-                detected, to aggressively route around bottlenecks.
+            config: Optional configuration object for hyperparameters.
+            **kwargs: Backward compatibility for individual hyperparameters.
         """
         self.topology = topology
-        self.alpha = alpha
-        self._base_alpha = alpha
-        self._anomaly_alpha_scale = anomaly_alpha_scale
+
+        if config is None:
+            config = AIRouterConfig(**kwargs)
+
+        self.alpha = config.alpha
+        self._base_alpha = config.alpha
+        self._anomaly_alpha_scale = config.anomaly_alpha_scale
         self._anomaly_active = False
 
-        self.congestion_predictor = CongestionPredictor(model_type=congestion_model_type)
-        self.anomaly_detector = AnomalyDetector(model_type=anomaly_model_type)
+        self.congestion_predictor = CongestionPredictor(
+            model_type=config.congestion_model_type
+        )
+        self.anomaly_detector = AnomalyDetector(model_type=config.anomaly_model_type)
         self.is_trained = False
 
         # Rolling traffic history for congestion prediction
@@ -97,7 +115,9 @@ class AIRouter(BaseRouter):
             self.anomaly_detector.fit(features_anomaly, epochs=epochs)
             results["anomaly"] = {"status": "trained"}
 
-        self.is_trained = self.congestion_predictor.is_trained or self.anomaly_detector.is_trained
+        self.is_trained = (
+            self.congestion_predictor.is_trained or self.anomaly_detector.is_trained
+        )
         return results
 
     def update_traffic_history(
@@ -137,7 +157,9 @@ class AIRouter(BaseRouter):
                 self.alpha = self._base_alpha * self._anomaly_alpha_scale
                 self._anomaly_active = True
             elif not has_anomaly and self._anomaly_active:
-                logger.info("Anomaly cleared — reverting alpha to %.1f", self._base_alpha)
+                logger.info(
+                    "Anomaly cleared — reverting alpha to %.1f", self._base_alpha
+                )
                 self.alpha = self._base_alpha
                 self._anomaly_active = False
 
@@ -159,7 +181,6 @@ class AIRouter(BaseRouter):
         source: str,
         destination: str,
         weight: str | Callable[[dict[str, Any]], float] | None = None,
-        **kwargs: Any,
     ) -> list[str]:
         """
         Compute path from source to destination routing around predicted congestion.
@@ -175,16 +196,20 @@ class AIRouter(BaseRouter):
         if source not in subgraph:
             raise RoutingError(f"Source node '{source}' is down or does not exist.")
         if destination not in subgraph:
-            raise RoutingError(f"Destination node '{destination}' is down or does not exist.")
+            raise RoutingError(
+                f"Destination node '{destination}' is down or does not exist."
+            )
 
         # Cascade fallback helper: AI -> Dijkstra -> BFS
         def _cascade_fallback() -> list[str]:
             fallback = FallbackRouter([DijkstraRouter(), BFSRouter()])
-            return fallback.compute_path(topology, source, destination, weight=weight, **kwargs)
+            return fallback.compute_path(topology, source, destination, weight=weight)
 
         # If model is not trained, fallback to classical routing
         if not self.congestion_predictor.is_trained:
-            logger.warning("AIRouter congestion model is not trained. Using cascade fallback.")
+            logger.warning(
+                "AIRouter congestion model is not trained. Using cascade fallback."
+            )
             return _cascade_fallback()
 
         # Extract features and predict congestion probabilities
@@ -194,7 +219,8 @@ class AIRouter(BaseRouter):
             predictions = self.congestion_predictor.predict(features)
         except Exception as e:
             logger.error(
-                "Failed to predict congestion in AIRouter. Using cascade fallback.", error=str(e)
+                "Failed to predict congestion in AIRouter. Using cascade fallback.",
+                error=str(e),
             )
             predictions = pd.DataFrame(columns=["probability"])
 
@@ -239,4 +265,6 @@ class AIRouter(BaseRouter):
         """Load predictor and detector models."""
         self.congestion_predictor.load(f"{path}.congestion")
         self.anomaly_detector.load(f"{path}.anomaly")
-        self.is_trained = self.congestion_predictor.is_trained or self.anomaly_detector.is_trained
+        self.is_trained = (
+            self.congestion_predictor.is_trained or self.anomaly_detector.is_trained
+        )
