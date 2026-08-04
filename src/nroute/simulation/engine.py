@@ -155,8 +155,11 @@ class SimulationEngine:
                     v = path[hop_idx + 1]
 
                     # Check if the edge or target node is down
+                    graph = self.topology.graph
                     edge_down = False
                     try:
+                        edge_data = graph.edges[u, v]
+=======
                         # Direct access to avoid dictionary copies in core loop
                         edge_data = self.topology.graph.edges[u, v]
                         edge_down = edge_data.get("status", "up") == "down"
@@ -165,6 +168,8 @@ class SimulationEngine:
 
                     node_down = False
                     try:
+                        node_data = graph.nodes[v]
+=======
                         # Direct access to avoid dictionary copies in core loop
                         node_data = self.topology.graph.nodes[v]
                         node_down = node_data.get("status", "up") == "down"
@@ -189,6 +194,8 @@ class SimulationEngine:
 
                     # Forward across edge u -> v
                     try:
+                        edge_data = graph.edges[u, v]
+=======
                         # Direct access to avoid dictionary copies in core loop
                         edge_data = self.topology.graph.edges[u, v]
                         loss_prob = float(edge_data.get("packet_loss", 0.0))
@@ -588,6 +595,9 @@ class SimulationEngine:
         Recalculate link utilization metrics based on current active flows.
         """
         # 1. Reset all edges to 0 utilization
+        for _, _, edge_data in self.topology.graph.edges(data=True):
+            edge_data["utilization"] = 0.0
+=======
         # Iterate over graph data directly to avoid repeated get_edge calls
         for _, _, edge_data in self.topology.graph.edges(data=True):
             edge_data["utilization"] = 0.0
@@ -615,6 +625,11 @@ class SimulationEngine:
                 link_demands[(u, v)] += mbps
 
         # 3. Update edge utilization ratios in topology
+        graph = self.topology.graph
+        for (u, v), demand in link_demands.items():
+            if graph.has_edge(u, v):
+                edge_data = graph.edges[u, v]
+=======
         graph_edges = self.topology.graph.edges
         for (u, v), demand in link_demands.items():
             try:
@@ -625,5 +640,6 @@ class SimulationEngine:
                 # Clamp to [0.0, 1.0] for topology validation rules
                 util = min(1.0, max(0.0, util))
                 edge_data["utilization"] = util
+=======
             except Exception:
                 pass

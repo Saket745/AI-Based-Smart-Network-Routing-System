@@ -76,23 +76,16 @@ class LiveSimulationConsole:
     def update_events(self, tick: int) -> None:
         """Inspect engine state and log node/link status changes and packet events."""
         # 1. Check for topology status changes (links & nodes going down/up)
+        graph = self.engine.topology.graph
         current_down_links = set()
-        for u, v in self.engine.topology.edges:
-            try:
-                edge_data = self.engine.topology.get_edge(u, v)
-                if edge_data.get("status") == "down":
-                    current_down_links.add((u, v))
-            except Exception:
-                pass
+        for u, v, edge_data in graph.edges(data=True):
+            if edge_data.get("status") == "down":
+                current_down_links.add((u, v))
 
         current_down_nodes = set()
-        for node in self.engine.topology.nodes:
-            try:
-                node_data = self.engine.topology.get_node(node)
-                if node_data.get("status") == "down":
-                    current_down_nodes.add(node)
-            except Exception:
-                pass
+        for node, node_data in graph.nodes(data=True):
+            if node_data.get("status") == "down":
+                current_down_nodes.add(node)
 
         # Links going down
         for u, v in current_down_links - self.prev_down_links:
@@ -305,6 +298,76 @@ class LiveSimulationConsole:
             last_metric = engine.collector.results[-1]
             self._update_history(tick, last_metric)
             self.update_events(tick)
+
+            # Build elements for render
+            # Header
+            header_text = Text.assemble(
+                ("nroute LIVE SIMULATION CONSOLE", "bold cyan"),
+                ("  |  Algorithm: ", "white"),
+                (algo_name, "bold green"),
+                ("  |  Tick: ", "white"),
+                (f"{tick + 1}/{self.duration_ticks}", "bold yellow"),
+                ("  |  Active Flows: ", "white"),
+                (str(last_metric.active_flows), "bold magenta"),
+            )
+            layout["header"].update(Panel(header_text, style="cyan"))
+
+            # Left Panel: Link Status Table
+            table = Table(
+                title="Link Status & Utilization",
+                show_header=True,
+                header_style="bold magenta",
+                expand=True,
+            )
+            table.add_column("Link (U ➔ V)", style="cyan")
+            table.add_column("Status", justify="center")
+            table.add_column("Bandwidth", justify="right")
+            table.add_column("Latency", justify="right")
+            table.add_column("Utilization", justify="right")
+
+            # Sort edges for stable rendering
+            graph = engine.topology.graph
+            sorted_edges = sorted(graph.edges(data=True))
+            for u, v, edge_data in sorted_edges:
+                status = str(edge_data.get("status", "up")).upper()
+                if status == "DOWN":
+                    status_str = "[bold red]🔴 DOWN[/bold red]"
+                else:
+                    status_str = "[bold green]🟢 UP[/bold green]"
+
+                bw = f"{edge_data.get('bandwidth', 1000):.0f} Mbps"
+                lat = f"{edge_data.get('latency', 5):.1f} ms"
+                util = float(edge_data.get("utilization", 0.0))
+
+                # Color coding based on utilization
+                if status == "DOWN":
+                    util_str = "[grey]--[/grey]"
+                elif util > 0.85:
+                    util_str = f"[bold red]{util:.1%}[/bold red] 🔴"
+                elif util > 0.60:
+                    util_str = f"[bold yellow]{util:.1%}[/bold yellow] 🟡"
+                else:
+                    util_str = f"[bold green]{util:.1%}[/bold green] 🟢"
+
+                table.add_row(f"{u} ➔ {v}", status_str, bw, lat, util_str)
+
+            layout["left"].update(Panel(table, style="magenta"))
+
+            # Right Panel: Plots
+            layout["right"]["throughput_plot"].update(
+                Panel(PlotextRenderable(self.plot_throughput), style="cyan")
+            )
+            layout["right"]["latency_plot"].update(
+                Panel(PlotextRenderable(self.plot_latency), style="yellow")
+            )
+
+            # Footer: Event Log
+            events_to_show = self.event_log[-5:] if self.event_log else ["No events yet."]
+            footer_text = Text("\n".join(events_to_show))
+            layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
+
+            # Force sleep to pace the visualization
+=======
             self._update_layout(layout, tick, last_metric, algo_name, engine)
             time.sleep(self.delay)
 

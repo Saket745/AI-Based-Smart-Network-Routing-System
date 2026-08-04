@@ -47,7 +47,7 @@ class FeatureBuilder:
         # 2. Build Node Features
         node_features = []
         for node in nodes:
-            attrs = topology.get_node(node)
+            attrs = graph.nodes[node]
 
             # Capacity (normalized by 1000.0)
             cap = float(attrs.get("capacity", 1000.0)) / 1000.0
@@ -56,7 +56,7 @@ class FeatureBuilder:
             status = 1.0 if attrs.get("status", "up").lower() == "up" else 0.0
 
             # Degree normalized
-            degree = float(len(list(topology.neighbors(node)))) / max_degree
+            degree = float(len(list(graph.successors(node)))) / max_degree
 
             # Queue length & Packet load & Congestion score (dynamic telemetry)
             queue_len = float(attrs.get("queue_length", 0.0))
@@ -90,7 +90,7 @@ class FeatureBuilder:
         edge_features = []
         for src, dst in edges:
             edge_index.append([node_to_idx[src], node_to_idx[dst]])
-            attrs = topology.get_edge(src, dst)
+            attrs = graph.edges[src, dst]
 
             # Bandwidth (normalized by 1000.0)
             bw = float(attrs.get("bandwidth", 1000.0)) / 1000.0
