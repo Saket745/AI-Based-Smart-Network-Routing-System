@@ -181,6 +181,94 @@ class AnomalyDetector:
             else:
                 raise ModelError("Custom model must implement 'fit()' or 'train()' method.")
 
+    def _detect_isolation_forest(self, x_data: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Run anomaly detection using the trained Isolation Forest model."""
+        # decision_function outputs values in [-0.5, 0.5] (lower means more anomalous)
+        raw_scores = self.model.decision_function(x_data)
+        # Map score to [0.0, 1.0] where 1.0 is extremely anomalous
+        # Standard mapping: anomaly_score = clamp(0.5 - raw_score)
+        anomaly_scores = np.clip(0.5 - raw_scores, 0.0, 1.0)
+
+        # predict() returns 1 (normal) and -1 (anomaly)
+        preds = self.model.predict(x_data)
+        is_anomaly = preds == -1
+        return anomaly_scores, is_anomaly
+
+    def _detect_autoencoder(self, x_data: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Run anomaly detection using the trained Autoencoder network."""
+        self.model.eval()
+        x_norm = self._normalize(x_data, train=False)
+        x_tensor = torch.tensor(x_norm, dtype=torch.float32)
+
+        with torch.no_grad():
+            reconstructed = self.model(x_tensor)
+            # Compute reconstruction error per sample
+            mse_errors = torch.mean((reconstructed - x_tensor) ** 2, dim=1).numpy()
+
+        # Map error to score: scale relative to threshold
+        # E.g., if error is threshold, score is 0.5. Clamp to [0, 1]
+        anomaly_scores = np.clip(
+            (mse_errors / (self.reconstruction_threshold + 1e-6)) * 0.5, 0.0, 1.0
+        )
+        is_anomaly = mse_errors > self.reconstruction_threshold
+        return anomaly_scores, is_anomaly
+
+    def _detect_custom(
+        self, features: pd.DataFrame, x_data: np.ndarray
+    ) -> pd.DataFrame | tuple[np.ndarray, np.ndarray]:
+        """Run anomaly detection using a custom model."""
+        x_norm = self._normalize(x_data, train=False)
+        if hasattr(self.model, "detect"):
+            # If custom model implements full detect interface
+            return self.model.detect(features)
+
+        # Fallback score logic
+        if hasattr(self.model, "decision_function"):
+            raw_scores = self.model.decision_function(x_norm)
+            anomaly_scores = np.clip(0.5 - raw_scores, 0.0, 1.0)
+        elif hasattr(self.model, "predict_proba"):
+            probs = self.model.predict_proba(x_norm)
+            if len(probs.shape) > 1 and probs.shape[1] > 1:
+                probs = probs[:, 1]
+            anomaly_scores = probs
+        else:
+            anomaly_scores = np.zeros(len(features))
+
+        if hasattr(self.model, "predict"):
+            preds = self.model.predict(x_norm)
+            is_anomaly = (preds == -1) | ((preds == 1) & (anomaly_scores >= 0.5))
+        else:
+            is_anomaly = anomaly_scores >= 0.5
+
+        return anomaly_scores, is_anomaly
+
+    def _classify_anomaly_types(self, features: pd.DataFrame, is_anomaly: np.ndarray) -> list[str]:
+        """Classify anomaly types using heuristics based on features."""
+        anomaly_types = []
+        for idx in range(len(features)):
+            if not is_anomaly[idx]:
+                anomaly_types.append("normal")
+                continue
+
+            row = features.iloc[idx]
+
+            # 1. DDoS Heuristic: high byte/packet rate and low entropy (concentrated sources)
+            bytes_sec = row.get("bytes_per_second", 0.0)
+            src_entropy = row.get("src_ip_entropy", 3.0)
+
+            # 2. Black Hole Heuristic: flow count drops to 0 or very low, or bytes dropped entirely
+            flow_count = row.get("flow_count", 1)
+
+            if bytes_sec > 10000000.0 and src_entropy < 1.5:
+                anomaly_types.append("DDoS")
+            elif flow_count == 0 or bytes_sec < 10.0:
+                anomaly_types.append("black_hole")
+            else:
+                # Default fallback type is link_failure / high utilization congestion
+                anomaly_types.append("link_failure")
+
+        return anomaly_types
+
     def detect(self, features: pd.DataFrame) -> pd.DataFrame:
         """
         Detect anomalies in traffic features.
@@ -204,80 +292,21 @@ class AnomalyDetector:
         x_data = numeric_features.values
 
         if self.model_type == "isolation_forest":
-            # decision_function outputs values in [-0.5, 0.5] (lower means more anomalous)
-            raw_scores = self.model.decision_function(x_data)
-            # Map score to [0.0, 1.0] where 1.0 is extremely anomalous
-            # Standard mapping: anomaly_score = clamp(0.5 - raw_score)
-            anomaly_scores = np.clip(0.5 - raw_scores, 0.0, 1.0)
-
-            # predict() returns 1 (normal) and -1 (anomaly)
-            preds = self.model.predict(x_data)
-            is_anomaly = preds == -1
+            anomaly_scores, is_anomaly = self._detect_isolation_forest(x_data)
 
         elif self.model_type == "autoencoder":
-            self.model.eval()
-            x_norm = self._normalize(x_data, train=False)
-            x_tensor = torch.tensor(x_norm, dtype=torch.float32)
-
-            with torch.no_grad():
-                reconstructed = self.model(x_tensor)
-                # Compute reconstruction error per sample
-                mse_errors = torch.mean((reconstructed - x_tensor) ** 2, dim=1).numpy()
-
-            # Map error to score: scale relative to threshold
-            # E.g., if error is threshold, score is 0.5. Clamp to [0, 1]
-            anomaly_scores = np.clip(
-                (mse_errors / (self.reconstruction_threshold + 1e-6)) * 0.5, 0.0, 1.0
-            )
-            is_anomaly = mse_errors > self.reconstruction_threshold
+            anomaly_scores, is_anomaly = self._detect_autoencoder(x_data)
 
         elif self.model_type == "custom":
-            x_norm = self._normalize(x_data, train=False)
-            if hasattr(self.model, "detect"):
-                # If custom model implements full detect interface
-                return self.model.detect(features)
+            res = self._detect_custom(features, x_data)
+            if isinstance(res, pd.DataFrame):
+                return res
+            anomaly_scores, is_anomaly = res
+        else:
+            anomaly_scores = np.zeros(len(features))
+            is_anomaly = np.zeros(len(features), dtype=bool)
 
-            # Fallback score logic
-            if hasattr(self.model, "decision_function"):
-                raw_scores = self.model.decision_function(x_norm)
-                anomaly_scores = np.clip(0.5 - raw_scores, 0.0, 1.0)
-            elif hasattr(self.model, "predict_proba"):
-                probs = self.model.predict_proba(x_norm)
-                if len(probs.shape) > 1 and probs.shape[1] > 1:
-                    probs = probs[:, 1]
-                anomaly_scores = probs
-            else:
-                anomaly_scores = np.zeros(len(features))
-
-            if hasattr(self.model, "predict"):
-                preds = self.model.predict(x_norm)
-                is_anomaly = (preds == -1) | ((preds == 1) & (anomaly_scores >= 0.5))
-            else:
-                is_anomaly = anomaly_scores >= 0.5
-
-        # Classify anomaly types using heuristics
-        anomaly_types = []
-        for idx in range(len(features)):
-            if not is_anomaly[idx]:
-                anomaly_types.append("normal")
-                continue
-
-            row = features.iloc[idx]
-
-            # 1. DDoS Heuristic: high byte/packet rate and low entropy (concentrated sources)
-            bytes_sec = row.get("bytes_per_second", 0.0)
-            src_entropy = row.get("src_ip_entropy", 3.0)
-
-            # 2. Black Hole Heuristic: flow count drops to 0 or very low, or bytes dropped entirely
-            flow_count = row.get("flow_count", 1)
-
-            if bytes_sec > 10000000.0 and src_entropy < 1.5:
-                anomaly_types.append("DDoS")
-            elif flow_count == 0 or bytes_sec < 10.0:
-                anomaly_types.append("black_hole")
-            else:
-                # Default fallback type is link_failure / high utilization congestion
-                anomaly_types.append("link_failure")
+        anomaly_types = self._classify_anomaly_types(features, is_anomaly)
 
         return pd.DataFrame(
             {
