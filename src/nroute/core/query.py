@@ -1,5 +1,3 @@
-"""Routing query models to encapsulate path request parameters."""
-
 from __future__ import annotations
 
 from collections.abc import Callable  # noqa: TC003
@@ -9,9 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class RoutingQuery(BaseModel):
-    """
-    Encapsulates parameters for a routing request.
-    """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -26,3 +21,8 @@ class RoutingQuery(BaseModel):
     flow_key: Any = Field(
         default=None, description="Key for deterministic path selection (e.g. for ECMP)"
     )
+=======
+        default=None, description="Edge attribute name or weight function"
+    )
+    flow_key: Any = Field(default=None, description="Key for deterministic path selection (ECMP)")
+    k: int | None = Field(default=None, description="Number of paths for K-shortest-paths")
