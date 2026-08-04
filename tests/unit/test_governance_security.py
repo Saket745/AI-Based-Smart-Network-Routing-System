@@ -18,6 +18,7 @@ from nroute.ml.anomaly import AnomalyDetector
 from nroute.ml.congestion import CongestionPredictor
 
 
+=======
 def test_anomaly_detector_secure_loading_enforcement():
 =======
 def test_anomaly_detector_secure_loading_enforcement() -> None:
@@ -38,6 +39,11 @@ def test_anomaly_detector_secure_loading_enforcement() -> None:
 =======
         # Should succeed with allow_unsafe=True (well, fail later during processing, but pass the security check)
         with contextlib.suppress(ModelError, KeyError):
+            # We expect failure later since it's not a real model, but the security block is bypassed
+            detector.load(path, allow_unsafe=True)
+
+
+=======
             # We expect failure later since it's not a real model, but the security block is bypassed
             detector.load(path, allow_unsafe=True)
 

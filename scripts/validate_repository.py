@@ -17,6 +17,8 @@ WARN_DATA_SIZE_BYTES = 100 * 1024  # 100 KB warn limit for datasets in src/tests
 
 # Allowed extensions in each directory category
 ALLOWED_EXTENSIONS = {
+    "src": {".py", ".pyi", ".typed", ".yaml", ".yml", ".json", ".csv", ".txt", ".png", ".gitkeep"},
+=======
     "src": {".py", ".pyi", ".yaml", ".yml", ".json", ".csv", ".txt", ".png", ".gitkeep", ".typed"},
     "tests": {".py", ".yaml", ".yml", ".json", ".csv", ".txt", ".gitkeep"},
     "docs": {".md", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".pdf", ".html", ".css", ".txt"},
