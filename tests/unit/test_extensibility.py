@@ -40,6 +40,8 @@ class CustomTestRouter:
 """
         )
 
+        # Valid loading (requires allow_unsafe=True)
+
         # Valid loading
         cls = load_custom_class(f"{file_path}:CustomTestRouter", allow_unsafe=True)
         assert cls.__name__ == "CustomTestRouter"
@@ -91,6 +93,8 @@ class ConfiguredRouter(BaseRouter):
 
         monkeypatch.setattr(nroute.core.config, "load_config", lambda *args, **kwargs: cfg)
 
+        # get_router should resolve and load it (requires allow_unsafe=True)
+=======
         # get_router should resolve and load it
         router = get_router("my-config-router", allow_unsafe=True)
         assert router.__class__.__name__ == "ConfiguredRouter"
@@ -239,6 +243,7 @@ class MyCliRouter(BaseRouter):
             "custom",
             "--custom-router",
             f"{router_file}:MyCliRouter",
+            "--allow-unsafe",
         ],
     )
     assert res.exit_code == 0

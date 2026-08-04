@@ -61,7 +61,7 @@ class BaseNNRouter(BaseRouter, ABC):
         Returns:
             The predicted next hop node ID.
         """
-        pass
+        raise NotImplementedError
 
     def compute_path(
         self,
