@@ -24,7 +24,7 @@ def get_router(algorithm: str, topology: Any = None, allow_unsafe: bool = False)
     Args:
         algorithm: "dijkstra" | "bellman-ford" | "ecmp" | "bfs" | "ai" | "rl" | "ppo" | "dqn" or custom registered name.
         topology: Optional topology context.
-        allow_unsafe: If True, allows loading custom routers from local Python files.
+
     """
     alg = algorithm.lower().strip()
 
