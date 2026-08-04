@@ -36,7 +36,6 @@ def test_ecmp_equal_cost_paths() -> None:
 
     router = ECMPRouter()
 
-
     query = RoutingQuery(source="A", destination="D", weight="weight")
     paths = router.compute_all_equal_cost_paths(topo, query)
     assert len(paths) == 2
@@ -109,6 +108,7 @@ def test_k_shortest_paths() -> None:
 
     router = ECMPRouter(k=3)
 
+    query = RoutingQuery(source="A", destination="D", weight="weight", k=3)
 
     query = RoutingQuery(source="A", destination="D", weight="weight")
     paths = router.compute_k_shortest_paths(topo, query)
