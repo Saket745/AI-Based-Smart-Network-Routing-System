@@ -53,6 +53,10 @@ class AnomalyDetectArgs(BaseModel):
     "--allow-unsafe",
     is_flag=True,
     default=False,
+    help="Allow loading legacy joblib/pickle models (insecure).",
+)
+def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
+=======
     help="Allow loading insecure model files (joblib/pickle).",
 )
 def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
@@ -100,7 +104,7 @@ def anomalies(
 def _handle_error(msg: str, is_json: bool, e: Exception | None = None) -> None:
     """Handle errors consistently based on output format."""
     if is_json:
-=======
+
 
 def _handle_error(e: Exception, message: str, is_json: bool) -> None:
     """Consistent JSON and console error reporting and terminates execution."""
@@ -183,14 +187,13 @@ def _init_detector(model_path: str, allow_unsafe: bool, is_json: bool) -> Anomal
     try:
         detector = AnomalyDetector()
         detector.load(model_path, allow_unsafe=allow_unsafe)
-=======
+
         return detector
     except ModelError as e:
         _handle_error(f"Failed to load model: {e}", is_json, e)
         raise  # unreachable
         detector.load(args.model_path, allow_unsafe=args.allow_unsafe)
-        return detector
-    except ModelError as e:
+        return detector    except ModelError as e:
         _handle_error(e, "Failed to load model", args.is_json)
 
 

@@ -14,6 +14,9 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from nroute.exceptions import TopologyError
+from nroute.utils.logging import get_logger
+
 if TYPE_CHECKING:
     from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
     from nroute.simulation.engine import SimulationEngine
@@ -39,6 +42,9 @@ class PlotextRenderable:
         ansi_output = plt.build()
         decoder = AnsiDecoder()
         yield from decoder.decode(ansi_output)
+
+
+logger = get_logger(__name__)
 
 
 class LiveSimulationConsole:
@@ -78,6 +84,23 @@ class LiveSimulationConsole:
         # 1. Check for topology status changes (links & nodes going down/up)
         graph = self.engine.topology.graph
         current_down_links = set()
+        for u, v in self.engine.topology.edges:
+            try:
+                edge_data = self.engine.topology.get_edge(u, v)
+                if edge_data.get("status") == "down":
+                    current_down_links.add((u, v))
+            except (KeyError, TopologyError) as e:
+                logger.error("Error retrieving edge status", edge=(u, v), error=str(e), tick=tick)
+
+        current_down_nodes = set()
+        for node in self.engine.topology.nodes:
+            try:
+                node_data = self.engine.topology.get_node(node)
+                if node_data.get("status") == "down":
+                    current_down_nodes.add(node)
+            except (KeyError, TopologyError) as e:
+                logger.error("Error retrieving node status", node=node, error=str(e), tick=tick)
+=======
         for u, v, edge_data in graph.edges(data=True):
             if edge_data.get("status") == "down":
                 current_down_links.add((u, v))
