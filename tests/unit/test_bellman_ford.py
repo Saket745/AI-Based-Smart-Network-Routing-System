@@ -50,7 +50,7 @@ def test_bellman_ford_negative_cycle() -> None:
     # Use custom attribute 'cost' instead of standard validated 'weight' to support negative weights
     topo.add_edge("A", "B", cost=2.0)
     topo.add_edge("B", "C", cost=-5.0)  # negative cost
-    topo.add_edge("C", "A", cost=1.0)  # negative cycle (2 - 5 + 1 = -2)
+    topo.add_edge("C", "A", cost=1.0)  # negative cycle (2 - 5 + 1  =  -2)
 
     router = BellmanFordRouter()
 
