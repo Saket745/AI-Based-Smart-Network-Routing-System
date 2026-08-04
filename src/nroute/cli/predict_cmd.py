@@ -408,6 +408,8 @@ def _load_gnn_model_state(model: Any, args: GNNPredictArgs, is_json: bool) -> No
                 ),
                 err=True,
             )
+            raise SystemExit(1)
+
             raise SystemExit(1) from e
         console.print(f"[red]x Failed to load model {model_type} (version {version}):[/red] {e}")
 =======

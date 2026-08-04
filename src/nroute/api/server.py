@@ -85,7 +85,7 @@ DEFAULT_CORS_ORIGINS = [
 ]
 
 # Load CORS configuration
-
+from nroute.core.config import load_config
 try:
     _cfg = load_config()
     _cors_origins = _cfg.general.cors_origins
