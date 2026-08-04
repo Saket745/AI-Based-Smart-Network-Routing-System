@@ -17,7 +17,7 @@ WARN_DATA_SIZE_BYTES = 100 * 1024  # 100 KB warn limit for datasets in src/tests
 
 # Allowed extensions in each directory category
 ALLOWED_EXTENSIONS = {
-    "src": {".py", ".pyi", ".yaml", ".yml", ".json", ".csv", ".txt", ".png", ".gitkeep"},
+    "src": {".py", ".pyi", ".yaml", ".yml", ".json", ".csv", ".txt", ".png", ".gitkeep", ".typed"},
     "tests": {".py", ".yaml", ".yml", ".json", ".csv", ".txt", ".gitkeep"},
     "docs": {".md", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".pdf", ".html", ".css", ".txt"},
     "configs": {".yaml", ".yml", ".toml", ".json", ".ini", ".conf", ".gitkeep"},
@@ -35,7 +35,7 @@ ALLOWED_EXTENSIONS = {
     },
     "data": {".csv", ".tsv", ".json", ".pkl", ".parquet", ".gitkeep", ""},
     "scripts": {".py", ".sh", ".bat", ".ps1", ".gitkeep"},
-    "models": {".pt", ".pth", ".onnx", ".joblib", ".zip", ".gitkeep"},
+    "models": {".pt", ".pth", ".onnx", ".joblib", ".zip", ".json", ".meta", ".gitkeep"},
     "k8s": {".yaml", ".yml", ".gitkeep"},
 }
 
@@ -57,6 +57,7 @@ IGNORE_DIRS = {
     "__pycache__",
     "build",
     "dist",
+    "graphite-demo",
 }
 
 

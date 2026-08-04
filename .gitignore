@@ -52,6 +52,10 @@ models/*.meta
 models/**/*.metadata.json
 models/gnn/
 !models/.gitkeep
+!models/congestion_xgb_v1.joblib
+!models/anomaly_iforest_v1.joblib
+!models/rl_ppo_v1.zip
+!models/rl_ppo_v1.zip.meta
 
 # ─── Datasets ─────────────────────────────────────────
 data/gnn_dataset/
