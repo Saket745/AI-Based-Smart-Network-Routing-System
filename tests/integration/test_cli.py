@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import json
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
+
 from click.testing import CliRunner
 
 from nroute.cli import cli
