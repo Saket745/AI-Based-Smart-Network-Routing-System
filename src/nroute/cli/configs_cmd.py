@@ -35,7 +35,10 @@ general:
   seed: null              # Global random seed for reproducibility
   output_dir: "./output"  # Default output directory for metrics and results
   cors_origins:           # Allowed origins for the Digital Twin API server
-    - "*"
+    - "http://localhost:3000"
+    - "http://127.0.0.1:3000"
+    - "http://localhost:5173"
+    - "http://127.0.0.1:5173"
 
 topology:
   default_type: "random"  # Default topology model: random | scale-free | small-world | fat-tree
