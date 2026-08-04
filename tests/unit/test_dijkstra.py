@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import patch
 
+import networkx as nx
 import pytest
 
 from nroute.core.topology import Topology
@@ -103,3 +105,38 @@ def test_dijkstra_routing_errors(small_graph_data: dict[str, Any]) -> None:
 
     with pytest.raises(RoutingError, match="does not exist"):
         router.compute_path(topo, "NON_EXISTENT", "D")
+
+
+def test_dijkstra_default_weight(small_graph_data: dict[str, Any]) -> None:
+    """Test Dijkstra router using default weight function."""
+    topo = _get_topo(small_graph_data)
+    router = DijkstraRouter()
+
+    # Path A -> D with default weights (1.0) should be A -> B -> D (2 hops)
+    path = router.compute_path(topo, "A", "D", weight=None)
+    assert path == ["A", "B", "D"]
+
+
+def test_dijkstra_routing_exception_handling(small_graph_data: dict[str, Any]) -> None:
+    """Test Dijkstra router exception handling paths."""
+    topo = _get_topo(small_graph_data)
+    router = DijkstraRouter()
+
+    with patch("networkx.shortest_path") as mock_shortest:
+        # Test RoutingError re-raise (lines 70-71)
+        mock_shortest.side_effect = RoutingError("Custom routing error")
+        with pytest.raises(RoutingError, match="Custom routing error"):
+            router.compute_path(topo, "A", "D")
+
+        # Test Generic Exception wrapping (line 72)
+        mock_shortest.side_effect = RuntimeError("Something went wrong")
+        with pytest.raises(
+            RoutingError, match="Dijkstra route computation failed: Something went wrong"
+        ):
+            router.compute_path(topo, "A", "D")
+
+    # Test NetworkXNoPath (lines 65-68) - already in test_dijkstra_routing_errors but let's be explicit
+    with patch("networkx.shortest_path") as mock_shortest:
+        mock_shortest.side_effect = nx.NetworkXNoPath("No path")
+        with pytest.raises(RoutingError, match="No active path found"):
+            router.compute_path(topo, "A", "D")
