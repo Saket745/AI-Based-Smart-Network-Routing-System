@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import os
 import tempfile
+=======
 from unittest.mock import patch
 
 import joblib
@@ -33,6 +34,8 @@ def test_anomaly_detector_secure_loading_enforcement() -> None:
             # We expect failure later since it's not a real model, but the security block is bypassed
             detector.load(path, allow_unsafe=True)
 
+
+=======
 
 def test_anomaly_detector_pytorch_secure_loading_failure() -> None:
     """Verify that AnomalyDetector handles PyTorch secure loading failures."""
