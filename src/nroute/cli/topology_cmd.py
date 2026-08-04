@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import click
+from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.table import Table
 
@@ -16,9 +19,44 @@ from nroute.exceptions import TopologyError
 console = Console()
 
 
+@dataclass(frozen=True)
+class GenerationParams:
+    """Parameters for topology generation.
+
+    Attributes:
+        topo_type: Topology generation model.
+        nodes: Number of nodes.
+        edge_prob: Edge probability (random only).
+        k: Port count k (fat-tree) or k-neighbors (small-world).
+        rewire_prob: Rewire probability (small-world only).
+        seed: Random seed for reproducibility.
+        output: Output path for the topology JSON.
+    """
+
+    topo_type: str
+    nodes: int
+    edge_prob: float
+    k: int
+    rewire_prob: float
+    seed: int | None
+    output: str | None
+
+
 @click.group(name="topology")
 def topology_cmd() -> None:
     """Manage and inspect network topologies."""
+
+
+class TopologyGenerateArgs(BaseModel):
+    """Arguments for generating a network topology."""
+
+    topo_type: str = Field(..., description="Topology generation model.")
+    nodes: int = Field(default=10, description="Number of nodes.")
+    edge_prob: float = Field(default=0.3, description="Edge probability (random only).")
+    k: int = Field(default=4, description="k-neighbors or port count.")
+    rewire_prob: float = Field(default=0.1, description="Rewire probability (small-world only).")
+    seed: int | None = Field(default=None, description="Random seed.")
+    output: str | None = Field(default=None, description="Output path for the topology JSON.")
 
 
 @topology_cmd.command(name="generate")
@@ -60,41 +98,71 @@ def topology_cmd() -> None:
     help="Output path for the topology JSON. Defaults to stdout summary.",
 )
 @click.pass_context
-def generate(
-    ctx: click.Context,
-    topo_type: str,
-    nodes: int,
-    edge_prob: float,
-    k: int,
-    rewire_prob: float,
-    seed: int | None,
-    output: str | None,
-) -> None:
+def generate(ctx: click.Context, /, **kwargs: Any) -> None:
     """Generate a synthetic network topology."""
+    params = GenerationParams(**kwargs)
+    _handle_generate(ctx, params)
+
+
+def _handle_generate(ctx: click.Context, params: GenerationParams) -> None:
+    """Internal handler for topology generation."""
     # Inherit global seed if not overridden
-    seed = seed or (ctx.obj.get("seed") if ctx.obj is not None else None)
+    seed = params.seed or (ctx.obj.get("seed") if ctx.obj is not None else None)
     is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
 
     try:
-        topo_type_lower = topo_type.lower()
+        topo_type_lower = params.topo_type.lower()
         topo: Topology
 
         if topo_type_lower == "random":
-            topo = TopologyGenerator.random(n_nodes=nodes, edge_prob=edge_prob, seed=seed)
+            topo = TopologyGenerator.random(
+                n_nodes=params.nodes, edge_prob=params.edge_prob, seed=seed
+            )
         elif topo_type_lower == "scale-free":
-            topo = TopologyGenerator.scale_free(n_nodes=nodes, seed=seed)
+            topo = TopologyGenerator.scale_free(n_nodes=params.nodes, seed=seed)
         elif topo_type_lower == "small-world":
             topo = TopologyGenerator.small_world(
-                n_nodes=nodes, k_neighbors=k, rewire_prob=rewire_prob, seed=seed
+                n_nodes=params.nodes,
+                k_neighbors=params.k,
+                rewire_prob=params.rewire_prob,
+                seed=seed,
             )
         elif topo_type_lower == "fat-tree":
-            topo = TopologyGenerator.fat_tree(k=k, seed=seed)
+            topo = TopologyGenerator.fat_tree(k=params.k, seed=seed)
         else:
-            raise TopologyError(f"Unknown topology type: {topo_type}")
+            raise TopologyError(f"Unknown topology type: {params.topo_type}")
 
         if is_json:
-            if output:
-                out_path = Path(output)
+            if params.output:
+                out_path = Path(params.output)
+=======
+def generate(ctx: click.Context, **kwargs: Any) -> None:
+    """Generate a synthetic network topology."""
+    args = TopologyGenerateArgs.model_validate(kwargs)
+    # Inherit global seed if not overridden
+    seed = args.seed or (ctx.obj.get("seed") if ctx.obj is not None else None)
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
+
+    try:
+        topo_type_lower = args.topo_type.lower()
+        topo: Topology
+
+        if topo_type_lower == "random":
+            topo = TopologyGenerator.random(n_nodes=args.nodes, edge_prob=args.edge_prob, seed=seed)
+        elif topo_type_lower == "scale-free":
+            topo = TopologyGenerator.scale_free(n_nodes=args.nodes, seed=seed)
+        elif topo_type_lower == "small-world":
+            topo = TopologyGenerator.small_world(
+                n_nodes=args.nodes, k_neighbors=args.k, rewire_prob=args.rewire_prob, seed=seed
+            )
+        elif topo_type_lower == "fat-tree":
+            topo = TopologyGenerator.fat_tree(k=args.k, seed=seed)
+        else:
+            raise TopologyError(f"Unknown topology type: {args.topo_type}")
+
+        if is_json:
+            if args.output:
+                out_path = Path(args.output)
                 out_path.parent.mkdir(parents=True, exist_ok=True)
                 topo.save(str(out_path))
                 click.echo(
@@ -111,8 +179,11 @@ def generate(
                 click.echo(json.dumps(topo.to_dict(), indent=2))
             return
 
-        if output:
-            out_path = Path(output)
+        if params.output:
+            out_path = Path(params.output)
+=======
+        if args.output:
+            out_path = Path(args.output)
             out_path.parent.mkdir(parents=True, exist_ok=True)
             topo.save(str(out_path))
             console.print(
@@ -121,7 +192,9 @@ def generate(
             )
         else:
             # Print summary to stdout
-            _print_topology_summary(topo, title=f"{topo_type} Topology")
+            _print_topology_summary(topo, title=f"{params.topo_type} Topology")
+=======
+            _print_topology_summary(topo, title=f"{args.topo_type} Topology")
 
     except TopologyError as e:
         if is_json:

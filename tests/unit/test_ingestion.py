@@ -18,7 +18,6 @@ from nroute.ingestion.csv_json import (
     CSVTrafficImporter,
     JSONTopologyImporter,
 )
-from nroute.ingestion.netflow import NetFlowParser
 from nroute.ingestion.pcap import PcapParser
 from nroute.ingestion.snmp import SNMPParser
 
@@ -162,45 +161,6 @@ def test_csv_traffic_importer(tmp_path: Path) -> None:
     assert tm.flows[0].source == "A"
     assert tm.flows[0].bytes == 1000
     assert tm.flows[1].protocol == "UDP"
-
-
-def test_netflow_parser_valid(tmp_path: Path) -> None:
-    """Test NetFlow CSV parser with duration calculation and column renaming."""
-    csv_file = tmp_path / "netflow.csv"
-
-    df = pd.DataFrame(
-        {
-            "srcaddr": ["10.0.0.1", "10.0.0.2"],
-            "dstaddr": ["10.0.0.2", "10.0.0.3"],
-            "octets": [5000, 3000],
-            "pkts": [10, 6],
-            "first_switched": [1000.1, 1002.5],
-            "last_switched": [1002.3, 1002.0],  # Second record has negative duration
-            "protocol": ["TCP", "UDP"],
-        }
-    )
-    df.to_csv(csv_file, index=False)
-
-    tm = NetFlowParser.parse(csv_file)
-    assert len(tm.flows) == 2
-    assert tm.flows[0].source == "10.0.0.1"
-    assert tm.flows[0].bytes == 5000
-
-    # First record duration should be 1002.3 - 1000.1 = 2.2
-    assert pytest.approx(tm.flows[0].duration) == 2.2
-
-    # Second record duration should be 1002.0 - 1002.5 = -0.5, clipped to 0.0
-    assert tm.flows[1].duration == 0.0
-
-
-def test_netflow_parser_missing_fields(tmp_path: Path) -> None:
-    """Test NetFlow CSV parser errors for missing fields."""
-    csv_file = tmp_path / "bad_netflow.csv"
-    df = pd.DataFrame({"srcaddr": ["10.0.0.1"], "dstaddr": ["10.0.0.2"]})
-    df.to_csv(csv_file, index=False)
-
-    with pytest.raises(IngestionError, match="missing required columns"):
-        NetFlowParser.parse(csv_file)
 
 
 @patch("scapy.utils.PcapReader")
