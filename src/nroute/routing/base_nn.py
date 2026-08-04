@@ -69,6 +69,7 @@ class BaseNNRouter(BaseRouter, ABC):
         source: str,
         destination: str,
         weight: Any = None,
+        **kwargs: Any,
     ) -> list[str]:
         # Get active subgraph
         subgraph = self._get_active_subgraph(topology)

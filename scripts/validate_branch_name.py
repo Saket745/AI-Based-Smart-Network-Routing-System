@@ -7,6 +7,9 @@ Enforces standard prefixes for branches to ensure governance compliance.
 import re
 import sys
 import subprocess
+=======
+import subprocess
+import sys
 
 # Allowed branch prefixes based on Governance V2 Spec
 ALLOWED_PREFIXES = [
@@ -22,6 +25,8 @@ ALLOWED_PREFIXES = [
     "hotfix/",
     "test/",
     "experiment/"
+=======
+    "experiment/",
 ]
 
 # Primary branches that are exempt
@@ -34,11 +39,16 @@ def get_current_branch():
             capture_output=True,
             text=True,
             check=True
+=======
+
+def get_current_branch():
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, check=True
         )
         return result.stdout.strip()
     except Exception:
         return None
-
 def validate_branch_name(branch_name):
     if not branch_name:
         return False, "Could not determine branch name."

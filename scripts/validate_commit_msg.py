@@ -22,6 +22,22 @@ VALID_TYPES = {
     "chore",            # Maintenance tasks
     "revert",           # Revert a previous commit
     "security",         # Security fixes
+=======
+    "feat",
+    "feature",  # New feature
+    "fix",
+    "bugfix",  # Bug fix
+    "docs",  # Documentation changes
+    "style",  # Formatting, missing semi-colons, etc (no code changes)
+    "refactor",  # Refactoring production code (e.g. renaming a variable)
+    "perf",
+    "performance",  # Code changes that improve performance
+    "test",  # Adding missing tests or correcting existing tests
+    "build",  # Build system/dependency changes
+    "ci",  # CI configurations and scripts
+    "chore",  # Maintenance tasks
+    "revert",  # Revert a previous commit
+    "security",  # Security fixes
 }
 
 # Regex to match conventional commits header
@@ -50,7 +66,7 @@ def validate_message(msg: str) -> list[str]:
         first_line.startswith("Merge branch")
         or first_line.startswith("Merge pull request")
         or first_line.startswith("Merge remote-tracking branch")
-        or first_line.startswith("Revert \"")
+        or first_line.startswith('Revert "')
         or first_line.lower().startswith("wip")
         or first_line.lower().startswith("temp")
         or first_line.startswith("fixup!")
