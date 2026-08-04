@@ -53,6 +53,14 @@ class AnomalyDetectArgs(BaseModel):
     "--allow-unsafe",
     is_flag=True,
     default=False,
+    help="Allow loading models from insecure joblib/pickle files.",
+)
+def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
+=======
+    help="Allow insecure deserialization (pickle/joblib) of models.",
+)
+def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
+=======
     help="Allow loading of unsafe models (joblib/pickle).",
 )
 @click.pass_context
@@ -171,7 +179,6 @@ def _init_detector(model_path: str, allow_unsafe: bool, is_json: bool) -> Anomal
     except ModelError as e:
         _handle_error(f"Failed to load model: {e}", is_json, e)
         raise  # unreachable
-=======
         detector.load(args.model_path, allow_unsafe=args.allow_unsafe)
         return detector
     except ModelError as e:
@@ -191,7 +198,6 @@ def _run_detection(
 
 def _output_json_results(results: pd.DataFrame) -> None:
     """Output detection results in JSON format."""
-=======
     """Execute anomaly detection using the model."""
     try:
         return detector.detect(features)

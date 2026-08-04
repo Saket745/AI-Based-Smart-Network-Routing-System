@@ -420,7 +420,29 @@ def _render_comparison_table(results: dict[str, Any], algo_list: list[str]) -> N
     default=None,
     help="Import target for custom router in path/to/file.py:ClassName format (requires -a custom).",
 )
+@click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading custom routers from local Python files (security risk).",
+)
 @click.pass_context
+def run_sim(
+    ctx: click.Context,
+    topo_path: str,
+    algorithm: str,
+    duration: int,
+    traffic_model: str,
+    flows_per_tick: int,
+    seed: int | None,
+    output: str | None,
+    visualize: bool,
+    visualize_delay: float,
+    model_path: str | None,
+    custom_router: str | None,
+    allow_unsafe: bool,
+) -> None:
+=======
 def run_sim(ctx: click.Context, **kwargs: Any) -> None:
     """Run a network simulation."""
     args = SimulationArgs.model_validate(kwargs)
@@ -464,11 +486,15 @@ def run_sim(ctx: click.Context, /, **kwargs: Any) -> None:
             from nroute.utils.loader import load_custom_class
 
             router_cls = load_custom_class(
+                custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
+=======
                 args.custom_router, expected_superclass=BaseRouter, allow_unsafe=args.allow_unsafe
             )
             sig = inspect.signature(router_cls)
             router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         else:
+            router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
+=======
             router = get_router(args.algorithm, topology=topo, allow_unsafe=args.allow_unsafe)
 
         # Load pretrained model if provided
@@ -525,8 +551,6 @@ def run_sim(ctx: click.Context, /, **kwargs: Any) -> None:
                 f"{topo.node_count} nodes, {args.duration} ticks, "
                 f"{args.traffic_model} traffic ({args.flows_per_tick} flows/tick)\n"
             )
-=======
-=======
             if not is_json:
                 console.print(
                     f"\n[cyan]Running simulation:[/cyan] {args.algorithm.upper()} on "
@@ -572,7 +596,6 @@ def run_sim(ctx: click.Context, /, **kwargs: Any) -> None:
         click.echo(json.dumps(metrics_data, indent=2))
         if output:
             _save_json_results(output, metrics_data)
-=======
         total_reroutes = sum(m.reroute_count for m in result.results)
         avg_loss = (
             sum(m.packet_loss_rate for m in result.results) / len(result.results)
@@ -880,7 +903,27 @@ class ComparisonArgs(BaseModel):
     default=None,
     help="Import target for custom router in path/to/file.py:ClassName format (requires custom in -a).",
 )
+@click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading custom routers from local Python files (security risk).",
+)
 @click.pass_context
+def compare(
+    ctx: click.Context,
+    topo_path: str,
+    algorithms: str,
+    duration: int,
+    traffic_model: str,
+    flows_per_tick: int,
+    seed: int | None,
+    output: str | None,
+    model_path: str | None,
+    custom_router: str | None,
+    allow_unsafe: bool,
+) -> None:
+=======
 def compare(ctx: click.Context, **kwargs: Any) -> None:
     """Compare multiple routing algorithms on the same topology and traffic."""
     args = ComparisonArgs.model_validate(kwargs)
@@ -973,11 +1016,15 @@ def compare(ctx: click.Context, /, **kwargs: Any) -> None:
                 from nroute.utils.loader import load_custom_class
 
                 router_cls = load_custom_class(
+                    custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
+=======
                     args.custom_router, expected_superclass=BaseRouter, allow_unsafe=args.allow_unsafe
                 )
                 sig = inspect.signature(router_cls)
                 router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
             else:
+                router = get_router(algo, topology=topo, allow_unsafe=allow_unsafe)
+=======
                 router = get_router(algo, topology=topo, allow_unsafe=args.allow_unsafe)
 
             # Load pretrained model if provided and router supports it

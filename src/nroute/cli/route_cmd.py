@@ -94,6 +94,22 @@ class RouteComputeArgs(BaseModel):
     default=None,
     help="Import target for custom router in path/to/file.py:ClassName format (requires -a custom).",
 )
+@click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading custom routers from local Python files (security risk).",
+)
+def compute(
+    topo_path: str,
+    algorithm: str,
+    source: str,
+    destination: str,
+    weight: str,
+    custom_router: str | None,
+    allow_unsafe: bool,
+) -> None:
+=======
 @click.pass_context
 def compute(ctx: click.Context, **kwargs: Any) -> None:
     """Compute the optimal route between two nodes."""
@@ -194,11 +210,16 @@ def _handle_error(msg: str, is_json: bool, e: Exception | None = None) -> None:
             from nroute.utils.loader import load_custom_class
 
             router_cls = load_custom_class(
+                custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
+
                 args.custom_router, expected_superclass=BaseRouter, allow_unsafe=args.allow_unsafe
             )
             sig = inspect.signature(router_cls)
             router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         else:
+            router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
+        path = router.compute_path(topo, source, destination, weight=weight)
+=======
             router = get_router(args.algorithm, topology=topo, allow_unsafe=args.allow_unsafe)
         path = router.compute_path(topo, args.source, args.destination, weight=args.weight)
     except RoutingError as e:
@@ -300,14 +321,12 @@ def _init_router(
         if not isinstance(instance, BaseRouter):
             raise TypeError(f"Custom router '{custom_router}' is not an instance of BaseRouter")
         return instance
-=======
-=======
+
         return cast(
             "BaseRouter",
             router_cls(topology=topo) if "topology" in sig.parameters else router_cls(),
         )
-=======
-=======
+
         if "topology" in sig.parameters:
             return cast("BaseRouter", router_cls(topology=topo))
         return cast("BaseRouter", router_cls())

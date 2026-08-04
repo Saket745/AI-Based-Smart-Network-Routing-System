@@ -2,6 +2,17 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
+
+import joblib
+=======
+import torch
+import joblib
+import pytest
+import pandas as pd
+import numpy as np
+=======
 import contextlib
 import os
 import tempfile
@@ -16,6 +27,12 @@ import pytest
 from nroute.exceptions import ModelError
 from nroute.ml.anomaly import AnomalyDetector
 from nroute.ml.congestion import CongestionPredictor
+
+=======
+
+def test_anomaly_detector_secure_loading_enforcement():
+=======
+def test_anomaly_detector_secure_loading_enforcement():
 
 def test_anomaly_detector_secure_loading_enforcement():
 =======
@@ -32,6 +49,19 @@ def test_anomaly_detector_secure_loading_enforcement() -> None:
         with pytest.raises(ModelError, match="Insecure model file detected"):
             detector.load(path, allow_unsafe=False)
 
+        # Should succeed with allow_unsafe=True (well, fail later during processing, but pass the security check)
+        from contextlib import suppress
+
+        with suppress(ModelError, KeyError):
+=======
+        try:
+            detector.load(path, allow_unsafe=True)
+        except (ModelError, KeyError):
+            # We expect failure later since it's not a real model, but the security block is bypassed
+            pass
+
+def test_congestion_predictor_secure_loading_enforcement():
+=======
         # Should succeed with allow_unsafe=True (well, fail later during processing,
         # but pass the security check)
 =======
@@ -48,26 +78,20 @@ def test_anomaly_detector_secure_loading_enforcement() -> None:
             detector.load(path, allow_unsafe=True)
 
 
-=======
+def test_congestion_predictor_secure_loading_enforcement():
             # We expect failure later since it's not a real model, but the security block is bypassed
             detector.load(path, allow_unsafe=True)
 
-
-=======
             # We expect failure later since it's not a real model, but the security block is bypassed
             detector.load(path, allow_unsafe=True)
 
-=======
             # We expect failure later since it's not a real model, but the security block is bypassed
             detector.load(path, allow_unsafe=True)
-
-=======
 
         # We expect failure later since it's not a real model, but the security block is bypassed
         with contextlib.suppress(ModelError, KeyError):
             detector.load(path, allow_unsafe=True)
 
-=======
         with contextlib.suppress(ModelError, KeyError):
             detector.load(path, allow_unsafe=True)
         with contextlib.suppress(ModelError, KeyError):
@@ -103,7 +127,6 @@ def test_congestion_predictor_secure_loading_enforcement() -> None:
 
         with pytest.raises(ModelError, match="Insecure model file detected"):
             predictor.load(path, allow_unsafe=False)
-
 
 def test_congestion_predictor_pytorch_secure_loading_failure() -> None:
     """Verify that CongestionPredictor handles PyTorch secure loading failures."""
