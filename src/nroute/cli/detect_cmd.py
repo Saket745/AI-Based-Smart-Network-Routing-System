@@ -53,6 +53,10 @@ class AnomalyDetectArgs(BaseModel):
     "--allow-unsafe",
     is_flag=True,
     default=False,
+    help="Allow loading of legacy joblib/pickle models (insecure).",
+)
+def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
+=======
     help="Allow loading models from insecure joblib/pickle files.",
 )
 def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
