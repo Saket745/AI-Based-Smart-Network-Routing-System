@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 =======
 =======
+=======
 import inspect
 =======
 import json
@@ -433,6 +434,14 @@ def run_sim(ctx: click.Context, /, **kwargs: Any) -> None:
     is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
     seed = args.seed or (ctx.obj.get("seed") if ctx.obj is not None else None)
 
+    topo = _load_topology(topo_path, is_json)
+
+    try:
+        router = _setup_router(
+            algorithm, topo, allow_unsafe, model_path=model_path, custom_router=custom_router
+        )
+        traffic_gen = TrafficGenerator(model=traffic_model, n_flows_per_tick=flows_per_tick)
+=======
     try:
         topo = Topology.load(args.topo_path)
     except Exception as e:
@@ -539,7 +548,31 @@ def run_sim(ctx: click.Context, /, **kwargs: Any) -> None:
         result, args.algorithm, args.duration, args.traffic_model, seed
     )
 
+    metrics = _get_metrics_summary(result)
+    metrics_data = {
+        "algorithm": algorithm,
+        "duration_ticks": duration,
+        "traffic_model": traffic_model,
+        "seed": seed,
+        **metrics,
+        "ticks": [
+            {
+                "tick": m.tick,
+                "throughput": m.throughput,
+                "avg_latency": m.avg_latency,
+                "packet_loss_rate": m.packet_loss_rate,
+                "reroute_count": m.reroute_count,
+                "avg_utilization": m.avg_utilization,
+            }
+            for m in result.results
+        ],
+    }
+
     if is_json:
+        click.echo(json.dumps(metrics_data, indent=2))
+        if output:
+            _save_json_results(output, metrics_data)
+=======
         total_reroutes = sum(m.reroute_count for m in result.results)
         avg_loss = (
             sum(m.packet_loss_rate for m in result.results) / len(result.results)
@@ -583,6 +616,10 @@ def run_sim(ctx: click.Context, /, **kwargs: Any) -> None:
     _print_simulation_results(result, args.algorithm)
 
     # Save to file if requested
+    if output:
+        _save_json_results(output, metrics_data)
+        console.print(f"[green]+[/green] Metrics saved to [bold]{output}[/bold]")
+=======
     if args.output:
         out_path = Path(args.output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -863,6 +900,8 @@ def compare(ctx: click.Context, /, **kwargs: Any) -> None:
             console.print(f"[red]x {error_msg}[/red]")
         raise SystemExit(1) from None
 
+    topo = _load_topology(topo_path, is_json)
+=======
     try:
         topo = Topology.load(args.topo_path)
     except Exception as e:
@@ -907,6 +946,11 @@ def compare(ctx: click.Context, /, **kwargs: Any) -> None:
     results: dict[str, Any] = {}
     for algo in algo_list:
         try:
+            router = _setup_router(
+                algo, topo, allow_unsafe, model_path=model_path, custom_router=custom_router
+            )
+            traffic_gen = TrafficGenerator(model=traffic_model, n_flows_per_tick=flows_per_tick)
+=======
             import inspect
 
             if algo.lower() == "custom":
@@ -963,30 +1007,32 @@ def compare(ctx: click.Context, /, **kwargs: Any) -> None:
                 console.print(f"[yellow]⚠ {algo.upper()} failed:[/yellow] {e}")
             results[algo] = None
 
+    comparison_data: dict[str, Any] = {}
+    for algo in algo_list:
+        r = results[algo]
+        if r is not None:
+            comparison_data[algo] = _get_metrics_summary(r)
+        else:
+            comparison_data[algo] = {"error": "simulation_failed"}
+=======
             
     # Build comparison data once using helper function
     comparison_export_data = _build_comparison_data(results, algo_list)
 
     if is_json:
-        comparison_data: dict[str, Any] = {}
-        for algo in algo_list:
-            r = results[algo]
-            if r is not None:
-                total_reroutes = sum(m.reroute_count for m in r.results)
-                avg_loss = (
-                    sum(m.packet_loss_rate for m in r.results) / len(r.results)
-                    if r.results
-                    else 0.0
-                )
-                comparison_data[algo] = {
-                    "total_throughput": r.total_throughput(),
-                    "mean_latency": r.mean_latency(),
-                    "avg_packet_loss_rate": avg_loss,
-                    "total_reroutes": total_reroutes,
-                }
-            else:
-                comparison_data[algo] = {"error": "simulation_failed"}
         click.echo(json.dumps(comparison_data, indent=2))
+        if output:
+            _save_json_results(output, comparison_data)
+        return
+
+    # Build and print comparison table
+    _render_comparison_table(algo_list, results)
+
+    # Save comparison if requested
+    if output:
+        _save_json_results(output, comparison_data)
+        console.print(f"\n[green]+[/green] Comparison saved to [bold]{output}[/bold]")
+=======
         if args.output:
             out_path = Path(args.output)
             out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1012,6 +1058,8 @@ def compare(ctx: click.Context, /, **kwargs: Any) -> None:
 
 
 def _load_topology(topo_path: str, is_json: bool) -> Topology:
+    """Load topology from file with error handling."""
+=======
     """Load topology from JSON file."""
     try:
         return Topology.load(topo_path)
@@ -1025,6 +1073,13 @@ def _load_topology(topo_path: str, is_json: bool) -> Topology:
 
 def _setup_router(
     algorithm: str,
+    topology: Topology,
+    allow_unsafe: bool,
+    model_path: str | None = None,
+    custom_router: str | None = None,
+) -> Any:
+    """Initialize router and load pretrained model if provided."""
+=======
     topo: Topology,
     allow_unsafe: bool,
     custom_router: str | None,
@@ -1045,6 +1100,10 @@ def _setup_router(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
         sig = inspect.signature(router_cls)
+        router = router_cls(topology=topology) if "topology" in sig.parameters else router_cls()
+    else:
+        router = get_router(algorithm, topology=topology, allow_unsafe=allow_unsafe)
+=======
         router = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
     else:
         router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
@@ -1058,6 +1117,13 @@ def _setup_router(
                 router.load(model_path, allow_unsafe=allow_unsafe)
             else:
                 router.load(model_path)
+            console.print(
+                f"[green]+[/green] Loaded pretrained model for {algorithm.upper()} "
+                f"from [bold]{model_path}[/bold]"
+            )
+        except Exception as e:
+            console.print(f"[yellow]! Failed to load model for {algorithm.upper()}:[/yellow] {e}")
+=======
             if not is_json:
                 console.print(
                     f"[green]+[/green] Loaded pretrained model for [bold]{algorithm.upper()}[/bold] "
@@ -1072,6 +1138,9 @@ def _setup_router(
     return router
 
 
+def _get_metrics_summary(result: Any) -> dict[str, Any]:
+    """Extract summary metrics from simulation result."""
+=======
 def _get_metrics_summary(
     result: Any, algorithm: str, duration: int, traffic_model: str, seed: int | None
 ) -> dict[str, Any]:
@@ -1083,6 +1152,7 @@ def _get_metrics_summary(
         else 0.0
     )
     return {
+=======
         "algorithm": algorithm,
         "duration_ticks": duration,
         "traffic_model": traffic_model,
@@ -1091,6 +1161,19 @@ def _get_metrics_summary(
         "mean_latency": result.mean_latency(),
         "avg_packet_loss_rate": avg_loss,
         "total_reroutes": total_reroutes,
+    }
+
+
+def _save_json_results(output_path: str, data: dict[str, Any]) -> None:
+    """Save metrics data to a JSON file."""
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2))
+
+
+def _render_comparison_table(algo_list: list[str], results: dict[str, Any]) -> None:
+    """Build and print comparison table using Rich."""
+=======
         "ticks": [
             {
                 "tick": m.tick,
@@ -1128,6 +1211,20 @@ def _render_comparison_table(results: dict[str, Any], algo_list: list[str]) -> N
         console.print(f"\n[green]+[/green] Comparison saved to [bold]{args.output}[/bold]")
 =======
 
+    metrics_rows = [
+        ("Total Throughput", lambda r: f"{r.total_throughput():.0f}"),
+        ("Mean Latency (ms)", lambda r: f"{r.mean_latency():.2f}"),
+        (
+            "Avg Packet Loss Rate",
+            lambda r: (
+                f"{sum(m.packet_loss_rate for m in r.results) / len(r.results):.2%}"
+                if r.results
+                else "0.00%"
+            ),
+        ),
+        ("Total Reroutes", lambda r: str(sum(m.reroute_count for m in r.results))),
+    ]
+=======
       click.echo(json.dumps(comparison_data, indent=2))
         if output:
             _save_compare_results(output, comparison_data)
@@ -1139,6 +1236,7 @@ def _render_comparison_table(results: dict[str, Any], algo_list: list[str]) -> N
     _print_compare_table(results, algo_list)
 
 
+=======
     # Save comparison if requested
     if args.output:
         out_path = Path(args.output)
@@ -1175,7 +1273,6 @@ def _render_comparison_table(results: dict[str, Any], algo_list: list[str]) -> N
       
     console.print()
 
-
 def _print_simulation_results(result: Any, algorithm: str) -> None:
     """Print simulation results as a Rich table."""
     console.print()
@@ -1185,18 +1282,13 @@ def _print_simulation_results(result: Any, algorithm: str) -> None:
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green", justify="right")
 
-    total_reroutes = sum(m.reroute_count for m in result.results)
-    avg_loss = (
-        sum(m.packet_loss_rate for m in result.results) / len(result.results)
-        if result.results
-        else 0.0
-    )
+    metrics = _get_metrics_summary(result)
 
     table.add_row("Algorithm", algorithm.upper())
-    table.add_row("Total Throughput", f"{result.total_throughput():.0f} Mbps")
-    table.add_row("Mean Latency", f"{result.mean_latency():.2f} ms")
-    table.add_row("Avg Packet Loss Rate", f"{avg_loss:.2%}")
-    table.add_row("Total Reroutes", str(total_reroutes))
+    table.add_row("Total Throughput", f"{metrics['total_throughput']:.0f} Mbps")
+    table.add_row("Mean Latency", f"{metrics['mean_latency']:.2f} ms")
+    table.add_row("Avg Packet Loss Rate", f"{metrics['avg_packet_loss_rate']:.2%}")
+    table.add_row("Total Reroutes", str(metrics["total_reroutes"]))
     table.add_row("Ticks Simulated", str(len(result.results)))
 
     console.print(table)
