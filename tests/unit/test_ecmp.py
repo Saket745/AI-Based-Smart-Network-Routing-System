@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
+=======
+from collections.abc import Callable  # noqa: TC003
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
+from nroute.core.query import RoutingQuery
 from nroute.core.topology import Topology
 from nroute.exceptions import RoutingError
 from nroute.routing.base import FallbackRouter
@@ -34,8 +39,17 @@ def test_ecmp_equal_cost_paths() -> None:
 
     router = ECMPRouter()
 
-    paths = router.compute_all_equal_cost_paths(topo, "A", "D", weight="weight")
+    query = RoutingQuery(source="A", destination="D", weight="weight")
+    paths = router.compute_all_equal_cost_paths(topo, query)
     assert len(paths) == 2
+
+
+    # Test backward compatible style
+    paths_compat = router.compute_all_equal_cost_paths(
+        topo, source="A", destination="D", weight="weight"
+    )
+    assert paths_compat == paths
+
     assert ["A", "B", "D"] in paths
     assert ["A", "C", "D"] in paths
 
@@ -73,6 +87,31 @@ def test_ecmp_deterministic_selection() -> None:
     )
 
 
+def test_ecmp_uses_sha256() -> None:
+    """Verify that ECMPRouter uses SHA-256 and NOT MD5 for flow-based path selection."""
+    topo = Topology()
+    topo.add_node("A")
+    topo.add_node("B")
+    topo.add_node("C")
+    topo.add_node("D")
+    topo.add_edge("A", "B", weight=1.0)
+    topo.add_edge("B", "D", weight=1.0)
+    topo.add_edge("A", "C", weight=1.0)
+    topo.add_edge("C", "D", weight=1.0)
+
+    router = ECMPRouter()
+
+    with patch("nroute.routing.ecmp.hashlib") as mock_hashlib:
+        # Configure the mock to return a real SHA-256 hash object behavior
+        real_sha256 = hashlib.sha256
+        mock_hashlib.sha256.side_effect = real_sha256
+
+        router.compute_path(topo, "A", "D", weight="weight", flow_key="test_flow")
+
+        assert mock_hashlib.sha256.called, "SHA-256 should be used for hashing flow_key"
+        assert not mock_hashlib.md5.called, "MD5 should NOT be used for hashing flow_key"
+
+
 def test_k_shortest_paths() -> None:
     """Test computation of K-shortest paths using Yen's algorithm."""
     # Topology:
@@ -97,8 +136,18 @@ def test_k_shortest_paths() -> None:
 
     router = ECMPRouter(k=3)
 
-    paths = router.compute_k_shortest_paths(topo, "A", "D", weight="weight")
+    query = RoutingQuery(source="A", destination="D", weight="weight", k=3)
+
+    query = RoutingQuery(source="A", destination="D", weight="weight")
+    paths = router.compute_k_shortest_paths(topo, query)
     assert len(paths) == 3
+
+
+    # Test backward compatible style
+    paths_compat = router.compute_k_shortest_paths(
+        topo, source="A", destination="D", weight="weight"
+    )
+    assert paths_compat == paths
     assert paths[0] == ["A", "B", "D"]  # cost: 2
     assert paths[1] == ["A", "C", "D"]  # cost: 4
     assert paths[2] == ["A", "E", "D"]  # cost: 6
@@ -124,7 +173,12 @@ def test_fallback_router() -> None:
     # Let's mock a router that fails
     class FailingRouter(DijkstraRouter):
         def compute_path(
-            self, topology: Topology, source: str, destination: str, weight: Any | None = None
+            self,
+            topology: Topology,
+            source: str,
+            destination: str,
+            weight: str | Callable[[dict[str, Any]], float] | None = None,
+            **kwargs: Any,
         ) -> list[str]:
             raise RoutingError("Simulated algorithm failure")
 
