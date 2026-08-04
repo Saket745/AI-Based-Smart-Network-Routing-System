@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+import click
+from pydantic import BaseModel, Field
+=======
 =======
 from typing import Any
 =======
@@ -299,6 +304,19 @@ def train_rl(ctx: click.Context, /, **kwargs: Any) -> None:
         raise SystemExit(1) from e
 
 
+class GNNTrainArgs(BaseModel):
+    """Arguments for training a GNN model."""
+
+    topo_path: str = Field(..., description="Path to a topology JSON file.")
+    model_type: str = Field(default="gcn", description="GNN model architecture.")
+    epochs: int = Field(default=10, description="Number of training epochs.")
+    lr: float = Field(default=0.01, description="Learning rate.")
+    hidden_dim: int = Field(default=32, description="Hidden dimension size.")
+    output_dir: str = Field(default="models/gnn", description="Output directory.")
+    dataset_dir: str = Field(default="data/gnn_dataset", description="Dataset directory.")
+    seed: int = Field(default=42, description="Random seed.")
+
+
 @train_cmd.command(name="gnn")
 @click.option(
     "--topology",
@@ -354,8 +372,6 @@ def train_rl(ctx: click.Context, /, **kwargs: Any) -> None:
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
 def train_gnn(ctx: click.Context, **kwargs: Any) -> None:
-=======
-=======
 def train_gnn(ctx: click.Context, /, **kwargs: Any) -> None:
     """Train a Graph Neural Network (GCN/GraphSAGE) on network topologies."""
     from nroute.ml.training.trainer import GNNTrainer, GNNTrainingConfig
@@ -364,8 +380,9 @@ def train_gnn(ctx: click.Context, /, **kwargs: Any) -> None:
 
     args = GNNTrainArgs(**kwargs)
 
+    args = GNNTrainArgs.model_validate(kwargs)
+
     try:
-=======
         config = GNNTrainingConfig(**kwargs)
         console.print(
             f"\n[cyan]Starting GNN training workflow for {config.model_type.upper()}...[/cyan]"

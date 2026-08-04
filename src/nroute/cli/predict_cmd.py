@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 import click
+from pydantic import BaseModel, Field
+=======
 from pydantic import BaseModel
 from rich.console import Console
 from rich.table import Table
@@ -217,6 +219,19 @@ def _print_congestion_console(edge_ids: list[str], probs: list[Any], threshold: 
     )
 
 
+class GNNPredictArgs(BaseModel):
+    """Arguments for GNN congestion prediction."""
+
+    topo_path: str = Field(..., description="Path to a topology JSON file.")
+    model_type: str = Field(default="gcn", description="GNN model type (gcn or graphsage).")
+    model_dir: str = Field(default="models/gnn", description="Directory where GNN models are stored.")
+    version: str = Field(default="1.0.0", description="Version of the model to load.")
+    threshold: float = Field(
+        default=0.85, description="Congestion probability threshold for flagging."
+    )
+    allow_unsafe: bool = Field(default=False, description="Allow loading of unsafe models.")
+
+
 @predict_cmd.command(name="gnn")
 @click.option(
     "--topology",
@@ -260,6 +275,8 @@ def _print_congestion_console(edge_ids: list[str], probs: list[Any], threshold: 
     help="Allow loading of unsafe models (joblib/pickle).",
 )
 @click.pass_context
+def predict_gnn(ctx: click.Context, **kwargs: Any) -> None:
+=======
 def predict_gnn(ctx: click.Context, /, **kwargs: Any) -> None:
     """Predict link congestion and latency using trained GNN models."""
     args = GNNPredictArgs(**kwargs)
@@ -267,6 +284,14 @@ def predict_gnn(ctx: click.Context, /, **kwargs: Any) -> None:
 
     topo = _load_topology(args.topo_path, is_json)
 
+    args = GNNPredictArgs.model_validate(kwargs)
+
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
+    try:
+        topo = Topology.load(args.topo_path)
+    except Exception as e:
+        if is_json:
+            import json
     # 1. Instantiate the GNN model structure
     model = _init_gnn_model(args.model_type)
 
@@ -294,6 +319,15 @@ def _init_gnn_model(model_type: str) -> Any:
     edge_in_dim = 6
     hidden_dim = 32
 
+    # 1. Instantiate the GNN model structure
+    model: torch.nn.Module
+    if args.model_type.lower() == "gcn":
+        model = GCNModel(node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim)
+    else:
+        model = GraphSAGEModel(
+            node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim
+        )
+=======
     if model_type.lower() == "gcn":
         return GCNModel(node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim)
     return GraphSAGEModel(node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim)
@@ -312,6 +346,23 @@ def _load_gnn_model_state(model: Any, args: GNNPredictArgs, is_json: bool) -> No
             allow_unsafe=args.allow_unsafe,
         )
     except Exception as e:
+        if is_json:
+            import json
+
+            click.echo(
+                json.dumps(
+                    {
+                        "error": f"Failed to load model {args.model_type} (version {args.version}): {e}"
+                    }
+                ),
+                err=True,
+            )
+            raise SystemExit(1) from e
+        console.print(
+            f"[red]x Failed to load model {args.model_type} (version {args.version}):[/red] {e}"
+        )
+        raise SystemExit(1) from e
+=======
         msg = f"Failed to load model {args.model_type} (version {args.version}): {e}"
         _handle_error(msg, is_json, e)
 
@@ -319,7 +370,6 @@ def _load_gnn_model_state(model: Any, args: GNNPredictArgs, is_json: bool) -> No
 def _build_gnn_features(topo: Topology, is_json: bool) -> Any:
     """Extract features from topology and convert to tensors."""
     from nroute.ml.features.builder import FeatureBuilder
-
     try:
         builder = FeatureBuilder()
         return builder.build_features(topo).to_tensors()
@@ -339,7 +389,36 @@ def _run_gnn_inference(model: Any, bundle: Any) -> tuple[list[float], list[float
     predicted_latencies = pred_lat.tolist()
     return probs, predicted_latencies
 
-
+        edges_sorted = sorted(topo.edges)
+        links_out = []
+        for idx, (u, v) in enumerate(edges_sorted):
+            prob = probs[idx]
+            pred_l = predicted_latencies[idx]
+            edge = topo.get_edge(u, v)
+            true_util = float(edge.get("utilization", 0.0))
+            true_lat = float(edge.get("latency", 0.0))
+            links_out.append(
+                {
+                    "link": f"{u} -> {v}",
+                    "true_utilization": true_util,
+                    "true_latency": true_lat,
+                    "predicted_latency": pred_l * 100.0,
+                    "congestion_probability": prob,
+                    "status": "CONGESTED"
+                    if prob >= args.threshold
+                    else ("AT RISK" if prob >= args.threshold * 0.7 else "NORMAL"),
+                }
+            )
+        out = {
+            "model_type": args.model_type,
+            "version": args.version,
+            "threshold": args.threshold,
+            "congested_count": sum(1 for p in probs if p >= args.threshold),
+            "links": links_out,
+        }
+        click.echo(json.dumps(out, indent=2))
+        return
+=======
 def _print_gnn_json(
     topo: Topology,
     probs: list[float],
@@ -348,7 +427,6 @@ def _print_gnn_json(
 ) -> None:
     """Output GNN predictions in JSON format."""
     import json
-
     edges_sorted = sorted(topo.edges)
     links_out = []
     for idx, (u, v) in enumerate(edges_sorted):
