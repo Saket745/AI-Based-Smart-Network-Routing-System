@@ -203,6 +203,31 @@ def test_netflow_parser_missing_fields(tmp_path: Path) -> None:
         NetFlowParser.parse(csv_file)
 
 
+def test_netflow_parser_read_csv_exception(tmp_path: Path) -> None:
+    """Test that NetFlowParser.parse correctly handles and wraps exceptions from pd.read_csv."""
+    csv_file = tmp_path / "corrupt_netflow.csv"
+    csv_file.touch()
+
+    # We mock pd.read_csv to raise an Exception
+    with patch("pandas.read_csv", side_effect=ValueError("Simulated CSV read error")):
+        with pytest.raises(IngestionError) as exc_info:
+            NetFlowParser.parse(csv_file)
+        assert "Failed to read NetFlow CSV file" in str(exc_info.value)
+        assert "Simulated CSV read error" in str(exc_info.value)
+        assert isinstance(exc_info.value.__cause__, ValueError)
+
+
+def test_netflow_parser_corrupt_file(tmp_path: Path) -> None:
+    """Test NetFlow CSV parser with actual corrupted binary content that causes pandas to fail."""
+    csv_file = tmp_path / "binary_corrupt.csv"
+    # Write some invalid / binary data that will trigger a parser error using list of ints
+    with open(csv_file, "wb") as f:
+        f.write(bytes([0, 255, 254, 253, 252, 251, 250, 249, 0, 255]))
+
+    with pytest.raises(IngestionError, match="Failed to read NetFlow CSV file"):
+        NetFlowParser.parse(csv_file)
+
+
 @patch("scapy.utils.PcapReader")
 def test_pcap_parser(mock_pcap_reader_cls: MagicMock, tmp_path: Path) -> None:
     """Test PCAP parser by mocking Scapy's PcapReader."""
