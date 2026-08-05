@@ -265,7 +265,6 @@ def test_rca_correlator_summary_with_message(small_graph_data: dict[str, Any]) -
     result = correlator.diagnose([evt])
     assert "Detail: Critical link failure" in result.root_cause_summary
     assert "(peer: 'B')" in result.root_cause_summary
-=======
 # ── classify_event Tests ─────────────────────────────────────
 
 

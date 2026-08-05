@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
-=======
 import hashlib
-=======
 from collections.abc import Callable  # noqa: TC003
 from typing import Any
 from unittest.mock import patch

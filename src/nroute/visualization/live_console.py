@@ -100,7 +100,6 @@ class LiveSimulationConsole:
                     current_down_nodes.add(node)
             except (KeyError, TopologyError) as e:
                 logger.error("Error retrieving node status", node=node, error=str(e), tick=tick)
-=======
         for u, v, edge_data in graph.edges(data=True):
             if edge_data.get("status") == "down":
                 current_down_links.add((u, v))
@@ -169,7 +168,6 @@ class LiveSimulationConsole:
     def _update_header(self, layout: Layout, tick: int, last_metric: Any) -> None:
         """Update the header section of the layout."""
         algo_name = self.engine.router.__class__.__name__
-=======
     def _update_history(self, tick: int, last_metric: SimulationMetrics) -> None:
         """Update historical tick, throughput, and average latency metrics."""
         self.ticks_history.append(tick)
@@ -191,7 +189,6 @@ class LiveSimulationConsole:
 
     def _update_link_status_table(self, layout: Layout, engine: SimulationEngine) -> None:
         """Update the link status table in the layout."""
-=======
         return Panel(header_text, style="cyan")
 
     def _build_link_status_table(self, engine: SimulationEngine) -> Table:
@@ -238,7 +235,6 @@ class LiveSimulationConsole:
 
     def _update_plots(self, layout: Layout) -> None:
         """Update the throughput and latency plots in the layout."""
-=======
         return table
 
     def _update_layout(
@@ -267,7 +263,6 @@ class LiveSimulationConsole:
 
     def _update_footer(self, layout: Layout) -> None:
         """Update the event log footer in the layout."""
-=======
         # Footer: Event Log
         events_to_show = self.event_log[-5:] if self.event_log else ["No events yet."]
         footer_text = Text("\n".join(events_to_show))
@@ -291,7 +286,6 @@ class LiveSimulationConsole:
 
     def _create_layout(self) -> Layout:
         """Create the Rich layout for the live console."""
-=======
     def run(self) -> MetricsCollectionResult:
         """Run the simulation while displaying the live console interface."""
         layout = Layout()
@@ -317,7 +311,6 @@ class LiveSimulationConsole:
         def tick_callback(tick: int, engine: SimulationEngine) -> None:
             self._update_all(layout, tick, engine)
             # Force sleep to pace the visualization
-=======
             last_metric = engine.collector.results[-1]
             self._update_history(tick, last_metric)
             self.update_events(tick)
@@ -390,7 +383,6 @@ class LiveSimulationConsole:
             layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
 
             # Force sleep to pace the visualization
-=======
             self._update_layout(layout, tick, last_metric, algo_name, engine)
             time.sleep(self.delay)
 
