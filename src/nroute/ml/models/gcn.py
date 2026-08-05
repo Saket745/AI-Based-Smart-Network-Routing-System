@@ -163,5 +163,4 @@ class GCNModel(nn.Module):
         self.load_state_dict(
             torch.load(path, map_location="cpu", weights_only=not allow_unsafe)
         )
-=======
         self.load_state_dict(torch.load(path, map_location="cpu", weights_only=not allow_unsafe))
