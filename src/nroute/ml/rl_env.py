@@ -204,9 +204,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
 
         # Pick active nodes for source and destination
         graph = self.topology.graph
-        up_nodes = [
-            n for n in self.nodes if graph.nodes[n].get("status", "up").lower() == "up"
-        ]
+        up_nodes = [n for n in self.nodes if graph.nodes[n].get("status", "up").lower() == "up"]
 
         if len(up_nodes) < 2:
             raise TopologyError("Topology must have at least 2 active ('up') nodes.")
@@ -234,8 +232,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
 
     def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
         """Advance the routing packet by selecting the next hop."""
-        graph = self.topology.graph
-        neighbors = sorted(list(graph.successors(self.current_node)))
+        neighbors = sorted(list(self.topology.neighbors(self.current_node)))
         terminated = False
         truncated = False
         info: dict[str, Any] = {}
@@ -252,8 +249,8 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         edge = (self.current_node, next_node)
 
         # 2. Check if next link or node is down
-        node_down = graph.nodes[next_node].get("status", "up").lower() == "down"
-        edge_down = graph.edges[edge].get("status", "up").lower() == "down"
+        node_down = self.topology.get_node(next_node).get("status", "up").lower() == "down"
+        edge_down = self.topology.get_edge(*edge).get("status", "up").lower() == "down"
 
         if node_down or edge_down:
             # Heavy penalty for hitting a failure, end episode
@@ -262,14 +259,6 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             info["status"] = "failed_link_down"
             return self._get_obs(), reward, terminated, truncated, info
 
-        # 3. Retrieve link metrics
-        edge_attr = graph.edges[edge]
-        latency = float(edge_attr.get("latency", 5.0))
-        bandwidth = float(edge_attr.get("bandwidth", 1000.0))
-        loss = float(edge_attr.get("packet_loss", 0.0))
-
-        # 4. Graduated loop detection
-=======
         # 3. Graduated loop detection
         visit_count = self._visit_counts.get(next_node, 0)
         if visit_count >= 2:
@@ -307,6 +296,8 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
 
         info["path"] = list(self.path)
         info["hops"] = self.hops
+
+        return self._get_obs(), reward, terminated, truncated, info
 
         return self._get_obs(), reward, terminated, truncated, info
 
@@ -356,7 +347,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         fairness_weight = self.reward_params.get("fairness", 2.0)
         if fairness_weight > 0 and self.num_edges > 0:
             remaining_caps = []
-            for _, _, attrs in graph.edges(data=True):
+            for _, _, attrs in self.topology.graph.edges(data=True):
                 util = float(attrs.get("utilization", 0.0))
                 remaining_caps.append(max(0.0, 1.0 - util))
             remaining = np.array(remaining_caps, dtype=np.float64)
