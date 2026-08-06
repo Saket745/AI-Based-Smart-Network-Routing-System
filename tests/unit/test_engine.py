@@ -36,7 +36,9 @@ def _get_topo(small_graph_data: dict[str, Any]) -> Topology:
 
 
 @pytest.fixture
-def engine_setup(small_graph_data: dict[str, Any]) -> tuple[SimulationEngine, Topology, MagicMock, MagicMock]:
+def engine_setup(
+    small_graph_data: dict[str, Any],
+) -> tuple[SimulationEngine, Topology, MagicMock, MagicMock]:
     topo = _get_topo(small_graph_data)
     router = MagicMock(spec=BaseRouter)
     traffic_gen = MagicMock(spec=TrafficGenerator)
@@ -53,7 +55,9 @@ def test_engine_init(engine_setup: tuple[SimulationEngine, Topology, MagicMock, 
     assert len(engine.active_flows) == 0
 
 
-def test_update_link_utilizations(engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock]) -> None:
+def test_update_link_utilizations(
+    engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock],
+) -> None:
     engine, _, _, _ = engine_setup
 
     # Create a mock flow
@@ -67,7 +71,7 @@ def test_update_link_utilizations(engine_setup: tuple[SimulationEngine, Topology
         packets=1000,
         duration=1.0,
         protocol="TCP",
-        timestamp=0.0
+        timestamp=0.0,
     )
 
     engine.active_flows = [
@@ -91,18 +95,20 @@ def test_update_link_utilizations(engine_setup: tuple[SimulationEngine, Topology
     assert engine.topology.get_edge("B", "D")["utilization"] == 0.0
 
 
-def test_run_basic_flow_completion(engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock]) -> None:
+def test_run_basic_flow_completion(
+    engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock],
+) -> None:
     engine, _, router, traffic_gen = engine_setup
 
     # Flow from A to B (1 hop)
     flow = FlowRecord(
         source="A",
         destination="B",
-        bytes=125000, # 1 Mbps
+        bytes=125000,  # 1 Mbps
         packets=10,
         duration=1.0,
         protocol="UDP",
-        timestamp=0.0
+        timestamp=0.0,
     )
     traffic_gen.generate.side_effect = [[flow], []]
     router.compute_path.return_value = ["A", "B"]
@@ -115,7 +121,9 @@ def test_run_basic_flow_completion(engine_setup: tuple[SimulationEngine, Topolog
     assert len(engine.active_flows) == 0
 
 
-def test_run_multi_hop_flow(engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock]) -> None:
+def test_run_multi_hop_flow(
+    engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock],
+) -> None:
     engine, _, router, traffic_gen = engine_setup
 
     # Flow from A to D via B (2 hops)
@@ -126,7 +134,7 @@ def test_run_multi_hop_flow(engine_setup: tuple[SimulationEngine, Topology, Magi
         packets=1,
         duration=1.0,
         protocol="TCP",
-        timestamp=0.0
+        timestamp=0.0,
     )
     traffic_gen.generate.side_effect = [[flow], [], []]
     router.compute_path.return_value = ["A", "B", "D"]
@@ -146,7 +154,9 @@ def test_run_multi_hop_flow(engine_setup: tuple[SimulationEngine, Topology, Magi
     assert flow.duration == 0.015
 
 
-def test_run_routing_failure_ingress(engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock]) -> None:
+def test_run_routing_failure_ingress(
+    engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock],
+) -> None:
     engine, _, router, traffic_gen = engine_setup
 
     flow = FlowRecord(
@@ -156,7 +166,7 @@ def test_run_routing_failure_ingress(engine_setup: tuple[SimulationEngine, Topol
         packets=1,
         duration=1.0,
         protocol="TCP",
-        timestamp=0.0
+        timestamp=0.0,
     )
     traffic_gen.generate.return_value = [flow]
     router.compute_path.side_effect = Exception("No path found")
@@ -167,7 +177,9 @@ def test_run_routing_failure_ingress(engine_setup: tuple[SimulationEngine, Topol
     assert len(engine.active_flows) == 0
 
 
-def test_run_midflow_failure_reroute(engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock]) -> None:
+def test_run_midflow_failure_reroute(
+    engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock],
+) -> None:
     engine, _, router, traffic_gen = engine_setup
 
     flow = FlowRecord(
@@ -177,15 +189,15 @@ def test_run_midflow_failure_reroute(engine_setup: tuple[SimulationEngine, Topol
         packets=1,
         duration=1.0,
         protocol="TCP",
-        timestamp=0.0
+        timestamp=0.0,
     )
     traffic_gen.generate.side_effect = [[flow], [], [], []]
 
     # Initially A -> B -> D
     # At tick 1, flow is at node B. B->D fails. Reroute from B to D.
     router.compute_path.side_effect = [
-        ["A", "B", "D"], # Initial path
-        ["B", "E", "D"]  # Reroute from B when B->D fails
+        ["A", "B", "D"],  # Initial path
+        ["B", "E", "D"],  # Reroute from B when B->D fails
     ]
 
     injector = FailureInjector()
@@ -205,7 +217,9 @@ def test_run_midflow_failure_reroute(engine_setup: tuple[SimulationEngine, Topol
     assert results.results[2].throughput > 0.0
 
 
-def test_run_packet_loss(engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock]) -> None:
+def test_run_packet_loss(
+    engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock],
+) -> None:
     engine, _, router, traffic_gen = engine_setup
 
     # Set 100% packet loss on A->B
@@ -218,7 +232,7 @@ def test_run_packet_loss(engine_setup: tuple[SimulationEngine, Topology, MagicMo
         packets=1,
         duration=1.0,
         protocol="TCP",
-        timestamp=0.0
+        timestamp=0.0,
     )
     traffic_gen.generate.return_value = [flow]
     router.compute_path.return_value = ["A", "B"]
@@ -231,7 +245,9 @@ def test_run_packet_loss(engine_setup: tuple[SimulationEngine, Topology, MagicMo
     assert len(engine.active_flows) == 0
 
 
-def test_run_callback(engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock]) -> None:
+def test_run_callback(
+    engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock],
+) -> None:
     engine, _, _, traffic_gen = engine_setup
     callback = MagicMock()
 
@@ -244,7 +260,9 @@ def test_run_callback(engine_setup: tuple[SimulationEngine, Topology, MagicMock,
     callback.assert_called_with(2, engine)
 
 
-def test_rerouting_failure_midflow(engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock]) -> None:
+def test_rerouting_failure_midflow(
+    engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock],
+) -> None:
     engine, _, router, traffic_gen = engine_setup
 
     flow = FlowRecord(
@@ -254,14 +272,14 @@ def test_rerouting_failure_midflow(engine_setup: tuple[SimulationEngine, Topolog
         packets=1,
         duration=1.0,
         protocol="TCP",
-        timestamp=0.0
+        timestamp=0.0,
     )
     traffic_gen.generate.side_effect = [[flow], [], []]
 
     # Initially A -> B -> D
     router.compute_path.side_effect = [
-        ["A", "B", "D"], # Initial path
-        Exception("No alternative path") # Reroute failure
+        ["A", "B", "D"],  # Initial path
+        Exception("No alternative path"),  # Reroute failure
     ]
 
     injector = FailureInjector()

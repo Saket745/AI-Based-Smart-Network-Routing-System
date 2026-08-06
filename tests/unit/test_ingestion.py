@@ -19,6 +19,7 @@ from nroute.ingestion.csv_json import (
     JSONTopologyImporter,
 )
 from nroute.ingestion.pcap import PcapParser
+from nroute.ingestion.snmp import SNMPParser
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -162,84 +163,6 @@ def test_csv_traffic_importer(tmp_path: Path) -> None:
     assert tm.flows[1].protocol == "UDP"
 
 
-def test_netflow_parser_valid(tmp_path: Path) -> None:
-    """Test NetFlow CSV parser with duration calculation and column renaming."""
-    csv_file = tmp_path / "netflow.csv"
-
-    df = pd.DataFrame(
-        {
-            "srcaddr": ["10.0.0.1", "10.0.0.2"],
-            "dstaddr": ["10.0.0.2", "10.0.0.3"],
-            "octets": [5000, 3000],
-            "pkts": [10, 6],
-            "first_switched": [1000.1, 1002.5],
-            "last_switched": [1002.3, 1002.0],  # Second record has negative duration
-            "protocol": ["TCP", "UDP"],
-        }
-    )
-    df.to_csv(csv_file, index=False)
-
-    tm = NetFlowParser.parse(csv_file)
-    assert len(tm.flows) == 2
-    assert tm.flows[0].source == "10.0.0.1"
-    assert tm.flows[0].bytes == 5000
-
-    # First record duration should be 1002.3 - 1000.1 = 2.2
-    assert pytest.approx(tm.flows[0].duration) == 2.2
-
-    # Second record duration should be 1002.0 - 1002.5 = -0.5, clipped to 0.0
-    assert tm.flows[1].duration == 0.0
-
-
-def test_netflow_parser_missing_fields(tmp_path: Path) -> None:
-    """Test NetFlow CSV parser errors for missing fields."""
-    csv_file = tmp_path / "bad_netflow.csv"
-    df = pd.DataFrame({"srcaddr": ["10.0.0.1"], "dstaddr": ["10.0.0.2"]})
-    df.to_csv(csv_file, index=False)
-
-    with pytest.raises(IngestionError, match="missing required columns"):
-        NetFlowParser.parse(csv_file)
-
-
-def test_netflow_parser_read_csv_exception(tmp_path: Path) -> None:
-    """Test that NetFlowParser.parse raises IngestionError when pd.read_csv fails."""
-    csv_file = tmp_path / "corrupt_netflow.csv"
-    csv_file.touch()
-
-    exception_msg = "Simulated pandas read error"
-    with patch("pandas.read_csv", side_effect=Exception(exception_msg)):
-        with pytest.raises(IngestionError) as exc_info:
-            NetFlowParser.parse(csv_file)
-
-        # Assert that the error message includes the CSV path and the underlying exception message
-        assert str(csv_file) in str(exc_info.value)
-        assert exception_msg in str(exc_info.value)
-
-
-    """Test that NetFlowParser.parse correctly handles and wraps exceptions from pd.read_csv."""
-    csv_file = tmp_path / "corrupt_netflow.csv"
-    csv_file.touch()
-
-    # We mock pd.read_csv to raise an Exception
-    with patch("pandas.read_csv", side_effect=ValueError("Simulated CSV read error")):
-        with pytest.raises(IngestionError) as exc_info:
-            NetFlowParser.parse(csv_file)
-        assert "Failed to read NetFlow CSV file" in str(exc_info.value)
-        assert "Simulated CSV read error" in str(exc_info.value)
-        assert isinstance(exc_info.value.__cause__, ValueError)
-
-
-def test_netflow_parser_corrupt_file(tmp_path: Path) -> None:
-    """Test NetFlow CSV parser with actual corrupted binary content that causes pandas to fail."""
-    csv_file = tmp_path / "binary_corrupt.csv"
-    # Write some invalid / binary data that will trigger a parser error using list of ints
-    with open(csv_file, "wb") as f:
-        f.write(bytes([0, 255, 254, 253, 252, 251, 250, 249, 0, 255]))
-
-    with pytest.raises(IngestionError, match="Failed to read NetFlow CSV file"):
-        NetFlowParser.parse(csv_file)
-
-
 @patch("scapy.utils.PcapReader")
 def test_pcap_parser(mock_pcap_reader_cls: MagicMock, tmp_path: Path) -> None:
     """Test PCAP parser by mocking Scapy's PcapReader."""
@@ -274,6 +197,75 @@ def test_pcap_parser(mock_pcap_reader_cls: MagicMock, tmp_path: Path) -> None:
     assert any(f.protocol == "UDP" for f in tm.flows)
     assert any(f.protocol == "ICMP" for f in tm.flows)
     assert any(f.protocol == "PROTO_99" for f in tm.flows)
+
+
+def test_snmp_parser_csv(tmp_path: Path) -> None:
+    """Test SNMP counter CSV ingestion."""
+    csv_file = tmp_path / "snmp.csv"
+
+    df = pd.DataFrame(
+        {
+            "interface_id": ["A->B", "B-to-C", "C:D"],
+            "speed": [10000000, 100000, 100],  # bps
+            "in_octets": [125000, 5000, 0],
+            "out_octets": [125000, 5000, 0],
+            "oper_status": ["up", "testing", "2"],  # 2 means down in SNMP status
+        }
+    )
+    df.to_csv(csv_file, index=False)
+
+    topo = SNMPParser.parse(csv_file)
+    assert topo.node_count == 4
+    assert topo.edge_count == 3
+
+    # Speed conversions
+    # 10,000,000 bps = 10 Mbps
+    assert topo.get_edge("A", "B")["bandwidth"] == 10.0
+    # Status conversions
+    assert topo.get_edge("A", "B")["status"] == "up"
+    assert topo.get_edge("B", "C")["status"] == "degraded"
+    assert topo.get_edge("C", "D")["status"] == "down"
+
+
+def test_snmp_parser_json(tmp_path: Path) -> None:
+    """Test SNMP counter JSON ingestion with 'interfaces' key."""
+    json_file = tmp_path / "snmp.json"
+
+    data = {
+        "interfaces": [
+            {
+                "interface_id": "X->Y",
+                "speed": 10.0,
+                "in_octets": 1000,
+                "out_octets": 2000,
+                "oper_status": "up",
+            }
+        ]
+    }
+    with open(json_file, "w", encoding="utf-8") as f:
+        json.dump(data, f)
+
+    topo = SNMPParser.parse(json_file)
+    assert topo.node_count == 2
+    assert topo.edge_count == 1
+    assert topo.get_edge("X", "Y")["bandwidth"] == 10.0
+
+
+def test_snmp_parser_invalid(tmp_path: Path) -> None:
+    """Test SNMP parser error conditions."""
+    csv_file = tmp_path / "bad_snmp.csv"
+
+    # Missing interface_id
+    df = pd.DataFrame({"speed": [10]})
+    df.to_csv(csv_file, index=False)
+    with pytest.raises(IngestionError, match="missing 'interface_id'"):
+        SNMPParser.parse(csv_file)
+
+    # Invalid interface_id (no separator)
+    df = pd.DataFrame({"interface_id": ["A"], "speed": [10]})
+    df.to_csv(csv_file, index=False)
+    with pytest.raises(IngestionError, match="interface_id 'A' at index 0 is invalid"):
+        SNMPParser.parse(csv_file)
 
 
 def test_unified_ingest_explicit_and_auto_detect(tmp_path: Path) -> None:

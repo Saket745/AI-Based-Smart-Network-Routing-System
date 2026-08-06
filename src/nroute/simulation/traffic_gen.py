@@ -148,7 +148,6 @@ class TrafficGenerator:
         """
         Generate flows where 80% of traffic targets a set of hotspot nodes.
         """
-        graph = topology.graph
         nodes = topology.nodes
         if len(nodes) < 2:
             return []

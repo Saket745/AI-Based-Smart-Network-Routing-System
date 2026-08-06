@@ -44,7 +44,9 @@ class GeneralConfig(BaseModel):
             if not cleaned:
                 return DEFAULT_CORS_ORIGINS
             return cleaned
-        return v
+        if isinstance(v, list):
+            return [str(o).strip() for o in v if o and str(o).strip()]
+        return DEFAULT_CORS_ORIGINS
 
     @field_validator("cors_origins")
     @classmethod
