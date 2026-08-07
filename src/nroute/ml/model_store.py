@@ -71,16 +71,24 @@ class ModelStore:
                 json.dump(metadata, f, indent=2)
 
             logger.info(
-                "Model saved successfully", name=name, version=version, path=str(model_path)
+                "Model saved successfully",
+                name=name,
+                version=version,
+                path=str(model_path),
             )
             return str(model_path)
 
         except Exception as e:
-            raise ModelError(f"Failed to save model {name} (version {version}): {e}") from e
+            raise ModelError(
+                f"Failed to save model {name} (version {version}): {e}"
+            ) from e
 
-    def load_model(self, model: Any, name: str, version: str | None = None, allow_unsafe: bool = False) -> str:
     def load_model(
-        self, model: Any, name: str, version: str | None = None, allow_unsafe: bool = False
+        self,
+        model: Any,
+        name: str,
+        version: str | None = None,
+        allow_unsafe: bool = False,
     ) -> str:
         """
         Load a model from the store and verify its checksum integrity.
@@ -89,6 +97,8 @@ class ModelStore:
             model: The predictor or detector instance to populate (has load() method).
             name: The name of the model to load.
             version: The version to load. If None, loads the latest version by timestamp.
+            allow_unsafe: If True, allows insecure deserialization if the model's load()
+                         method supports it.
 
         Returns:
             The loaded model's file path as a string.
@@ -106,7 +116,9 @@ class ModelStore:
                     meta["_meta_file"] = mf
                     metadata_list.append(meta)
             except Exception as e:
-                logger.warning("Failed to read model metadata", file=str(mf), error=str(e))
+                logger.warning(
+                    "Failed to read model metadata", file=str(mf), error=str(e)
+                )
 
         if not metadata_list:
             raise ModelError(f"No valid metadata files found for model '{name}'.")
@@ -126,7 +138,9 @@ class ModelStore:
                 metadata_list.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
                 target_meta = metadata_list[0]
             except Exception as e:
-                raise ModelError(f"Failed to parse timestamps to find latest model: {e}") from e
+                raise ModelError(
+                    f"Failed to parse timestamps to find latest model: {e}"
+                ) from e
 
         model_path = Path(target_meta["file_path"])
         expected_sha = target_meta["sha256"]
@@ -149,10 +163,6 @@ class ModelStore:
             )
 
         try:
-            # Check if model.load accepts allow_unsafe
-=======
-            import inspect
-=======
             # Check if load() accepts allow_unsafe
             import inspect
 
@@ -170,7 +180,9 @@ class ModelStore:
             )
             return str(model_path)
         except Exception as e:
-            raise ModelError(f"Failed to load model state from file {model_path}: {e}") from e
+            raise ModelError(
+                f"Failed to load model state from file {model_path}: {e}"
+            ) from e
 
     def list_models(self) -> list[dict[str, Any]]:
         """List all saved models and their metadata details."""

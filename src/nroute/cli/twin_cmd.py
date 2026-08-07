@@ -51,7 +51,7 @@ class AuditArgs(BaseModel):
 @click.pass_context
 def twin_cmd(ctx: click.Context) -> None:
     """Digital Twin Engine — Change-Impact, RCA, and Audit."""
-    configure_logging(verbose=ctx.obj.get("verbose", False))
+    configure_logging(verbose=ctx.obj.get("verbose", False) if ctx.obj is not None else False)
 
 
 # ── twin health ──────────────────────────────────────────────
