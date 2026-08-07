@@ -202,6 +202,8 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         self._randomize_edge_attributes()
 
         # Pick active nodes for source and destination
+        graph = self.topology.graph
+        up_nodes = [n for n in self.nodes if graph.nodes[n].get("status", "up").lower() == "up"]
         up_nodes = [
             n for n in self.nodes if self.topology.get_node(n).get("status", "up").lower() == "up"
         ]
@@ -259,6 +261,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             info["status"] = "failed_link_down"
             return self._get_obs(), reward, terminated, truncated, info
 
+        # 3. Graduated loop detection
         # 3. Retrieve link metrics
         edge_attr = self.topology.get_edge(*edge)
         latency = float(edge_attr.get("latency", 5.0))
@@ -274,6 +277,41 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             info["status"] = "failed_loop_detected"
             return self._get_obs(), reward, terminated, truncated, info
 
+        # Capture state before transition
+        prev_node = self.current_node
+        edge_attr = self.topology.get_edge(*edge)
+
+        # 4. Apply transition
+        self._apply_transition(next_node)
+
+        # 5. Compute reward
+        reward = self._calculate_reward(
+            prev_node=prev_node,
+            curr_node=next_node,
+            edge_attr=edge_attr,
+            visit_count_before=visit_count,
+            info=info,
+        )
+
+        # Update episode status
+        if self.current_node == self.destination:
+            terminated = True
+            info["status"] = "success"
+        elif self.hops >= self.max_hops:
+            truncated = True
+            info["status"] = "truncated_max_hops"
+        else:
+            info["status"] = "moving"
+
+        info["path"] = list(self.path)
+        info["hops"] = self.hops
+
+        return self._get_obs(), reward, terminated, truncated, info
+
+        return self._get_obs(), reward, terminated, truncated, info
+
+    def _apply_transition(self, next_node: str) -> None:
+        """Update the environment state variables after a valid move."""
         # Update path and visit counts
         self.path.append(next_node)
         self.current_node = next_node
@@ -311,6 +349,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         fairness_weight = self.reward_params.get("fairness", 2.0)
         if fairness_weight > 0 and self.num_edges > 0:
             remaining_caps = []
+            for _, _, attrs in self.topology.graph.edges(data=True):
             for src, dst in self.edges:
                 attrs = self.topology.get_edge(src, dst)
                 util = float(attrs.get("utilization", 0.0))
