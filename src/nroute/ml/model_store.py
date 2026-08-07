@@ -78,7 +78,6 @@ class ModelStore:
         except Exception as e:
             raise ModelError(f"Failed to save model {name} (version {version}): {e}") from e
 
-    def load_model(self, model: Any, name: str, version: str | None = None, allow_unsafe: bool = False) -> str:
     def load_model(
         self, model: Any, name: str, version: str | None = None, allow_unsafe: bool = False
     ) -> str:
@@ -150,11 +149,8 @@ class ModelStore:
 
         try:
             # Check if model.load accepts allow_unsafe
-=======
             import inspect
-=======
             # Check if load() accepts allow_unsafe
-            import inspect
 
             sig = inspect.signature(model.load)
             if "allow_unsafe" in sig.parameters:
