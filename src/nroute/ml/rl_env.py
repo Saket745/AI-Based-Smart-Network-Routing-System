@@ -276,7 +276,6 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             terminated = True
             info["status"] = "failed_loop_detected"
             return self._get_obs(), reward, terminated, truncated, info
-
         # Capture state before transition
         prev_node = self.current_node
         edge_attr = self.topology.get_edge(*edge)
@@ -342,8 +341,6 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         # Bonus for getting closer, penalty for moving away
         distance_delta = prev_distance - curr_distance
         step_reward += proximity_weight * distance_delta
-
-        reward = step_reward
         reward = step_reward
         # Jain's fairness index of remaining edge capacities
         fairness_weight = self.reward_params.get("fairness", 2.0)
@@ -375,6 +372,9 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             info["status"] = "truncated_max_hops"
         else:
             info["status"] = "moving"
+
+        info["path"] = list(self.path)
+        info["hops"] = self.hops
 
         info["path"] = list(self.path)
         info["hops"] = self.hops
