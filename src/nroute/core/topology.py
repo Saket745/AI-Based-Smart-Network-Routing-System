@@ -37,11 +37,30 @@ class Topology:
     def __init__(self, graph: nx.DiGraph | None = None) -> None:
         """Initialize Topology instance."""
         self._graph = graph if graph is not None else nx.DiGraph()
+        self._down_nodes: set[str] = set()
+        self._down_edges: set[tuple[str, str]] = set()
+        if graph is not None:
+            for node, d in graph.nodes(data=True):
+                if d.get("status") == "down":
+                    self._down_nodes.add(node)
+            for u, v, d in graph.edges(data=True):
+                if d.get("status") == "down":
+                    self._down_edges.add((u, v))
 
     @property
     def graph(self) -> nx.DiGraph:
         """Get the underlying networkx DiGraph instance."""
         return self._graph
+
+    @property
+    def has_down_nodes(self) -> bool:
+        """Return True if any nodes are currently down."""
+        return len(self._down_nodes) > 0
+
+    @property
+    def has_down_edges(self) -> bool:
+        """Return True if any edges are currently down."""
+        return len(self._down_edges) > 0
 
     @property
     def nodes(self) -> list[str]:
@@ -123,6 +142,10 @@ class Topology:
         validated_attrs = {**attrs, **validated_attrs}
 
         self._graph.add_node(validated_id, **validated_attrs)
+        if status == "down":
+            self._down_nodes.add(validated_id)
+        else:
+            self._down_nodes.discard(validated_id)
 
     def remove_node(self, node_id: str) -> None:
         """
@@ -136,6 +159,12 @@ class Topology:
         """
         if node_id not in self._graph:
             raise TopologyError(f"Node '{node_id}' does not exist.")
+        # Remove any incident edges from our down edges set
+        for successor in self._graph.successors(node_id):
+            self._down_edges.discard((node_id, successor))
+        for predecessor in self._graph.predecessors(node_id):
+            self._down_edges.discard((predecessor, node_id))
+        self._down_nodes.discard(node_id)
         self._graph.remove_node(node_id)
 
     def get_node(self, node_id: str) -> NodeDict:
@@ -200,6 +229,10 @@ class Topology:
         validated_attrs = {**attrs, **validated_attrs}
 
         self._graph.add_edge(src, dst, **validated_attrs)
+        if status == "down":
+            self._down_edges.add((src, dst))
+        else:
+            self._down_edges.discard((src, dst))
 
     def remove_edge(self, src: str, dst: str) -> None:
         """
@@ -214,6 +247,7 @@ class Topology:
         """
         if not self._graph.has_edge(src, dst):
             raise TopologyError(f"Edge from '{src}' to '{dst}' does not exist.")
+        self._down_edges.discard((src, dst))
         self._graph.remove_edge(src, dst)
 
     def get_edge(self, src: str, dst: str) -> EdgeDict:
@@ -274,6 +308,10 @@ class Topology:
                     f"Edge status '{status}' is invalid. Must be one of {self.EDGE_STATUSES}."
                 )
             updated_data["status"] = status
+            if status == "down":
+                self._down_edges.add((src, dst))
+            else:
+                self._down_edges.discard((src, dst))
 
         # Merge other attributes and apply update
         edge_data.update({**attrs, **updated_data})
@@ -291,6 +329,7 @@ class Topology:
         if node_id not in self._graph:
             raise TopologyError(f"Node '{node_id}' does not exist.")
         self._graph.nodes[node_id]["status"] = "down"
+        self._down_nodes.add(node_id)
 
         # Mark all incoming and outgoing links as down
         for successor in list(self._graph.successors(node_id)):
@@ -303,6 +342,7 @@ class Topology:
         if node_id not in self._graph:
             raise TopologyError(f"Node '{node_id}' does not exist.")
         self._graph.nodes[node_id]["status"] = "up"
+        self._down_nodes.discard(node_id)
 
         # Mark incident links back up
         for successor in list(self._graph.successors(node_id)):
@@ -312,7 +352,10 @@ class Topology:
 
     def copy(self) -> Topology:
         """Create a deep copy of the topology."""
-        return Topology(self._graph.copy())
+        new_topo = Topology(self._graph.copy())
+        new_topo._down_nodes = self._down_nodes.copy()
+        new_topo._down_edges = self._down_edges.copy()
+        return new_topo
 
     def to_dict(self) -> dict[str, Any]:
         """

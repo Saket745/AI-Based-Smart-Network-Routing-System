@@ -114,7 +114,6 @@ class TrafficGenerator:
         to Capacity(u) * Capacity(v).
         """
 
-
         node_data = topology.graph.nodes(data=True)
         nodes = []
         capacities = []

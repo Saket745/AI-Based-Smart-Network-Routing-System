@@ -344,7 +344,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         step_reward += proximity_weight * distance_delta
 
         reward = step_reward
-
+        reward = step_reward
         # Jain's fairness index of remaining edge capacities
         fairness_weight = self.reward_params.get("fairness", 2.0)
         if fairness_weight > 0 and self.num_edges > 0:

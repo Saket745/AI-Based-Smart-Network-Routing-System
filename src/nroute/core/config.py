@@ -37,6 +37,7 @@ class GeneralConfig(BaseModel):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
+
     def validate_cors_origins(cls, v: Any) -> list[str]:
         if isinstance(v, str):
             parts = [o.strip() for o in v.split(",") if o.strip()]
@@ -59,8 +60,6 @@ class GeneralConfig(BaseModel):
 
         if not v:
             return DEFAULT_CORS_ORIGINS
-
-=======
     def validate_cors_origins_before(cls, v: Any) -> list[str]:
         if isinstance(v, str):
             v = [o.strip() for o in v.split(",") if o.strip()]
