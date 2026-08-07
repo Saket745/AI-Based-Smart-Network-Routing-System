@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-=======
 import hashlib
-=======
 from collections.abc import Callable  # noqa: TC003
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
@@ -20,7 +17,7 @@ from nroute.routing.dijkstra import DijkstraRouter
 from nroute.routing.ecmp import ECMPRouter
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    pass
 
 
 def test_ecmp_equal_cost_paths() -> None:
