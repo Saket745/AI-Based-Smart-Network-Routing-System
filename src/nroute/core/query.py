@@ -21,8 +21,3 @@ class RoutingQuery(BaseModel):
     flow_key: Any = Field(
         default=None, description="Key for deterministic path selection (e.g. for ECMP)"
     )
-=======
-        default=None, description="Edge attribute name or weight function"
-    )
-    flow_key: Any = Field(default=None, description="Key for deterministic path selection (ECMP)")
-    k: int | None = Field(default=None, description="Number of paths for K-shortest-paths")

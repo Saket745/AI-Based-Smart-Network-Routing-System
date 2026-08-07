@@ -85,31 +85,12 @@ DEFAULT_CORS_ORIGINS = [
 ]
 
 # Load CORS configuration
-from nroute.core.config import load_config
 try:
     _cfg = load_config()
     _cors_origins = _cfg.general.cors_origins
-except Exception:
-=======
-    if "*" in _cors_origins:
-        raise ValueError(
-            "Wildcard '*' is not allowed for CORS origins due to security risks. "
-            "Please specify explicit origins."
-        )
 except Exception as e:
-    # If the exception is the ValueError we raised above, propagate it
-    if isinstance(e, ValueError) and "due to security risks" in str(e):
-        raise
-
     import os
-
-    _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "*")
-    if _cors_origins_raw == "*":
-        _cors_origins = ["*"]
-=======
     _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "")
-    _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
-=======
     if not _cors_origins_raw:
         _cors_origins = DEFAULT_CORS_ORIGINS
     else:
@@ -121,7 +102,7 @@ except Exception as e:
             ) from e
 
 # Filter out empty strings, ensure secure local development defaults as fallback
-_cors_origins = [o for o in _cors_origins if o]
+_cors_origins = [o for o in _cors_origins if o and o != "*"]
 if not _cors_origins:
     _cors_origins = DEFAULT_CORS_ORIGINS
 
@@ -246,10 +227,28 @@ async def get_topology() -> dict[str, Any]:
 
 
 @app.post("/api/config/ingest")
-async def ingest_config(file: UploadFile = File(...)) -> dict[str, Any]:  # noqa: B008
+async def ingest_config(request: Request, file: UploadFile = File(...)) -> dict[str, Any]:  # noqa: B008
     """Upload and ingest a device config file."""
     engine = get_engine()
+
+    # Secure maximum file size limit of 5MB to protect against OOM DoS (CWE-400)
+    max_file_size = 5 * 1024 * 1024  # 5 MB
+
+    # Check if the Content-Length header exceeds the limit to reject early
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > max_file_size:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail="File size exceeds maximum limit of 5MB."
+        )
+
+    # In addition, check actual bytes read to protect against chunked transfer encoding bypass
     content = await file.read()
+    if len(content) > max_file_size:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail="File size exceeds maximum limit of 5MB."
+        )
 
     # Write to a temp file for the parser
     suffix = Path(file.filename or "config.yaml").suffix
