@@ -37,6 +37,7 @@ class GeneralConfig(BaseModel):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
+
     def validate_cors_origins_before(cls, v: Any) -> list[str]:
         if isinstance(v, str):
             v = [o.strip() for o in v.split(",") if o.strip()]
@@ -68,6 +69,11 @@ class GeneralConfig(BaseModel):
                 return DEFAULT_CORS_ORIGINS
             return cleaned
 
+        if v is None:
+            return DEFAULT_CORS_ORIGINS
+
+        return DEFAULT_CORS_ORIGINS
+
         if not v:
             return DEFAULT_CORS_ORIGINS
     def validate_cors_origins_before(cls, v: Any) -> list[str]:
@@ -97,8 +103,6 @@ class GeneralConfig(BaseModel):
                     "Please specify explicit origins."
                 )
         return v
-
-
 class TopologyConfig(BaseModel):
     """Default topology parameters."""
 
