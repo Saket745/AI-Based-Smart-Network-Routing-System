@@ -46,7 +46,6 @@ class Topology:
             for u, v, d in graph.edges(data=True):
                 if d.get("status") == "down":
                     self._down_edges.add((u, v))
-
     @property
     def has_down_nodes(self) -> bool:
         """Check if there are any down nodes in the topology."""
@@ -57,10 +56,21 @@ class Topology:
         """Check if there are any down edges in the topology."""
         return len(self._down_edges) > 0
 
+
     @property
     def graph(self) -> nx.DiGraph:
         """Get the underlying networkx DiGraph instance."""
         return self._graph
+
+    @property
+    def has_down_nodes(self) -> bool:
+        """Return True if any nodes are currently down."""
+        return len(self._down_nodes) > 0
+
+    @property
+    def has_down_edges(self) -> bool:
+        """Return True if any edges are currently down."""
+        return len(self._down_edges) > 0
 
     @property
     def nodes(self) -> list[str]:
@@ -161,6 +171,12 @@ class Topology:
         """
         if node_id not in self._graph:
             raise TopologyError(f"Node '{node_id}' does not exist.")
+        # Remove any incident edges from our down edges set
+        for successor in self._graph.successors(node_id):
+            self._down_edges.discard((node_id, successor))
+        for predecessor in self._graph.predecessors(node_id):
+            self._down_edges.discard((predecessor, node_id))
+        self._down_nodes.discard(node_id)
         self._graph.remove_node(node_id)
         self._down_nodes.discard(node_id)
         self._down_edges = {
@@ -249,6 +265,7 @@ class Topology:
         """
         if not self._graph.has_edge(src, dst):
             raise TopologyError(f"Edge from '{src}' to '{dst}' does not exist.")
+        self._down_edges.discard((src, dst))
         self._graph.remove_edge(src, dst)
         self._down_edges.discard((src, dst))
 
@@ -310,6 +327,10 @@ class Topology:
                     f"Edge status '{status}' is invalid. Must be one of {self.EDGE_STATUSES}."
                 )
             updated_data["status"] = status
+            if status == "down":
+                self._down_edges.add((src, dst))
+            else:
+                self._down_edges.discard((src, dst))
 
         # Merge other attributes
         for k, v in attrs.items():

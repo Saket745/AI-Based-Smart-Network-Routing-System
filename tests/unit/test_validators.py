@@ -158,7 +158,8 @@ def test_validate_file_path_empty_raises() -> None:
 def test_validate_file_path_invalid_type_raises() -> None:
     with pytest.raises(ValidationError, match="Invalid path format"):
         validate_file_path(["invalid", "type"], must_exist=False)
-=======
+
+
 def test_validate_file_path_invalid_format_raises() -> None:
     # On some systems, null bytes in path raise OSError when resolving
     with pytest.raises(ValidationError, match="Invalid path format"):

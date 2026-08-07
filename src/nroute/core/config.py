@@ -37,6 +37,18 @@ class GeneralConfig(BaseModel):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
+
+    def validate_cors_origins_before(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            v = [o.strip() for o in v.split(",") if o.strip()]
+            cleaned = [str(o).strip() for o in v if o and str(o).strip() != "*"]
+            if not cleaned:
+                return DEFAULT_CORS_ORIGINS
+            return cleaned
+        if isinstance(v, list):
+            return [str(o).strip() for o in v if o and str(o).strip()]
+        return DEFAULT_CORS_ORIGINS
+
     def validate_cors_origins(cls, v: Any) -> list[str]:
         if isinstance(v, str):
             parts = [o.strip() for o in v.split(",") if o.strip()]
@@ -46,7 +58,6 @@ class GeneralConfig(BaseModel):
             return cleaned
 
         if isinstance(v, list):
-            # If explicit list is provided, validate it strictly and raise ValueError for wildcards
             for origin in v:
                 if origin == "*" or (isinstance(origin, str) and origin.strip() == "*"):
                     raise ValueError(
@@ -65,6 +76,34 @@ class GeneralConfig(BaseModel):
             v = [v]
         # Direct list validation
         if any(str(o).strip() == "*" for o in v):
+            cleaned = [str(o).strip() for o in v if o and str(o).strip()]
+            if not cleaned:
+                return DEFAULT_CORS_ORIGINS
+            return cleaned
+
+        if v is None:
+            return DEFAULT_CORS_ORIGINS
+
+        return DEFAULT_CORS_ORIGINS
+
+        if not v:
+            return DEFAULT_CORS_ORIGINS
+    def validate_cors_origins_before(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            v = [o.strip() for o in v.split(",") if o.strip()]
+            cleaned = [str(o).strip() for o in v if o and str(o).strip() != "*"]
+            if not cleaned:
+                return DEFAULT_CORS_ORIGINS
+            return cleaned
+        if isinstance(v, list):
+            return [str(o).strip() for o in v if o and str(o).strip()]
+        return DEFAULT_CORS_ORIGINS
+
+    @field_validator("cors_origins")
+    @classmethod
+    def validate_cors_origins(cls, v: list[str]) -> list[str]:
+        """Validate that cors_origins does not contain wildcard '*' for secure credentials handling."""
+        if "*" in v:
             raise ValueError(
                 "Wildcard '*' is not allowed for cors_origins due to security risks. "
                 "Please specify explicit origins."
@@ -74,7 +113,13 @@ class GeneralConfig(BaseModel):
             return DEFAULT_CORS_ORIGINS
         return cleaned_list
 
-
+        for origin in v:
+            if origin == "*":
+                raise ValueError(
+                    "Wildcard '*' is not allowed for cors_origins due to security risks. "
+                    "Please specify explicit origins."
+                )
+        return v
 class TopologyConfig(BaseModel):
     """Default topology parameters."""
 

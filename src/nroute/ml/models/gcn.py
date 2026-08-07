@@ -161,3 +161,4 @@ class GCNModel(nn.Module):
             allow_unsafe: If True, allows insecure deserialization. Defaults to False.
         """
         self.load_state_dict(torch.load(path, map_location="cpu", weights_only=not allow_unsafe))
+        self.load_state_dict(torch.load(path, map_location="cpu", weights_only=not allow_unsafe))
