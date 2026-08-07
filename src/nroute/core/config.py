@@ -64,6 +64,18 @@ class GeneralConfig(BaseModel):
                         "Wildcard '*' is not allowed for cors_origins due to security risks. "
                         "Please specify explicit origins."
                     )
+            cleaned_list = [str(o).strip() for o in v if o and str(o).strip()]
+            if not cleaned_list:
+                return DEFAULT_CORS_ORIGINS
+            return cleaned_list
+
+        if not v:
+            return DEFAULT_CORS_ORIGINS
+
+        if not isinstance(v, list):
+            v = [v]
+        # Direct list validation
+        if any(str(o).strip() == "*" for o in v):
             cleaned = [str(o).strip() for o in v if o and str(o).strip()]
             if not cleaned:
                 return DEFAULT_CORS_ORIGINS
@@ -96,6 +108,11 @@ class GeneralConfig(BaseModel):
                 "Wildcard '*' is not allowed for cors_origins due to security risks. "
                 "Please specify explicit origins."
             )
+        cleaned_list = [str(o).strip() for o in v if o and str(o).strip()]
+        if not cleaned_list:
+            return DEFAULT_CORS_ORIGINS
+        return cleaned_list
+
         for origin in v:
             if origin == "*":
                 raise ValueError(

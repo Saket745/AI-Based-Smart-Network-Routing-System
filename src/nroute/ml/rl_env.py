@@ -260,8 +260,6 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             terminated = True
             info["status"] = "failed_link_down"
             return self._get_obs(), reward, terminated, truncated, info
-
-        # 3. Graduated loop detection
         # 3. Retrieve link metrics
         edge_attr = self.topology.get_edge(*edge)
         latency = float(edge_attr.get("latency", 5.0))

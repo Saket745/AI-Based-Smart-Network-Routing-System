@@ -88,6 +88,9 @@ DEFAULT_CORS_ORIGINS = [
 try:
     _cfg = load_config()
     _cors_origins = _cfg.general.cors_origins
+except Exception as e:
+    import os
+=======
     if "*" in _cors_origins:
         raise ValueError(
             "Wildcard '*' is not allowed for CORS origins due to security risks. "
@@ -109,7 +112,7 @@ except Exception as e:
             ) from e
 
 # Filter out empty strings, ensure secure local development defaults as fallback
-_cors_origins = [o for o in _cors_origins if o]
+_cors_origins = [o for o in _cors_origins if o and o != "*"]
 if not _cors_origins:
     _cors_origins = DEFAULT_CORS_ORIGINS
 
