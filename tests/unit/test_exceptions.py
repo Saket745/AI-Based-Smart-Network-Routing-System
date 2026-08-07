@@ -28,8 +28,7 @@ def test_nroute_error_base_initialization() -> None:
     assert err_with_details.message == "error with details"
     assert err_with_details.details == details
     assert str(err_with_details) == "error with details"
-
-
+=======
 def test_nroute_error_base() -> None:
     """Test that NRouteError initialized with only message sets default attributes correctly."""
     msg = "Generic error occurred"
@@ -97,8 +96,7 @@ def test_subclass_inheritance() -> None:
         raise ValidationError("invalid")
     assert isinstance(exc_info.value, ValidationError)
     assert exc_info.value.message == "invalid"
-
-
+=======
 def test_nroute_subclasses(exception_class: type[NRouteError]) -> None:
     """Test that each subclass of NRouteError inherits base attributes and behavior."""
     msg = f"{exception_class.__name__} occurred"

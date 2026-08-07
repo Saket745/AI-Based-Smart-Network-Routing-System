@@ -135,8 +135,8 @@ class BaseRouter(ABC):
         Get a read-only filtered view of the topology containing only active nodes and edges.
         """
         graph = topology.graph
-        # This avoids the high overhead of nx.subgraph_view callbacks and replaces
-        # the expensive O(N + E) any(...) linear scan with O(1) properties.
+        # Performance optimization: if no nodes or edges are down, return the graph directly.
+        # This avoids the high overhead of nx.subgraph_view callbacks.
         if not topology.has_down_nodes and not topology.has_down_edges:
             return topology.graph
 
