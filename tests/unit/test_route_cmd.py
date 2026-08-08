@@ -85,6 +85,7 @@ class TestRouteComputeCLI:
         assert "Path: A -> B" in result.output
         assert "10.50 ms" in result.output
         assert "1000 Mbps" in result.output
+        mock_get_router.assert_called_once_with("dijkstra", topology=mock_topology, allow_unsafe=False)
         mock_get_router.assert_called_once_with(
             "dijkstra", topology=mock_topology, allow_unsafe=False
         )

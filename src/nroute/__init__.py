@@ -1,9 +1,18 @@
 # AI-Based Smart Network Routing System (nroute)
 # ──────────────────────────────────────────────────
+# Production-grade CLI/library tool that uses AI/ML to
+# simulate, visualize, and optimize network routing.
+#
 # Public API — populated incrementally as modules are built.
 
 """
 nroute — AI-Based Smart Network Routing System.
+
+A production-grade Python library and CLI tool for simulating,
+visualizing, and optimizing network routing using AI/ML.
+
+Supports congestion prediction, anomaly detection, and intelligent
+path rerouting on both synthetic and real-world topologies.
 """
 
 from __future__ import annotations
@@ -35,45 +44,68 @@ from nroute.exceptions import (
     TopologyError,
     ValidationError,
 )
-from nroute.routing import BaseRouter, get_router, register_router
+from nroute.ml import (
+    BaseFeatureExtractor,
+    DefaultGraphFeatureExtractor,
+    GraphTensorBundle,
+    NetworkRoutingEnv,
+)
+from nroute.routing import (
+    ROUTER_REGISTRY,
+    AIRouter,
+    BaseRouter,
+    RLRouter,
+    get_router,
+    register_router,
+)
 
 
 class Simulator:
-    """Facade class for simplifying simulation execution."""
+    """
+    Convenience facade class for running network simulations.
+    Matches the PRD and Quickstart API signature.
+    """
 
-    def __init__(self, topology: Any, algorithm: Any, duration: int) -> None:
+    def __init__(self, topology: Topology, algorithm: Any, duration: int) -> None:
+        from nroute.routing import get_router
         from nroute.simulation.engine import SimulationEngine
         from nroute.simulation.traffic_gen import TrafficGenerator
 
         self.topology = topology
+        self.algorithm = algorithm
         self.duration = duration
 
+        # Resolve algorithm if passed as a string
         if isinstance(algorithm, str):
             self.router = get_router(algorithm, topology=topology)
         else:
             self.router = algorithm
 
-        # Default traffic generator
-        self.traffic_generator = TrafficGenerator(model="uniform", n_flows_per_tick=3)
-        self.engine = SimulationEngine(
-            topology=self.topology,
-            router=self.router,
-            traffic_generator=self.traffic_generator,
-        )
+        # Default to a uniform traffic generator with 5 flows per tick
+        self.traffic_gen = TrafficGenerator(model="uniform", n_flows_per_tick=5)
+        self.engine = SimulationEngine(topology, self.router, self.traffic_gen)
 
-    def run(self, seed: int | None = None) -> Any:
+    def run(self, seed: int | None = None) -> MetricsCollectionResult:
+        """Run the simulation for the configured duration."""
         return self.engine.run(duration_ticks=self.duration, seed=seed)
 
 
 __all__ = [
+    "ROUTER_REGISTRY",
+    "AIRouter",
+    "BaseFeatureExtractor",
     "BaseRouter",
     "ConfigError",
+    "DefaultGraphFeatureExtractor",
     "FlowRecord",
+    "GraphTensorBundle",
     "IngestionError",
     "MetricsCollectionResult",
     "ModelError",
     "NRouteConfig",
     "NRouteError",
+    "NetworkRoutingEnv",
+    "RLRouter",
     "RouteMetrics",
     "RoutingError",
     "SimulationError",

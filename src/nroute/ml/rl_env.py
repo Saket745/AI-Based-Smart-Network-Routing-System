@@ -201,8 +201,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         self._restore_edge_attributes()
         self._randomize_edge_attributes()
 
-        graph = self.topology.graph
-        up_nodes = [n for n in self.nodes if graph.nodes[n].get("status", "up").lower() == "up"]
+        # Pick active nodes for source and destination
         up_nodes = [
             n for n in self.nodes if self.topology.get_node(n).get("status", "up").lower() == "up"
         ]
@@ -261,10 +260,6 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             return self._get_obs(), reward, terminated, truncated, info
 
         # 3. Graduated loop detection
-        # 3. Retrieve link metrics
-        edge_attr = self.topology.get_edge(*edge)
-
-        # 4. Graduated loop detection
         visit_count = self._visit_counts.get(next_node, 0)
         if visit_count >= 2:
             # Third visit to same node — terminate with heavy penalty
@@ -275,6 +270,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
 
         # Capture state before transition
         prev_node = self.current_node
+        edge_attr = self.topology.get_edge(*edge)
 
         # 4. Apply transition
         self._apply_transition(next_node)
@@ -293,7 +289,6 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             terminated = True
             info["status"] = "success"
         elif self.hops >= self.max_hops:
-            reward -= 10.0
             truncated = True
             info["status"] = "truncated_max_hops"
         else:
@@ -319,7 +314,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         visit_count_before: int,
         info: dict[str, Any],
     ) -> float:
-        """Compute the step reward based on configuration and transition state."""
+        """Compute the scalar reward for the current transition."""
         alpha = self.reward_params.get("alpha", 5.0)
         beta = self.reward_params.get("beta", 1.0)
         gamma = self.reward_params.get("gamma", 50.0)
@@ -330,26 +325,23 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         bandwidth = float(edge_attr.get("bandwidth", 1000.0))
         loss = float(edge_attr.get("packet_loss", 0.0))
 
-        # Base step reward: low latency, high bandwidth, low loss
-        step_reward = (
+        # 1. Base step reward: low latency, high bandwidth, low loss, hop penalty
+        reward = (
             alpha * (1.0 / max(0.1, latency)) + beta * (bandwidth / 1000.0) - gamma * loss - delta
         )
 
-        # Apply revisit penalty (graduated: -10.0 on first revisit)
+        # 2. Apply revisit penalty (graduated: -10.0 on first revisit)
         if visit_count_before == 1:
-            step_reward -= 10.0
+            reward -= 10.0
             info["revisit_penalty"] = True
 
-        # Proximity-to-destination bonus (precomputed BFS distance)
+        # 3. Proximity-to-destination bonus (precomputed BFS distance)
         prev_distance = self._get_distance_to_dest(prev_node)
         curr_distance = self._get_distance_to_dest(curr_node)
-
-        # Bonus for getting closer, penalty for moving away
         distance_delta = prev_distance - curr_distance
-        step_reward += proximity_weight * distance_delta
-        reward = step_reward
+        reward += proximity_weight * distance_delta
 
-        # Jain's fairness index of remaining edge capacities
+        # 4. Jain's fairness index of remaining edge capacities
         fairness_weight = self.reward_params.get("fairness", 2.0)
         if fairness_weight > 0 and self.num_edges > 0:
             remaining_caps = []
@@ -364,11 +356,14 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             jains = (sum_r**2) / (n * sum_r2) if sum_r2 > 0 else 1.0
             reward += fairness_weight * jains
 
-        # Check if reached destination
+        # 5. Destination bonus or truncation penalty
         if curr_node == self.destination:
             # Reached destination bonus (scaled inversely by path length)
             efficiency_bonus = max(10.0, 100.0 - self.hops * 2.0)
             reward += efficiency_bonus
+        elif self.hops >= self.max_hops:
+            # Penalty for failing to reach destination within budget
+            reward -= 10.0
 
         return float(reward)
 

@@ -1,3 +1,18 @@
+"""FastAPI backend for the Digital Twin web interface.
+
+Minimal REST API exposing:
+  * ``GET  /api/health``        — Network health summary
+  * ``GET  /api/topology``      — Current topology as JSON
+  * ``POST /api/config/ingest`` — Upload device configs
+  * ``POST /api/impact``        — Simulate change and get blast-radius
+  * ``POST /api/rca``           — Root-cause analysis
+  * ``GET  /api/reachability``  — Pairwise reachability
+  * ``GET  /api/audit``         — Audit trail
+  * ``POST /api/topology/load`` — Load topology from file
+
+Designed for SPA consumption with CORS enabled.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -74,16 +89,6 @@ try:
     _cfg = load_config()
     _cors_origins = _cfg.general.cors_origins
 except Exception as e:
-=======
-    if "*" in _cors_origins:
-        raise ValueError(
-            "Wildcard '*' is not allowed for CORS origins due to security risks. "
-            "Please specify explicit origins."
-        )
-except Exception as e:
-    if isinstance(e, ValueError) and "due to security risks" in str(e):
-        raise
-
     import os
     _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "")
     if not _cors_origins_raw:
@@ -225,6 +230,7 @@ async def get_topology() -> dict[str, Any]:
 async def ingest_config(request: Request, file: UploadFile = File(...)) -> dict[str, Any]:  # noqa: B008
     """Upload and ingest a device config file."""
     engine = get_engine()
+
     # Secure maximum file size limit of 5MB to protect against OOM DoS (CWE-400)
     max_file_size = 5 * 1024 * 1024  # 5 MB
 
@@ -242,13 +248,6 @@ async def ingest_config(request: Request, file: UploadFile = File(...)) -> dict[
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail="File size exceeds maximum limit of 5MB."
-    # Enforce maximum file size limit of 5MB to prevent Denial of Service (DoS) via OOM (CWE-400)
-    max_file_size = 5 * 1024 * 1024  # 5MB
-    content = await file.read(max_file_size + 1)
-    if len(content) > max_file_size:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="File size exceeds maximum allowed limit of 5MB.",
         )
 
     # Write to a temp file for the parser

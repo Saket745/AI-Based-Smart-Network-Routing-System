@@ -70,9 +70,6 @@ class LiveSimulationConsole:
         self.throughput_history: list[float] = []
         self.latency_history: list[float] = []
 
-        # Micro-UX status tracking
-        self.status = "Initializing"
-
     def log_event(self, text: str) -> None:
         """Log a formatted simulation event with a timestamp."""
         timestamp = time.strftime("%H:%M:%S")
@@ -90,7 +87,7 @@ class LiveSimulationConsole:
                 if edge_data.get("status") == "down":
                     current_down_links.add((u, v))
             except Exception as e:
-                logger.error("Failed to check edge status", edge=(u, v), error=str(e))
+                logger.error("Error retrieving edge status", edge=(u, v), error=str(e), tick=tick)
 
         current_down_nodes = set()
         for node in self.engine.topology.nodes:
@@ -99,7 +96,7 @@ class LiveSimulationConsole:
                 if node_data.get("status") == "down":
                     current_down_nodes.add(node)
             except Exception as e:
-                logger.error("Failed to check node status", node=node, error=str(e))
+                logger.error("Error retrieving edge status", edge=(u, v), error=str(e), tick=tick)
 
         # Links going down
         for u, v in current_down_links - self.prev_down_links:
@@ -163,49 +160,17 @@ class LiveSimulationConsole:
         self.throughput_history.append(last_metric.throughput)
         self.latency_history.append(last_metric.avg_latency)
 
-    def _build_header(
-        self, tick: int | None, last_metric: SimulationMetrics | None, algo_name: str
-    ) -> Panel:
-        """Build the header panel displaying key simulation stats and status."""
-        status_colors = {
-            "Initializing": "bold yellow",
-            "Running": "bold green",
-            "Completed": "bold blue",
-        }
-        status_emojis = {
-            "Initializing": "⏳ ",
-            "Running": "🟢 ",
-            "Completed": "🏁 ",
-        }
-        status_color = status_colors.get(self.status, "white")
-        status_emoji = status_emojis.get(self.status, "")
-        status_text = f"{status_emoji}{self.status}"
-
-        parts = [
+    def _build_header(self, tick: int, last_metric: SimulationMetrics, algo_name: str) -> Panel:
+        """Build the header panel displaying key simulation stats."""
+        header_text = Text.assemble(
             ("nroute LIVE SIMULATION CONSOLE", "bold cyan"),
-            ("  |  Status: ", "white"),
-            (status_text, status_color),
             ("  |  Algorithm: ", "white"),
             (algo_name, "bold green"),
-        ]
-
-        if tick is not None:
-            parts.extend(
-                [
-                    ("  |  Tick: ", "white"),
-                    (f"{tick + 1}/{self.duration_ticks}", "bold yellow"),
-                ]
-            )
-
-        if last_metric is not None:
-            parts.extend(
-                [
-                    ("  |  Active Flows: ", "white"),
-                    (str(last_metric.active_flows), "bold magenta"),
-                ]
-            )
-
-        header_text = Text.assemble(*parts)
+            ("  |  Tick: ", "white"),
+            (f"{tick + 1}/{self.duration_ticks}", "bold yellow"),
+            ("  |  Active Flows: ", "white"),
+            (str(last_metric.active_flows), "bold magenta"),
+        )
         return Panel(header_text, style="cyan")
 
     def _build_link_status_table(self, engine: SimulationEngine) -> Table:
@@ -298,49 +263,11 @@ class LiveSimulationConsole:
 
         algo_name = self.engine.router.__class__.__name__
 
-        # Set up initialization state placeholders in the layout
-        layout["header"].update(self._build_header(None, None, algo_name))
-
-        init_table = Table(
-            title="Link Status & Utilization",
-            show_header=True,
-            header_style="bold magenta",
-            expand=True,
-        )
-        init_table.add_column("Link (U ➔ V)", style="cyan")
-        init_table.add_column("Status", justify="center")
-        init_table.add_column("Bandwidth", justify="right")
-        init_table.add_column("Latency", justify="right")
-        init_table.add_column("Utilization", justify="right")
-        init_table.add_row("[yellow]Waiting for ticks...[/yellow]", "", "", "", "")
-        layout["left"].update(Panel(init_table, style="magenta"))
-
-        layout["right"]["throughput_plot"].update(
-            Panel(
-                Text("\n\n   ⏳ Waiting for simulation data...", style="bold yellow"), style="cyan"
-            )
-        )
-        layout["right"]["latency_plot"].update(
-            Panel(
-                Text("\n\n   ⏳ Waiting for simulation data...", style="bold yellow"),
-                style="yellow",
-            )
-        )
-        layout["footer"].update(
-            Panel(
-                Text("Initializing simulation console..."),
-                title="Real-Time Event Log",
-                style="white",
-            )
-        )
-
         def tick_callback(tick: int, engine: SimulationEngine) -> None:
-            self.status = "Running"
             last_metric = engine.collector.results[-1]
             self._update_history(tick, last_metric)
             self.update_events(tick)
             self._update_layout(layout, tick, last_metric, algo_name, engine)
-            # Force sleep to pace the visualization
             time.sleep(self.delay)
 
         # Start live context
@@ -352,14 +279,7 @@ class LiveSimulationConsole:
                 callback=tick_callback,
                 show_progress=False,  # Turn off standard progress bar
             )
-            # Finish simulation, mark status completed and show final render
-            self.status = "Completed"
             self.log_event("[bold green]Simulation completed[/bold green]")
-            if self.engine.collector.results:
-                last_metric = self.engine.collector.results[-1]
-                self._update_layout(
-                    layout, self.duration_ticks - 1, last_metric, algo_name, self.engine
-                )
             # Sleep a tiny bit at the end so the user can see the final state
             time.sleep(1.0)
 

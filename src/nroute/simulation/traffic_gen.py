@@ -113,7 +113,6 @@ class TrafficGenerator:
         Generate flows where traffic demand between u and v is proportional
         to Capacity(u) * Capacity(v).
         """
-
         node_data = topology.graph.nodes(data=True)
         nodes = []
         capacities = []

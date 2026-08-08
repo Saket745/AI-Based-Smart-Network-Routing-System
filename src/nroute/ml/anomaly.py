@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import os
+import tempfile
+import zipfile
 from typing import Any, cast
 
 import joblib
@@ -181,81 +184,69 @@ class AnomalyDetector:
             else:
                 raise ModelError("Custom model must implement 'fit()' or 'train()' method.")
 
-    def detect(self, features: pd.DataFrame) -> pd.DataFrame:
-        """
-        Detect anomalies in traffic features.
+    def _detect_isolation_forest(self, x_data: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Run anomaly detection using the trained Isolation Forest model."""
+        # decision_function outputs values in [-0.5, 0.5] (lower means more anomalous)
+        raw_scores = self.model.decision_function(x_data)
+        # Map score to [0.0, 1.0] where 1.0 is extremely anomalous
+        # Standard mapping: anomaly_score = clamp(0.5 - raw_score)
+        anomaly_scores = np.clip(0.5 - raw_scores, 0.0, 1.0)
 
-        Args:
-            features: Features DataFrame to check.
+        # predict() returns 1 (normal) and -1 (anomaly)
+        preds = self.model.predict(x_data)
+        is_anomaly = preds == -1
+        return anomaly_scores, is_anomaly
 
-        Returns:
-            DataFrame containing anomaly details:
-            - anomaly_score: float (0.0 to 1.0, higher means more anomalous).
-            - is_anomaly: bool (True if flagged).
-            - anomaly_type: str ("DDoS" | "link_failure" | "black_hole" | "normal").
-        """
-        if not self.is_trained:
-            raise ModelError("Model must be trained before calling detect().")
+    def _detect_autoencoder(self, x_data: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Run anomaly detection using the trained Autoencoder network."""
+        self.model.eval()
+        x_norm = self._normalize(x_data, train=False)
+        x_tensor = torch.tensor(x_norm, dtype=torch.float32)
 
-        if features.empty:
-            return pd.DataFrame(columns=["anomaly_score", "is_anomaly", "anomaly_type"])
+        with torch.no_grad():
+            reconstructed = self.model(x_tensor)
+            # Compute reconstruction error per sample
+            mse_errors = torch.mean((reconstructed - x_tensor) ** 2, dim=1).numpy()
 
-        numeric_features = features.select_dtypes(include=[np.number])
-        x_data = numeric_features.values
+        # Map error to score: scale relative to threshold
+        # E.g., if error is threshold, score is 0.5. Clamp to [0, 1]
+        anomaly_scores = np.clip(
+            (mse_errors / (self.reconstruction_threshold + 1e-6)) * 0.5, 0.0, 1.0
+        )
+        is_anomaly = mse_errors > self.reconstruction_threshold
+        return anomaly_scores, is_anomaly
 
-        if self.model_type == "isolation_forest":
-            # decision_function outputs values in [-0.5, 0.5] (lower means more anomalous)
-            raw_scores = self.model.decision_function(x_data)
-            # Map score to [0.0, 1.0] where 1.0 is extremely anomalous
-            # Standard mapping: anomaly_score = clamp(0.5 - raw_score)
+    def _detect_custom(
+        self, features: pd.DataFrame, x_data: np.ndarray
+    ) -> pd.DataFrame | tuple[np.ndarray, np.ndarray]:
+        """Run anomaly detection using a custom model."""
+        x_norm = self._normalize(x_data, train=False)
+        if hasattr(self.model, "detect"):
+            # If custom model implements full detect interface
+            return self.model.detect(features)
+
+        # Fallback score logic
+        if hasattr(self.model, "decision_function"):
+            raw_scores = self.model.decision_function(x_norm)
             anomaly_scores = np.clip(0.5 - raw_scores, 0.0, 1.0)
+        elif hasattr(self.model, "predict_proba"):
+            probs = self.model.predict_proba(x_norm)
+            if len(probs.shape) > 1 and probs.shape[1] > 1:
+                probs = probs[:, 1]
+            anomaly_scores = probs
+        else:
+            anomaly_scores = np.zeros(len(features))
 
-            # predict() returns 1 (normal) and -1 (anomaly)
-            preds = self.model.predict(x_data)
-            is_anomaly = preds == -1
+        if hasattr(self.model, "predict"):
+            preds = self.model.predict(x_norm)
+            is_anomaly = (preds == -1) | ((preds == 1) & (anomaly_scores >= 0.5))
+        else:
+            is_anomaly = anomaly_scores >= 0.5
 
-        elif self.model_type == "autoencoder":
-            self.model.eval()
-            x_norm = self._normalize(x_data, train=False)
-            x_tensor = torch.tensor(x_norm, dtype=torch.float32)
+        return anomaly_scores, is_anomaly
 
-            with torch.no_grad():
-                reconstructed = self.model(x_tensor)
-                # Compute reconstruction error per sample
-                mse_errors = torch.mean((reconstructed - x_tensor) ** 2, dim=1).numpy()
-
-            # Map error to score: scale relative to threshold
-            # E.g., if error is threshold, score is 0.5. Clamp to [0, 1]
-            anomaly_scores = np.clip(
-                (mse_errors / (self.reconstruction_threshold + 1e-6)) * 0.5, 0.0, 1.0
-            )
-            is_anomaly = mse_errors > self.reconstruction_threshold
-
-        elif self.model_type == "custom":
-            x_norm = self._normalize(x_data, train=False)
-            if hasattr(self.model, "detect"):
-                # If custom model implements full detect interface
-                return self.model.detect(features)
-
-            # Fallback score logic
-            if hasattr(self.model, "decision_function"):
-                raw_scores = self.model.decision_function(x_norm)
-                anomaly_scores = np.clip(0.5 - raw_scores, 0.0, 1.0)
-            elif hasattr(self.model, "predict_proba"):
-                probs = self.model.predict_proba(x_norm)
-                if len(probs.shape) > 1 and probs.shape[1] > 1:
-                    probs = probs[:, 1]
-                anomaly_scores = probs
-            else:
-                anomaly_scores = np.zeros(len(features))
-
-            if hasattr(self.model, "predict"):
-                preds = self.model.predict(x_norm)
-                is_anomaly = (preds == -1) | ((preds == 1) & (anomaly_scores >= 0.5))
-            else:
-                is_anomaly = anomaly_scores >= 0.5
-
-        # Classify anomaly types using heuristics
+    def _classify_anomaly_types(self, features: pd.DataFrame, is_anomaly: np.ndarray) -> list[str]:
+        """Classify anomaly types using heuristics based on features."""
         anomaly_types = []
         for idx in range(len(features)):
             if not is_anomaly[idx]:
@@ -279,6 +270,47 @@ class AnomalyDetector:
                 # Default fallback type is link_failure / high utilization congestion
                 anomaly_types.append("link_failure")
 
+        return anomaly_types
+
+    def detect(self, features: pd.DataFrame) -> pd.DataFrame:
+        """
+        Detect anomalies in traffic features.
+
+        Args:
+            features: Features DataFrame to check.
+
+        Returns:
+            DataFrame containing anomaly details:
+            - anomaly_score: float (0.0 to 1.0, higher means more anomalous).
+            - is_anomaly: bool (True if flagged).
+            - anomaly_type: str ("DDoS" | "link_failure" | "black_hole" | "normal").
+        """
+        if not self.is_trained:
+            raise ModelError("Model must be trained before calling detect().")
+
+        if features.empty:
+            return pd.DataFrame(columns=["anomaly_score", "is_anomaly", "anomaly_type"])
+
+        numeric_features = features.select_dtypes(include=[np.number])
+        x_data = numeric_features.values
+
+        if self.model_type == "isolation_forest":
+            anomaly_scores, is_anomaly = self._detect_isolation_forest(x_data)
+
+        elif self.model_type == "autoencoder":
+            anomaly_scores, is_anomaly = self._detect_autoencoder(x_data)
+
+        elif self.model_type == "custom":
+            res = self._detect_custom(features, x_data)
+            if isinstance(res, pd.DataFrame):
+                return res
+            anomaly_scores, is_anomaly = res
+        else:
+            anomaly_scores = np.zeros(len(features))
+            is_anomaly = np.zeros(len(features), dtype=bool)
+
+        anomaly_types = self._classify_anomaly_types(features, is_anomaly)
+
         return pd.DataFrame(
             {
                 "anomaly_score": anomaly_scores,
@@ -296,31 +328,67 @@ class AnomalyDetector:
         dirname = os.path.dirname(path)
         if dirname:
             os.makedirs(dirname, exist_ok=True)
+        if os.path.dirname(path):
+            os.makedirs(os.path.dirname(path), exist_ok=True)
 
-        save_dict = {
+        # Base metadata (JSON-safe primitives only)
+        metadata = {
             "model_type": self.model_type,
             "is_trained": self.is_trained,
             "contamination": self.contamination,
-            "feature_means": self.feature_means,
-            "feature_stds": self.feature_stds,
+            "serialization_version": "2.0",
         }
 
+        # Convert numpy arrays to lists for JSON or tensors for torch.save
+        feature_means = self.feature_means.tolist() if self.feature_means is not None else None
+        feature_stds = self.feature_stds.tolist() if self.feature_stds is not None else None
+
         if self.model_type == "isolation_forest":
-            save_dict["model"] = self.model
-            joblib.dump(save_dict, path)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                # Save metadata
+                meta_path = os.path.join(tmpdir, "metadata.json")
+                metadata.update(
+                    {
+                        "feature_means": feature_means,
+                        "feature_stds": feature_stds,
+                    }
+                )
+                with open(meta_path, "w") as f:
+                    json.dump(metadata, f)
+
+                # Save Isolation Forest model
+                model_path = os.path.join(tmpdir, "model.joblib")
+                joblib.dump(self.model, model_path)
+
+                # Zip them together
+                with zipfile.ZipFile(path, "w") as zf:
+                    zf.write(meta_path, "metadata.json")
+                    zf.write(model_path, "model.joblib")
+
         elif self.model_type == "autoencoder":
-            save_dict["reconstruction_threshold"] = self.reconstruction_threshold
-            save_dict["state_dict"] = self.model.state_dict()
-            save_dict["input_dim"] = (
-                self.feature_means.shape[0] if self.feature_means is not None else 8
-            )
+            save_dict = {
+                "metadata": metadata,
+                "reconstruction_threshold": self.reconstruction_threshold,
+                "state_dict": self.model.state_dict(),
+                "input_dim": self.feature_means.shape[0] if self.feature_means is not None else 8,
+                # Store as tensors to allow weights_only=True
+                "feature_means": (
+                    torch.from_numpy(self.feature_means) if self.feature_means is not None else None
+                ),
+                "feature_stds": (
+                    torch.from_numpy(self.feature_stds) if self.feature_stds is not None else None
+                ),
+            }
             torch.save(save_dict, path)
+
         elif self.model_type == "custom":
             if hasattr(self.model, "save"):
                 self.model.save(path)
             else:
-                save_dict["model"] = self.model
-                joblib.dump(save_dict, path)
+                raise ModelError(
+                    f"Custom model of type {type(self.model)} does not implement a 'save' method. "
+                    "Secure serialization for arbitrary custom objects is not supported by default."
+                )
 
     def load(self, path: str, allow_unsafe: bool = False) -> None:
         """
@@ -339,31 +407,100 @@ class AnomalyDetector:
 
         try:
             if path.endswith(".pt") or path.endswith(".pth"):
-                try:
-                    load_dict = torch.load(
-                        path,
-                        map_location=torch.device("cpu"),
-                        weights_only=not allow_unsafe,
-                    )
-                except Exception as e:
-                    if not allow_unsafe:
-                        raise ModelError(
-                            "Failed to load PyTorch model securely. Set allow_unsafe=True "
-                            f"if you trust the source. Error: {e}"
-                        ) from e
-                    raise
+                self._load_pytorch(path, allow_unsafe)
+            elif zipfile.is_zipfile(path):
+                self._load_zip(path, allow_unsafe)
             else:
-                if not allow_unsafe:
-                    raise ModelError(
-                        "Insecure model file detected (joblib/pickle). Loading is blocked for "
-                        "security. Set allow_unsafe=True if you trust the source."
-                    )
-                load_dict = joblib.load(path)
+                self._load_legacy_joblib(path, allow_unsafe)
         except ModelError:
             raise
         except Exception as e:
             raise ModelError(f"Failed to load model from {path}: {e}") from e
 
+    def _load_pytorch(self, path: str, allow_unsafe: bool) -> None:
+        """Load PyTorch format model."""
+        try:
+            load_dict = torch.load(
+                path,
+                map_location=torch.device("cpu"),
+                weights_only=not allow_unsafe,
+            )
+        except Exception as e:
+            if not allow_unsafe:
+                raise ModelError(
+                    "Failed to load PyTorch model securely. Set allow_unsafe=True "
+                    f"if you trust the source. Error: {e}"
+                ) from e
+            raise
+
+        if "metadata" in load_dict:
+            metadata = load_dict["metadata"]
+            self.model_type = metadata["model_type"]
+            self.is_trained = metadata["is_trained"]
+            self.contamination = metadata.get("contamination", 0.05)
+
+            if self.model_type == "autoencoder":
+                input_dim = load_dict["input_dim"]
+                self.model = AutoencoderNet(input_dim)
+                self.model.load_state_dict(load_dict["state_dict"])
+                self.reconstruction_threshold = load_dict["reconstruction_threshold"]
+                self.model.eval()
+
+            means = load_dict.get("feature_means")
+            stds = load_dict.get("feature_stds")
+            self.feature_means = means.numpy() if means is not None else None
+            self.feature_stds = stds.numpy() if stds is not None else None
+        else:
+            # Legacy PyTorch format
+            self.model_type = load_dict["model_type"]
+            self.is_trained = load_dict["is_trained"]
+            self.contamination = load_dict.get("contamination", 0.05)
+            self.feature_means = load_dict.get("feature_means")
+            self.feature_stds = load_dict.get("feature_stds")
+
+            if self.model_type == "autoencoder":
+                input_dim = load_dict["input_dim"]
+                self.model = AutoencoderNet(input_dim)
+                self.model.load_state_dict(load_dict["state_dict"])
+                self.reconstruction_threshold = load_dict["reconstruction_threshold"]
+                self.model.eval()
+
+    def _load_zip(self, path: str, allow_unsafe: bool) -> None:
+        """Load new Zip-based format."""
+        with zipfile.ZipFile(path, "r") as zf:
+            with zf.open("metadata.json") as f:
+                metadata = json.load(f)
+
+            self.model_type = metadata["model_type"]
+            self.is_trained = metadata["is_trained"]
+            self.contamination = metadata.get("contamination", 0.05)
+
+            means = metadata.get("feature_means")
+            stds = metadata.get("feature_stds")
+            self.feature_means = np.array(means) if means is not None else None
+            self.feature_stds = np.array(stds) if stds is not None else None
+
+            if self.model_type == "isolation_forest":
+                if not allow_unsafe:
+                    raise ModelError(
+                        "Insecure model file detected (joblib/pickle) inside archive. "
+                        "Loading is blocked for security. Set allow_unsafe=True if you trust the source."
+                    )
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    zf.extract("model.joblib", tmpdir)
+                    model_path = os.path.join(tmpdir, "model.joblib")
+                    self.model = joblib.load(model_path)
+            else:
+                raise ModelError(f"Unsupported model type in zip archive: {self.model_type}")
+
+    def _load_legacy_joblib(self, path: str, allow_unsafe: bool) -> None:
+        """Load legacy joblib/pickle format."""
+        if not allow_unsafe:
+            raise ModelError(
+                "Insecure model file detected (joblib/pickle). Loading is blocked for "
+                "security. Set allow_unsafe=True if you trust the source."
+            )
+        load_dict = joblib.load(path)
         self.model_type = load_dict["model_type"]
         self.is_trained = load_dict["is_trained"]
         self.contamination = load_dict.get("contamination", 0.05)
@@ -372,14 +509,5 @@ class AnomalyDetector:
 
         if self.model_type == "isolation_forest":
             self.model = load_dict["model"]
-        elif self.model_type == "autoencoder":
-            input_dim = load_dict["input_dim"]
-            self.model = AutoencoderNet(input_dim)
-            self.model.load_state_dict(load_dict["state_dict"])
-            self.reconstruction_threshold = load_dict["reconstruction_threshold"]
-            self.model.eval()
         elif self.model_type == "custom":
-            if "model" in load_dict:
-                self.model = load_dict["model"]
-            else:
-                pass
+            self.model = load_dict.get("model")
