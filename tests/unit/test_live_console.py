@@ -9,6 +9,7 @@ from rich.layout import Layout
 
 from nroute.core.metrics import SimulationMetrics
 from nroute.core.topology import Topology
+from nroute.exceptions import TopologyError
 from nroute.routing.dijkstra import DijkstraRouter
 from nroute.simulation.engine import SimulationEngine
 from nroute.simulation.traffic_gen import TrafficGenerator
@@ -63,8 +64,10 @@ def test_live_console_basic_logging() -> None:
     console_viz.update_events(tick=1)
     assert any("Node A recovered (UP)" in event for event in console_viz.event_log)
 
+
 def test_live_console_event_handling() -> None:
     """Verify LiveSimulationConsole handles various simulation events."""
+
 
 def test_live_console_helpers() -> None:
     """Test individual helper methods of LiveSimulationConsole."""

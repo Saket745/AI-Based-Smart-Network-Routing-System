@@ -2,11 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-from collections.abc import Callable  # noqa: TC003
-from typing import TYPE_CHECKING, Any
-from unittest.mock import patch
-
 from collections.abc import Callable  # noqa: TC003
 from typing import Any
 
@@ -18,9 +13,6 @@ from nroute.exceptions import RoutingError
 from nroute.routing.base import FallbackRouter
 from nroute.routing.dijkstra import DijkstraRouter
 from nroute.routing.ecmp import ECMPRouter
-
-if TYPE_CHECKING:
-    pass
 
 
 def test_ecmp_equal_cost_paths() -> None:

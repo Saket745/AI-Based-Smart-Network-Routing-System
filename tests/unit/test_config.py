@@ -264,6 +264,7 @@ def test_load_config_env_override_custom_routers_limitation(
     assert "myalgo" not in cfg.custom_routers
     assert cfg.custom_routers == {}
 
+
 def test_load_config_searches_configs_subfolder(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
