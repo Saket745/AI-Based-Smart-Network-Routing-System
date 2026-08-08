@@ -102,7 +102,6 @@ class SimulationEngine:
         try:
             for tick in range(duration_ticks):
                 self._run_tick(tick, tick_duration, callback)
-=======
                 timestamp = tick * tick_duration
 
                 # 1. Apply failures scheduled for this tick
@@ -159,7 +158,6 @@ class SimulationEngine:
                     edge_down = False
                     try:
                         edge_data = graph.edges[u, v]
-=======
                         # Direct access to avoid dictionary copies in core loop
                         edge_data = self.topology.graph.edges[u, v]
                         edge_down = edge_data.get("status", "up") == "down"
@@ -169,7 +167,6 @@ class SimulationEngine:
                     node_down = False
                     try:
                         node_data = graph.nodes[v]
-=======
                         # Direct access to avoid dictionary copies in core loop
                         node_data = self.topology.graph.nodes[v]
                         node_down = node_data.get("status", "up") == "down"
@@ -195,7 +192,6 @@ class SimulationEngine:
                     # Forward across edge u -> v
                     try:
                         edge_data = graph.edges[u, v]
-=======
                         # Direct access to avoid dictionary copies in core loop
                         edge_data = self.topology.graph.edges[u, v]
                         loss_prob = float(edge_data.get("packet_loss", 0.0))
@@ -239,7 +235,6 @@ class SimulationEngine:
                 self.last_tick_completed_flows = completed_flows
                 self.last_tick_dropped_flows = dropped_flows
                 self.last_tick_reroute_count = reroute_count
-=======
                 self._run_tick(tick, timestamp, tick_duration)
 
                 if callback is not None:
@@ -597,11 +592,9 @@ class SimulationEngine:
         # 1. Reset all edges to 0 utilization
         for _, _, edge_data in self.topology.graph.edges(data=True):
             edge_data["utilization"] = 0.0
-=======
         # Iterate over graph data directly to avoid repeated get_edge calls
         for _, _, edge_data in self.topology.graph.edges(data=True):
             edge_data["utilization"] = 0.0
-=======
         # 1. Reset all edges to 0 utilization directly in networkx graph for performance
         g = self.topology.graph
         for u, v in g.edges:
@@ -629,7 +622,6 @@ class SimulationEngine:
         for (u, v), demand in link_demands.items():
             if graph.has_edge(u, v):
                 edge_data = graph.edges[u, v]
-=======
         graph_edges = self.topology.graph.edges
         for (u, v), demand in link_demands.items():
             try:
@@ -640,6 +632,5 @@ class SimulationEngine:
                 # Clamp to [0.0, 1.0] for topology validation rules
                 util = min(1.0, max(0.0, util))
                 edge_data["utilization"] = util
-=======
             except Exception:
                 pass

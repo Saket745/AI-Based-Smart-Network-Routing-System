@@ -122,7 +122,6 @@ class TopologyGenerator:
 
         # Add Aggregation Switches
         for agg in range(num_agg_per_pod):
-=======
     def _add_pod_agg_switches(graph: nx.DiGraph, pod_idx: int, num_agg: int) -> list[str]:
         """Add Aggregation Switches for a pod."""
         agg_nodes = []
@@ -135,7 +134,6 @@ class TopologyGenerator:
 
         # Add Edge Switches and Hosts
         for edge in range(num_edge_per_pod):
-=======
         return agg_nodes
 
     @staticmethod
@@ -156,7 +154,6 @@ class TopologyGenerator:
 
             # Add Hosts and connect to Edge Switch
             for host in range(num_hosts_per_edge):
-=======
             for host in range(num_hosts):
                 host_id = f"pod_{pod_idx}_host_{edge}_{host}"
                 graph.add_node(
@@ -167,7 +164,6 @@ class TopologyGenerator:
                 host_bw = default_attrs.get("host_bandwidth", 1000.0)
                 host_lat = default_attrs.get("host_latency", 0.5)
 
-=======
                 for u, v in [(host_id, edge_id), (edge_id, host_id)]:
                     graph.add_edge(
                         u,
@@ -210,7 +206,6 @@ class TopologyGenerator:
         core_bw = default_attrs.get("core_bandwidth", 40000.0)
         core_lat = default_attrs.get("core_latency", 2.0)
         stride = k // 2
-=======
     @staticmethod
     def _connect_agg_to_core(
         graph: nx.DiGraph,

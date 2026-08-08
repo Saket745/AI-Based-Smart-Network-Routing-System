@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import json
 from typing import TYPE_CHECKING
-=======
 from typing import TYPE_CHECKING
-=======
 from typing import TYPE_CHECKING, Any
 
 import click
@@ -56,27 +54,21 @@ class AnomalyDetectArgs(BaseModel):
     help="Allow insecure deserialization of legacy models.",
 )
 def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
-=======
     help="Allow loading legacy joblib/pickle models (insecure).",
 )
 def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
-=======
     help="Allow loading insecure model files (joblib/pickle).",
 )
 def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
-=======
     help="Allow loading of legacy joblib/pickle models (insecure).",
 )
 def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
-=======
     help="Allow loading models from insecure joblib/pickle files.",
 )
 def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
-=======
     help="Allow insecure deserialization (pickle/joblib) of models.",
 )
 def anomalies(traffic_path: str, model_path: str, allow_unsafe: bool) -> None:
-=======
     help="Allow loading of unsafe models (joblib/pickle).",
 )
 @click.pass_context
@@ -134,7 +126,6 @@ def _load_traffic_data(args: AnomalyDetectArgs) -> pd.DataFrame:
 def _init_detector(args: AnomalyDetectArgs) -> AnomalyDetector:
     """Initialize and load the anomaly detector model."""
     from nroute.ml.anomaly import AnomalyDetector
-=======
 class AnomalyDetectArgs(BaseModel):
     """Arguments for the anomalies detection command."""
 
@@ -159,7 +150,6 @@ def _handle_error(msg: str, is_json: bool, e: Exception | None = None) -> None:
 
 def _load_traffic_data(traffic_path: str, is_json: bool) -> pd.DataFrame:
     """Load traffic data from CSV."""
-=======
     """Load traffic features from CSV."""
     import pandas as pd
 
@@ -172,7 +162,6 @@ def _load_traffic_data(traffic_path: str, is_json: bool) -> pd.DataFrame:
             click.echo(json.dumps({"error": f"Failed to load traffic data: {e}"}), err=True)
             raise SystemExit(1) from e
         console.print(f"[red]x Failed to load traffic data:[/red] {e}")
-=======
         _handle_error(f"Failed to load traffic data: {e}", is_json, e)
         raise  # unreachable due to SystemExit
 
@@ -180,7 +169,6 @@ def _load_traffic_data(traffic_path: str, is_json: bool) -> pd.DataFrame:
 def _init_detector(model_path: str, allow_unsafe: bool, is_json: bool) -> AnomalyDetector:
     """Initialize and load the anomaly detector."""
     from nroute.ml.anomaly import AnomalyDetector
-=======
         # Unreachable but for mypy
         raise SystemExit(1) from e
 
@@ -191,7 +179,6 @@ def _init_detector(model_path: str, allow_unsafe: bool, is_json: bool) -> Anomal
     try:
         detector = AnomalyDetector()
         detector.load(model_path, allow_unsafe=allow_unsafe)
-=======
 
         return detector
     except ModelError as e:
@@ -249,7 +236,6 @@ def _output_json_results(results: pd.DataFrame) -> None:
 
 def _output_console_results(results: pd.DataFrame) -> None:
     """Output detection results to console with styled tables."""
-=======
         detector.load(model_path, allow_unsafe=allow_unsafe)
         return detector
     except ModelError as e:
@@ -259,7 +245,6 @@ def _output_console_results(results: pd.DataFrame) -> None:
             click.echo(json.dumps({"error": f"Failed to load model: {e}"}), err=True)
             raise SystemExit(1) from e
         console.print(f"[red]x Failed to load model:[/red] {e}")
-=======
         _handle_error(f"Failed to load model: {e}", is_json, e)
         # Unreachable but for mypy
         raise SystemExit(1) from e
@@ -305,7 +290,6 @@ def _run_detection(
         return
 
     # Display results
-=======
         _handle_error(f"Detection failed: {e}", is_json, e)
         # Unreachable but for mypy
         raise SystemExit(1) from e
@@ -338,7 +322,6 @@ def _output_json_results(results: pd.DataFrame) -> None:
 
 def _output_console_results(results: pd.DataFrame) -> None:
     """Output detection results to the console with Rich formatting."""
-=======
     """Format and output detection results to console with Rich."""
     console.print()
     console.rule("[bold cyan]Anomaly Detection Results[/bold cyan]")
@@ -445,7 +428,6 @@ def anomalies(
 
     features = _load_traffic_data(args)
     detector = _init_detector(args)
-=======
 def anomalies(ctx: click.Context, /, **kwargs: Any) -> None:
     """Detect anomalies in network traffic data."""
     args = AnomalyDetectArgs(**kwargs)

@@ -24,7 +24,6 @@ ALLOWED_PREFIXES = [
     "hotfix/",
     "test/",
     "experiment/"
-=======
     "experiment/",
 ]
 
@@ -38,7 +37,6 @@ def get_current_branch():
             capture_output=True,
             text=True,
             check=True
-=======
 
 def get_current_branch():
     try:

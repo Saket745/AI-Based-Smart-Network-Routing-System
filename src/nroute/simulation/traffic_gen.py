@@ -130,6 +130,7 @@ class TrafficGenerator:
                 weights.append(capacities[src] * capacities[dst])
 
         if not pairs:
+            return []
         node_data = topology.graph.nodes(data=True)
         nodes = []
         capacities = []
@@ -175,8 +176,6 @@ class TrafficGenerator:
         if not hotspots:
             node_data = list(topology.graph.nodes(data=True))
             sorted_nodes = sorted(
-                nodes,
-                key=lambda n: float(graph.nodes[n].get("capacity", 1000.0)),
                 node_data,
                 key=lambda x: float(x[1].get("capacity", 1000.0)),
                 reverse=True,

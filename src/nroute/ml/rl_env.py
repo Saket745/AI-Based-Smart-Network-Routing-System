@@ -269,7 +269,6 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         loss = float(edge_attr.get("packet_loss", 0.0))
 
         # 4. Graduated loop detection
-=======
         # 3. Graduated loop detection
         visit_count = self._visit_counts.get(next_node, 0)
         if visit_count >= 2:

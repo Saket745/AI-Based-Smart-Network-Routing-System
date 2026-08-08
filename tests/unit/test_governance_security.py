@@ -2,25 +2,12 @@
 
 from __future__ import annotations
 
-=======
-import os
-import tempfile
-
-import joblib
-=======
-import torch
-import joblib
-import pytest
-import pandas as pd
-import numpy as np
 import contextlib
 import os
 import tempfile
+from unittest.mock import patch
 
 import joblib
-
-from unittest.mock import patch
- import joblib
 import pytest
 
 from nroute.exceptions import ModelError
@@ -28,16 +15,6 @@ from nroute.ml.anomaly import AnomalyDetector
 from nroute.ml.congestion import CongestionPredictor
 
 
-def test_anomaly_detector_secure_loading_enforcement():
-=======
-=======
-
-def test_anomaly_detector_secure_loading_enforcement():
-=======
-def test_anomaly_detector_secure_loading_enforcement():
-
-def test_anomaly_detector_secure_loading_enforcement():
-=======
 def test_anomaly_detector_secure_loading_enforcement() -> None:
     """Verify that AnomalyDetector blocks insecure files by default."""
     detector = AnomalyDetector(model_type="isolation_forest")
@@ -53,55 +30,8 @@ def test_anomaly_detector_secure_loading_enforcement() -> None:
 
         # Should succeed with allow_unsafe=True (well, fail later during processing, but pass the security check)
         with contextlib.suppress(ModelError, KeyError):
-=======
-        from contextlib import suppress
-
-        with suppress(ModelError, KeyError):
-=======
-        try:
-            detector.load(path, allow_unsafe=True)
-        except (ModelError, KeyError):
-            # We expect failure later since it's not a real model, but the security block is bypassed
-            pass
-
-def test_congestion_predictor_secure_loading_enforcement():
-=======
-        # Should succeed with allow_unsafe=True (well, fail later during processing,
-        # but pass the security check)
-=======
-        # Should succeed with allow_unsafe=True (well, fail later during processing, but pass the security check)
-        import contextlib
-
-        with contextlib.suppress(ModelError, KeyError):
-            # We expect failure later since it's not a real model, but the security block is bypassed
             detector.load(path, allow_unsafe=True)
 
-=======
-        with contextlib.suppress(ModelError, KeyError):
-            # We expect failure later since it's not a real model, but the security block is bypassed
-            detector.load(path, allow_unsafe=True)
-
-
-def test_congestion_predictor_secure_loading_enforcement():
-=======
-            # We expect failure later since it's not a real model, but the security block is bypassed
-            detector.load(path, allow_unsafe=True)
-
-            # We expect failure later since it's not a real model, but the security block is bypassed
-            detector.load(path, allow_unsafe=True)
-
-            # We expect failure later since it's not a real model, but the security block is bypassed
-            detector.load(path, allow_unsafe=True)
-
-        # We expect failure later since it's not a real model, but the security block is bypassed
-        with contextlib.suppress(ModelError, KeyError):
-            detector.load(path, allow_unsafe=True)
-
-        with contextlib.suppress(ModelError, KeyError):
-            detector.load(path, allow_unsafe=True)
-        with contextlib.suppress(ModelError, KeyError):
-            # We expect failure later since it's not a real model, but the security block is bypassed
-            detector.load(path, allow_unsafe=True)
 
 def test_anomaly_detector_pytorch_secure_loading_failure() -> None:
     """Verify that AnomalyDetector handles PyTorch secure loading failures."""
@@ -121,9 +51,10 @@ def test_anomaly_detector_pytorch_secure_loading_failure() -> None:
                 detector.load(path, allow_unsafe=True)
             assert f"Failed to load model from {path}" in str(excinfo.value)
             assert "Security breach!" in str(excinfo.value)
+
+
 def test_congestion_predictor_secure_loading_enforcement() -> None:
     """Verify that CongestionPredictor blocks insecure files by default."""
-    # CongestionPredictor already has some logic, but let's ensure our changes didn't break it
     predictor = CongestionPredictor(model_type="xgboost")
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -132,7 +63,7 @@ def test_congestion_predictor_secure_loading_enforcement() -> None:
 
         with pytest.raises(ModelError, match="Insecure model file detected"):
             predictor.load(path, allow_unsafe=False)
-=======
+
 
 def test_congestion_predictor_pytorch_secure_loading_failure() -> None:
     """Verify that CongestionPredictor handles PyTorch secure loading failures."""
@@ -152,13 +83,14 @@ def test_congestion_predictor_pytorch_secure_loading_failure() -> None:
                 predictor.load(path, allow_unsafe=True)
             assert f"Failed to load model from {path}" in str(excinfo.value)
             assert "Security breach!" in str(excinfo.value)
+
+
 def test_anomaly_detector_pytorch_load_failure() -> None:
     """Verify that AnomalyDetector handles PyTorch load failures correctly."""
     detector = AnomalyDetector(model_type="autoencoder")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         path = os.path.join(tmpdir, "model.pt")
-        # Just need the file to exist
         with open(path, "w") as f:
             f.write("dummy")
 
@@ -180,7 +112,6 @@ def test_congestion_predictor_pytorch_load_failure() -> None:
 
     with tempfile.TemporaryDirectory() as tmpdir:
         path = os.path.join(tmpdir, "model.pt")
-        # Just need the file to exist
         with open(path, "w") as f:
             f.write("dummy")
 

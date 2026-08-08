@@ -12,7 +12,6 @@ def load_custom_class(
     import_str: str,
     expected_superclass: type | None = None,
     allow_unsafe: bool = False,
-=======
     import_str: str, expected_superclass: type | None = None, allow_unsafe: bool = False
 ) -> type:
     """
@@ -63,7 +62,6 @@ def load_custom_class(
                 f"Loading from a local Python file ('{module_part}') is restricted for "
                 "security reasons. Use a standard module path or set allow_unsafe=True "
                 "if you trust the source."
-=======
             raise ImportError(
                 f"Loading custom classes from local files is disallowed for security reasons: '{module_part}'. "
                 "Use 'allow_unsafe=True' or the '--allow-unsafe' CLI flag if you trust the source."

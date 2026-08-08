@@ -146,7 +146,6 @@ def test_failed_module_execution() -> None:
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
-=======
 def test_load_custom_class_invalid_format() -> None:
     """Test that invalid import formats raise ValueError."""
     with pytest.raises(ValueError, match="Invalid import target"):

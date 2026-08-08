@@ -3,13 +3,9 @@
 from __future__ import annotations
 
 from typing import Any
-=======
 import json
 
-=======
 from typing import cast
-=======
-=======
 import typing
 import click
 from pydantic import BaseModel, Field
@@ -111,7 +107,6 @@ def compute(
     custom_router: str | None,
     allow_unsafe: bool,
 ) -> None:
-=======
 @click.pass_context
 def compute(ctx: click.Context, **kwargs: Any) -> None:
     """Compute the optimal route between two nodes."""
@@ -124,7 +119,6 @@ def compute(ctx: click.Context, **kwargs: Any) -> None:
     # Initialize router and compute path
     try:
         topo = Topology.load(args.topo_path)
-=======
         router: BaseRouter = _init_router(algorithm, topo, allow_unsafe, custom_router)
         path = router.compute_path(topo, source, destination, weight=weight)
     except RoutingError as e:
@@ -136,7 +130,6 @@ def compute(ctx: click.Context, **kwargs: Any) -> None:
             click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
             raise SystemExit(1) from e
         console.print(f"[red]x Failed to load topology:[/red] {e}")
-=======
         _handle_error(f"Failed to compute route: {e}", is_json, e)
 
     # Compute route metrics
@@ -172,7 +165,6 @@ def _handle_error(msg: str, is_json: bool, e: Exception | None = None) -> None:
         console.print(f"[red]x Source node '{source}' not found in topology.[/red]")
         raise SystemExit(1)
     if destination not in topo.nodes:
-=======
                 json.dumps({"error": f"Source node '{args.source}' not found in topology."}),
                 err=True,
             )
@@ -190,7 +182,6 @@ def _handle_error(msg: str, is_json: bool, e: Exception | None = None) -> None:
             raise SystemExit(1)
         console.print(f"[red]x Destination node '{destination}' not found in topology.[/red]")
         raise SystemExit(1)
-=======
                 json.dumps(
                     {"error": f"Destination node '{args.destination}' not found in topology."}
                 ),
@@ -221,7 +212,6 @@ def _handle_error(msg: str, is_json: bool, e: Exception | None = None) -> None:
         else:
             router = get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
         path = router.compute_path(topo, source, destination, weight=weight)
-=======
             router = get_router(args.algorithm, topology=topo, allow_unsafe=args.allow_unsafe)
         path = router.compute_path(topo, args.source, args.destination, weight=args.weight)
     except RoutingError as e:
@@ -274,7 +264,6 @@ def _init_router(
                 "Option '--custom-router' is required when using algorithm 'custom'."
             )
         import inspect
-        =======
         from typing import cast
 
         import typing
@@ -300,15 +289,11 @@ def _init_router(
         }
         click.echo(json.dumps(out, indent=2))
         return
-=======
         router_cls = load_custom_class(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
         sig = inspect.signature(router_cls)
-=======
 
-        =======
-=======
         router_instance = (
             router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         )
@@ -318,7 +303,6 @@ def _init_router(
     if not isinstance(router_instance, BaseRouter):
         raise TypeError(f"Initialized class {type(router_instance)} is not a BaseRouter")
     return router_instance
-=======
         instance = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         if not isinstance(instance, BaseRouter):
             raise TypeError(f"Custom router '{custom_router}' is not an instance of BaseRouter")
@@ -332,12 +316,10 @@ def _init_router(
         if "topology" in sig.parameters:
             return cast("BaseRouter", router_cls(topology=topo))
         return cast("BaseRouter", router_cls())
-=======
         router: BaseRouter = (
             router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
         )
         return router
-=======
 
         router: BaseRouter = (
             router_cls(topology=topo) if "topology" in sig.parameters else router_cls()

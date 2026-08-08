@@ -6,7 +6,6 @@ from typing import Any
 
 import click
 from pydantic import BaseModel, Field
-=======
 from pydantic import BaseModel
 from rich.console import Console
 from rich.table import Table
@@ -97,15 +96,12 @@ def _load_topology(topo_path: str, is_json: bool) -> Topology:
     help="Allow loading legacy joblib/pickle models (insecure).",
 )
 def congestion(topo_path: str, model_path: str, threshold: float, allow_unsafe: bool) -> None:
-=======
     help="Allow loading insecure model files (joblib/pickle).",
 )
 def congestion(topo_path: str, model_path: str, threshold: float, allow_unsafe: bool) -> None:
-=======
     help="Allow insecure deserialization (pickle/joblib) of models.",
 )
 def congestion(topo_path: str, model_path: str, threshold: float, allow_unsafe: bool) -> None:
-=======
     help="Allow loading of unsafe models (joblib/pickle).",
 )
 @click.pass_context
@@ -127,15 +123,12 @@ def congestion(ctx: click.Context, /, **kwargs: Any) -> None:
             raise SystemExit(1) from e
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
-=======
     from nroute.ml.congestion import CongestionPredictor
 
     try:
         predictor = CongestionPredictor()
         predictor.load(model_path, allow_unsafe=allow_unsafe)
-=======
  refactor/simulation-engine-run-method-6889885359234180347
-=======
 
         predictor.load(args.model_path, allow_unsafe=args.allow_unsafe)
     except ModelError as e:
@@ -146,7 +139,6 @@ def congestion(ctx: click.Context, /, **kwargs: Any) -> None:
             raise SystemExit(1) from e
         console.print(f"[red]x Failed to load model:[/red] {e}")
         raise SystemExit(1) from e
-=======
         _handle_error(f"Failed to load model: {e}", is_json, e)
 
     # Extract current link features
@@ -339,12 +331,10 @@ class GNNPredictArgs(BaseModel):
     help="Allow loading legacy joblib/pickle models (insecure).",
 )
 def predict_gnn(
-=======
     help="Allow loading insecure model files (joblib/pickle).",
 )
 def predict_gnn(
     topo_path: str, model_type: str, model_dir: str, version: str, threshold: float, allow_unsafe: bool
-=======
     help="Allow insecure deserialization (pickle/joblib) of models.",
 )
 def predict_gnn(
@@ -355,12 +345,10 @@ def predict_gnn(
     threshold: float,
     allow_unsafe: bool,
 ) -> None:
-=======
     help="Allow loading of unsafe models (joblib/pickle).",
 )
 @click.pass_context
 def predict_gnn(ctx: click.Context, **kwargs: Any) -> None:
-=======
 def predict_gnn(ctx: click.Context, /, **kwargs: Any) -> None:
     """Predict link congestion and latency using trained GNN models."""
     args = GNNPredictArgs(**kwargs)
@@ -381,7 +369,6 @@ def predict_gnn(ctx: click.Context, /, **kwargs: Any) -> None:
             raise SystemExit(1) from e
         console.print(f"[red]x Failed to load topology:[/red] {e}")
         raise SystemExit(1) from e
-=======
     # 1. Instantiate the GNN model structure
     model = _init_gnn_model(args.model_type)
 
@@ -417,7 +404,6 @@ def _init_gnn_model(model_type: str) -> Any:
         model = GraphSAGEModel(
             node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim
         )
-=======
     if model_type.lower() == "gcn":
         return GCNModel(node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim)
     return GraphSAGEModel(node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=hidden_dim)
@@ -452,12 +438,10 @@ def _load_gnn_model_state(model: Any, args: GNNPredictArgs, is_json: bool) -> No
 
             raise SystemExit(1) from e
         console.print(f"[red]x Failed to load model {model_type} (version {version}):[/red] {e}")
-=======
         console.print(
             f"[red]x Failed to load model {args.model_type} (version {args.version}):[/red] {e}"
         )
         raise SystemExit(1) from e
-=======
         msg = f"Failed to load model {args.model_type} (version {args.version}): {e}"
         _handle_error(msg, is_json, e)
 
@@ -524,7 +508,6 @@ def _run_gnn_inference(model: Any, bundle: Any) -> tuple[list[float], list[float
         }
         click.echo(json.dumps(out, indent=2))
         return
-=======
 def _print_gnn_json(
     topo: Topology,
     probs: list[float],

@@ -11,7 +11,6 @@ def test_seeded_random_reproducibility() -> None:
 
     # Test randint
     assert rng1.randint(0, 100) == rng2.randint(0, 100)
-=======
 def test_seeded_random_initialization() -> None:
     """Test that SeededRandom can be initialized with and without a seed."""
     rng1 = SeededRandom(seed=42)
@@ -42,7 +41,6 @@ def test_seeded_random_reproducibility() -> None:
 
     # Test choices
     assert rng1.choices(items, k=2) == rng2.choices(items, k=2)
-=======
     # Test randint
     assert rng1.randint(1, 100) == rng2.randint(1, 100)
 
@@ -87,7 +85,6 @@ def test_seeded_random_no_seed() -> None:
     rng2 = SeededRandom()
 
     # Check that they are different
-=======
     """Test that different seeds produce different sequences."""
     rng1 = SeededRandom(seed=42)
     rng2 = SeededRandom(seed=43)
@@ -110,7 +107,6 @@ def test_get_rng() -> None:
 def test_randint_range() -> None:
     """Verify randint stays within range."""
     rng = SeededRandom(42)
-=======
 def test_randint() -> None:
     """Test randint produces values in the correct range."""
     rng = SeededRandom(seed=42)
@@ -122,7 +118,6 @@ def test_randint() -> None:
 def test_random_float_range() -> None:
     """Verify random_float stays within [0, 1)."""
     rng = SeededRandom(42)
-=======
 def test_random_float() -> None:
     """Test random_float produces values in [0.0, 1.0)."""
     rng = SeededRandom(seed=42)
@@ -177,7 +172,6 @@ def test_shuffle_in_place() -> None:
     assert sorted(shuffled) == sorted(original)
     # Likely different order
     assert shuffled != original
-=======
 def test_uniform() -> None:
     """Test uniform produces values in the correct range."""
     rng = SeededRandom(seed=42)
