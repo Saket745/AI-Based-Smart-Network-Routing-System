@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import math
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from nroute.exceptions import ValidationError
 
@@ -68,6 +70,36 @@ def validate_positive_float(value: Any, name: str) -> float:
         raise ValidationError(f"Parameter '{name}' must be a non-negative number, got {val}.")
 
     return val
+
+
+def validate_file_path(path: Any, must_exist: bool = True) -> Path:
+    """
+    Validate that a file path is valid and optionally exists.
+
+    Args:
+        path: The path to validate (str or Path).
+        must_exist: If True, check if the file exists on the filesystem.
+
+    Returns:
+        The validated Path object.
+
+    Raises:
+        ValidationError: If the path is invalid or does not exist.
+    """
+    if not path:
+        raise ValidationError("Path cannot be empty.")
+
+    from pathlib import Path
+
+    try:
+        validated_path = Path(path).resolve()
+    except Exception as e:
+        raise ValidationError(f"Invalid path format: {path}.") from e
+
+    if must_exist and not validated_path.exists():
+        raise ValidationError(f"Path does not exist: {validated_path}.")
+
+    return validated_path
 
 
 def validate_probability(value: Any) -> float:
