@@ -262,9 +262,6 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             return self._get_obs(), reward, terminated, truncated, info
         # 3. Retrieve link metrics
         edge_attr = self.topology.get_edge(*edge)
-        latency = float(edge_attr.get("latency", 5.0))
-        bandwidth = float(edge_attr.get("bandwidth", 1000.0))
-        loss = float(edge_attr.get("packet_loss", 0.0))
 
         # 4. Graduated loop detection
         visit_count = self._visit_counts.get(next_node, 0)
@@ -274,9 +271,9 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             terminated = True
             info["status"] = "failed_loop_detected"
             return self._get_obs(), reward, terminated, truncated, info
+
         # Capture state before transition
         prev_node = self.current_node
-        edge_attr = self.topology.get_edge(*edge)
 
         # 4. Apply transition
         self._apply_transition(next_node)
@@ -295,6 +292,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             terminated = True
             info["status"] = "success"
         elif self.hops >= self.max_hops:
+            reward -= 10.0
             truncated = True
             info["status"] = "truncated_max_hops"
         else:
@@ -305,46 +303,55 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
 
         return self._get_obs(), reward, terminated, truncated, info
 
-        return self._get_obs(), reward, terminated, truncated, info
-
     def _apply_transition(self, next_node: str) -> None:
         """Update the environment state variables after a valid move."""
-        # Update path and visit counts
         self.path.append(next_node)
         self.current_node = next_node
         self.hops += 1
-        self._visit_counts[next_node] = visit_count + 1
+        self._visit_counts[next_node] = self._visit_counts.get(next_node, 0) + 1
 
-        # 5. Compute reward
+    def _calculate_reward(
+        self,
+        prev_node: str,
+        curr_node: str,
+        edge_attr: dict[str, Any],
+        visit_count_before: int,
+        info: dict[str, Any],
+    ) -> float:
+        """Compute the step reward based on configuration and transition state."""
         alpha = self.reward_params.get("alpha", 5.0)
         beta = self.reward_params.get("beta", 1.0)
         gamma = self.reward_params.get("gamma", 50.0)
         delta = self.reward_params.get("delta", 0.5)
         proximity_weight = self.reward_params.get("proximity", 5.0)
 
+        latency = float(edge_attr.get("latency", 5.0))
+        bandwidth = float(edge_attr.get("bandwidth", 1000.0))
+        loss = float(edge_attr.get("packet_loss", 0.0))
+
         # Base step reward: low latency, high bandwidth, low loss
         step_reward = (
             alpha * (1.0 / max(0.1, latency)) + beta * (bandwidth / 1000.0) - gamma * loss - delta
         )
 
-        # Apply revisit penalty (graduated: -5.0 on first revisit)
-        if visit_count == 1:
+        # Apply revisit penalty (graduated: -10.0 on first revisit)
+        if visit_count_before == 1:
             step_reward -= 10.0
             info["revisit_penalty"] = True
 
         # Proximity-to-destination bonus (precomputed BFS distance)
-        prev_distance = self._get_distance_to_dest(self.path[-2])  # where we came from
-        curr_distance = self._get_distance_to_dest(self.current_node)
+        prev_distance = self._get_distance_to_dest(prev_node)
+        curr_distance = self._get_distance_to_dest(curr_node)
 
         # Bonus for getting closer, penalty for moving away
         distance_delta = prev_distance - curr_distance
         step_reward += proximity_weight * distance_delta
         reward = step_reward
+
         # Jain's fairness index of remaining edge capacities
         fairness_weight = self.reward_params.get("fairness", 2.0)
         if fairness_weight > 0 and self.num_edges > 0:
             remaining_caps = []
-            for _, _, attrs in self.topology.graph.edges(data=True):
             for src, dst in self.edges:
                 attrs = self.topology.get_edge(src, dst)
                 util = float(attrs.get("utilization", 0.0))
@@ -357,27 +364,12 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             reward += fairness_weight * jains
 
         # Check if reached destination
-        if self.current_node == self.destination:
+        if curr_node == self.destination:
             # Reached destination bonus (scaled inversely by path length)
             efficiency_bonus = max(10.0, 100.0 - self.hops * 2.0)
             reward += efficiency_bonus
-            terminated = True
-            info["status"] = "success"
-        elif self.hops >= self.max_hops:
-            # Penalty for failing to reach destination within budget
-            reward -= 10.0
-            truncated = True
-            info["status"] = "truncated_max_hops"
-        else:
-            info["status"] = "moving"
 
-        info["path"] = list(self.path)
-        info["hops"] = self.hops
-
-        info["path"] = list(self.path)
-        info["hops"] = self.hops
-
-        return self._get_obs(), reward, terminated, truncated, info
+        return float(reward)
 
     def _get_obs(self) -> np.ndarray:
         """Construct the 1D state observation array."""

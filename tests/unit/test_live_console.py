@@ -9,6 +9,7 @@ from rich.layout import Layout
 
 from nroute.core.metrics import SimulationMetrics
 from nroute.core.topology import Topology
+from nroute.exceptions import TopologyError
 from nroute.routing.dijkstra import DijkstraRouter
 from nroute.simulation.engine import SimulationEngine
 from nroute.simulation.traffic_gen import TrafficGenerator

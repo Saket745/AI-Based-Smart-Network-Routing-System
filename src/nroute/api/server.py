@@ -88,9 +88,6 @@ DEFAULT_CORS_ORIGINS = [
 try:
     _cfg = load_config()
     _cors_origins = _cfg.general.cors_origins
-except Exception as e:
-    import os
-=======
     if "*" in _cors_origins:
         raise ValueError(
             "Wildcard '*' is not allowed for CORS origins due to security risks. "
@@ -100,6 +97,7 @@ except Exception as e:
     if isinstance(e, ValueError) and "due to security risks" in str(e):
         raise
 
+    import os
     _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "")
     if not _cors_origins_raw:
         _cors_origins = DEFAULT_CORS_ORIGINS

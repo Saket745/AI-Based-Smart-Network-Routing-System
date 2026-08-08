@@ -40,12 +40,12 @@ class AnotherClass:
         tmp_path = tmp.name
 
     try:
-        cls = load_custom_class(f"{tmp_path}:MyDynamicClass")
+        cls = load_custom_class(f"{tmp_path}:MyDynamicClass", allow_unsafe=True)
         assert cls.__name__ == "MyDynamicClass"
         assert cls().greet() == "hello"
 
         # Verify we can load another class from the same file
-        cls2 = load_custom_class(f"{tmp_path}:AnotherClass")
+        cls2 = load_custom_class(f"{tmp_path}:AnotherClass", allow_unsafe=True)
         assert cls2.__name__ == "AnotherClass"
     finally:
         if os.path.exists(tmp_path):
@@ -72,10 +72,10 @@ class Derived(Base):
 
     try:
         # Load the base class first so we can use it for validation
-        base = load_custom_class(f"{tmp_path}:Base")
+        base = load_custom_class(f"{tmp_path}:Base", allow_unsafe=True)
 
         # Success case
-        cls = load_custom_class(f"{tmp_path}:Derived", expected_superclass=base)
+        cls = load_custom_class(f"{tmp_path}:Derived", expected_superclass=base, allow_unsafe=True)
         assert issubclass(cls, base)
 
         # Failure case
@@ -101,7 +101,7 @@ def test_invalid_format() -> None:
 def test_file_not_found() -> None:
     """Test that a non-existent Python file raises ImportError."""
     with pytest.raises(ImportError, match="Python file not found"):
-        load_custom_class("non_existent_file_xyz.py:MyClass")
+        load_custom_class("non_existent_file_xyz.py:MyClass", allow_unsafe=True)
 
 
 def test_module_not_found() -> None:
@@ -132,7 +132,7 @@ def test_windows_drive_letter_logic() -> None:
     # but it should fail with "Python file not found" for C:/test.py
     # rather than a ValueError for invalid format.
     with pytest.raises(ImportError, match="Python file not found"):
-        load_custom_class("C:/test.py:MyClass")
+        load_custom_class("C:/test.py:MyClass", allow_unsafe=True)
 
 
 def test_failed_module_execution() -> None:
@@ -144,7 +144,7 @@ def test_failed_module_execution() -> None:
 
     try:
         with pytest.raises(ImportError, match="Failed to execute module"):
-            load_custom_class(f"{tmp_path}:MyClass")
+            load_custom_class(f"{tmp_path}:MyClass", allow_unsafe=True)
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
