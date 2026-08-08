@@ -99,6 +99,18 @@ def test_subclass_inheritance() -> None:
     assert exc_info.value.message == "invalid"
 
 
+@pytest.mark.parametrize(
+    "exception_class",
+    [
+        ConfigError,
+        IngestionError,
+        ModelError,
+        RoutingError,
+        SimulationError,
+        TopologyError,
+        ValidationError,
+    ],
+)
 def test_nroute_subclasses(exception_class: type[NRouteError]) -> None:
     """Test that each subclass of NRouteError inherits base attributes and behavior."""
     msg = f"{exception_class.__name__} occurred"

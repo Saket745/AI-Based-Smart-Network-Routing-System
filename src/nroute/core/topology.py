@@ -63,16 +63,6 @@ class Topology:
         return self._graph
 
     @property
-    def has_down_nodes(self) -> bool:
-        """Return True if any nodes are currently down."""
-        return len(self._down_nodes) > 0
-
-    @property
-    def has_down_edges(self) -> bool:
-        """Return True if any edges are currently down."""
-        return len(self._down_edges) > 0
-
-    @property
     def nodes(self) -> list[str]:
         """Get the list of node IDs in the topology."""
         return list(self._graph.nodes)
