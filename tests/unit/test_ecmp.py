@@ -7,6 +7,9 @@ from collections.abc import Callable  # noqa: TC003
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
+from collections.abc import Callable
+from typing import Any
+
 import pytest
 
 from nroute.core.query import RoutingQuery

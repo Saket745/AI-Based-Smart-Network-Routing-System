@@ -64,10 +64,10 @@ def test_live_console_basic_logging() -> None:
     console_viz.update_events(tick=1)
     assert any("Node A recovered (UP)" in event for event in console_viz.event_log)
 
-
 def test_live_console_event_handling() -> None:
     """Verify LiveSimulationConsole handles various simulation events."""
-=======
+
+
 def test_live_console_helpers() -> None:
     """Test individual helper methods of LiveSimulationConsole."""
     topo = Topology()
@@ -173,3 +173,27 @@ def test_live_console_error_handling() -> None:
 
     console_viz._update_layout(layout, 0, metric, "DijkstraRouter", engine)
     assert layout["header"] is not None
+
+
+def test_live_console_status_transitions() -> None:
+    """Verify that the console tracking status transitions through Initializing, Running, and Completed states."""
+    topo = Topology()
+    topo.add_node("A", type="router")
+    topo.add_node("B", type="router")
+    topo.add_edge("A", "B", bandwidth=1000, latency=5)
+
+    router = DijkstraRouter()
+    traffic = TrafficGenerator(model="uniform", n_flows_per_tick=1)
+    engine = SimulationEngine(topo, router, traffic)
+
+    console_viz = LiveSimulationConsole(engine, duration_ticks=2, delay=0.0)
+
+    # 1. Check initial state
+    assert console_viz.status == "Initializing"
+    header_init = console_viz._build_header(None, None, "DijkstraRouter")
+    assert "Initializing" in header_init.renderable.plain
+
+    # Mock engine run to verify completion status
+    with patch.object(engine, "run", return_value=MagicMock()):
+        console_viz.run()
+        assert console_viz.status == "Completed"

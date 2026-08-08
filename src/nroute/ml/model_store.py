@@ -148,6 +148,8 @@ class ModelStore:
             )
 
         try:
+
+            import inspect
             # Check if load() accepts allow_unsafe
             import inspect
 

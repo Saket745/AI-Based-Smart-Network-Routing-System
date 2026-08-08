@@ -8,7 +8,6 @@ import pytest
 
 from nroute.exceptions import ValidationError
 from nroute.utils.validators import (
-    validate_file_path,
     validate_node_id,
     validate_positive_float,
     validate_probability,
@@ -163,3 +162,4 @@ def test_validate_file_path_invalid_format_raises() -> None:
     # On some systems, null bytes in path raise OSError when resolving
     with pytest.raises(ValidationError, match="Invalid path format"):
         validate_file_path("\0", must_exist=False)
+=======
