@@ -7,7 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class RoutingQuery(BaseModel):
-
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     source: str = Field(..., description="Source node ID")

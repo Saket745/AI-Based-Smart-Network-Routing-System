@@ -94,7 +94,6 @@ class ConfiguredRouter(BaseRouter):
         monkeypatch.setattr(nroute.core.config, "load_config", lambda *args, **kwargs: cfg)
 
         # get_router should resolve and load it (requires allow_unsafe=True)
-=======
         # get_router should resolve and load it
         router = get_router("my-config-router", allow_unsafe=True)
         assert router.__class__.__name__ == "ConfiguredRouter"

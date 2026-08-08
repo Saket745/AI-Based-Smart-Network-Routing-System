@@ -142,6 +142,9 @@ class BaseRouter(ABC):
             d.get("status") == "down" for u, v, d in topology.graph.edges(data=True)
         )
         if not has_down_nodes and not has_down_edges:
+        # This avoids the high overhead of nx.subgraph_view callbacks and replaces
+        # the expensive O(N + E) any(...) linear scan with O(1) properties.
+        if not topology.has_down_nodes and not topology.has_down_edges:
             return topology.graph
 
         def filter_node(node: str) -> bool:
