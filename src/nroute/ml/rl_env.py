@@ -116,8 +116,9 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         # Store original edge attributes for training-mode perturbation
         self._original_edge_attrs: dict[tuple[str, str], dict[str, float]] = {}
         if self.training_mode:
+            graph = self.topology.graph
             for src, dst in self.edges:
-                attrs = self.topology.get_edge(src, dst)
+                attrs = graph.edges[src, dst]
                 self._original_edge_attrs[(src, dst)] = {
                     "utilization": float(attrs.get("utilization", 0.0)),
                     "latency": float(attrs.get("latency", 5.0)),
@@ -202,9 +203,8 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         self._randomize_edge_attributes()
 
         graph = self.topology.graph
-        up_nodes = [n for n in self.nodes if graph.nodes[n].get("status", "up").lower() == "up"]
         up_nodes = [
-            n for n in self.nodes if self.topology.get_node(n).get("status", "up").lower() == "up"
+            n for n in self.nodes if graph.nodes[n].get("status", "up").lower() == "up"
         ]
 
         if len(up_nodes) < 2:
@@ -233,7 +233,8 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
 
     def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
         """Advance the routing packet by selecting the next hop."""
-        neighbors = sorted(list(self.topology.neighbors(self.current_node)))
+        graph = self.topology.graph
+        neighbors = sorted(list(graph.successors(self.current_node)))
         terminated = False
         truncated = False
         info: dict[str, Any] = {}
@@ -250,8 +251,8 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         edge = (self.current_node, next_node)
 
         # 2. Check if next link or node is down
-        node_down = self.topology.get_node(next_node).get("status", "up").lower() == "down"
-        edge_down = self.topology.get_edge(*edge).get("status", "up").lower() == "down"
+        node_down = graph.nodes[next_node].get("status", "up").lower() == "down"
+        edge_down = graph.edges[edge].get("status", "up").lower() == "down"
 
         if node_down or edge_down:
             # Heavy penalty for hitting a failure, end episode
@@ -260,11 +261,9 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             info["status"] = "failed_link_down"
             return self._get_obs(), reward, terminated, truncated, info
 
-        # 3. Graduated loop detection
-        # 3. Retrieve link metrics
         edge_attr = self.topology.get_edge(*edge)
 
-        # 4. Graduated loop detection
+        # 3. Graduated loop detection
         visit_count = self._visit_counts.get(next_node, 0)
         if visit_count >= 2:
             # Third visit to same node — terminate with heavy penalty
@@ -319,7 +318,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         visit_count_before: int,
         info: dict[str, Any],
     ) -> float:
-        """Compute the step reward based on configuration and transition state."""
+      
         alpha = self.reward_params.get("alpha", 5.0)
         beta = self.reward_params.get("beta", 1.0)
         gamma = self.reward_params.get("gamma", 50.0)
@@ -329,7 +328,26 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         latency = float(edge_attr.get("latency", 5.0))
         bandwidth = float(edge_attr.get("bandwidth", 1000.0))
         loss = float(edge_attr.get("packet_loss", 0.0))
+        reward = (
+            alpha * (1.0 / max(0.1, latency)) + beta * (bandwidth / 1000.0) - gamma * loss - delta
+        )
 
+        # 2. Apply revisit penalty (graduated: -10.0 on first revisit)
+        if visit_count_before == 1:
+            reward -= 10.0
+            info["revisit_penalty"] = True
+
+        # 3. Proximity-to-destination bonus (precomputed BFS distance)
+        prev_distance = self._get_distance_to_dest(prev_node)
+        curr_distance = self._get_distance_to_dest(curr_node)
+        distance_delta = prev_distance - curr_distance
+        reward += proximity_weight * distance_delta
+
+        # 4. Jain's fairness index of remaining edge capacities
+        fairness_weight = self.reward_params.get("fairness", 2.0)
+        if fairness_weight > 0 and self.num_edges > 0:
+            remaining_caps = []
+            for _, _, attrs in self.topology.graph.edges(data=True):
         # Base step reward: low latency, high bandwidth, low loss
         step_reward = (
             alpha * (1.0 / max(0.1, latency)) + beta * (bandwidth / 1000.0) - gamma * loss - delta
@@ -364,11 +382,15 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             jains = (sum_r**2) / (n * sum_r2) if sum_r2 > 0 else 1.0
             reward += fairness_weight * jains
 
+        # 5. Destination bonus or truncation penalty
         # Check if reached destination
         if curr_node == self.destination:
             # Reached destination bonus (scaled inversely by path length)
             efficiency_bonus = max(10.0, 100.0 - self.hops * 2.0)
             reward += efficiency_bonus
+        elif self.hops >= self.max_hops:
+            # Penalty for failing to reach destination within budget
+            reward -= 10.0
 
         return float(reward)
 
@@ -391,8 +413,9 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         # 3. Node attributes (capacity + status)
         node_caps = []
         node_stats = []
+        graph = self.topology.graph
         for node in self.nodes:
-            attrs = self.topology.get_node(node)
+            attrs = graph.nodes[node]
             node_caps.append(
                 float(attrs.get("capacity", 1000.0)) / 1000.0
             )  # simple scale normalization
@@ -409,7 +432,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         edge_stats = []
 
         for src, dst in self.edges:
-            attrs = self.topology.get_edge(src, dst)
+            attrs = graph.edges[src, dst]
             edge_bws.append(float(attrs.get("bandwidth", 1000.0)) / 1000.0)
             edge_lats.append(float(attrs.get("latency", 5.0)) / 100.0)
             edge_utils.append(float(attrs.get("utilization", 0.0)))

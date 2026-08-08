@@ -29,8 +29,7 @@ def test_nroute_error_base_initialization() -> None:
     assert err_with_details.message == "error with details"
     assert err_with_details.details == details
     assert str(err_with_details) == "error with details"
-
-
+=======
 def test_nroute_error_base() -> None:
     """Test that NRouteError initialized with only message sets default attributes correctly."""
     msg = "Generic error occurred"
