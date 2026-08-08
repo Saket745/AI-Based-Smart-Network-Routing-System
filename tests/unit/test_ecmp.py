@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable  # noqa: TC003
 from collections.abc import Callable
 from typing import Any
 

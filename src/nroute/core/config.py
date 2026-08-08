@@ -47,8 +47,8 @@ class GeneralConfig(BaseModel):
     @classmethod
     def validate_cors_origins_before(cls, v: Any) -> list[str]:
         if isinstance(v, str):
-            v = [o.strip() for o in v.split(",") if o.strip()]
-            cleaned = [str(o).strip() for o in v if o and str(o).strip() != "*"]
+            parts = [o.strip() for o in v.split(",") if o.strip()]
+            cleaned = [o for o in parts if o != "*"]
             if not cleaned:
                 return DEFAULT_CORS_ORIGINS
             return cleaned
@@ -60,6 +60,13 @@ class GeneralConfig(BaseModel):
     @classmethod
     def validate_cors_origins(cls, v: list[str]) -> list[str]:
         """Validate that cors_origins does not contain wildcard '*' for secure credentials handling."""
+        for origin in v:
+            if origin == "*" or (isinstance(origin, str) and origin.strip() == "*"):
+                raise ValueError(
+                    "Wildcard '*' is not allowed for cors_origins due to security risks. "
+                    "Please specify explicit origins."
+                )
+        return [str(o).strip() for o in v if o and str(o).strip()]
         if "*" in v:
             raise ValueError(
                 "Wildcard '*' is not allowed for cors_origins due to security risks. "

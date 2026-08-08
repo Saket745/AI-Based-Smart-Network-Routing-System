@@ -201,7 +201,6 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         self._restore_edge_attributes()
         self._randomize_edge_attributes()
 
-        # Pick active nodes for source and destination
         graph = self.topology.graph
         up_nodes = [n for n in self.nodes if graph.nodes[n].get("status", "up").lower() == "up"]
         up_nodes = [
@@ -260,6 +259,8 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             terminated = True
             info["status"] = "failed_link_down"
             return self._get_obs(), reward, terminated, truncated, info
+
+        # 3. Graduated loop detection
         # 3. Retrieve link metrics
         edge_attr = self.topology.get_edge(*edge)
 

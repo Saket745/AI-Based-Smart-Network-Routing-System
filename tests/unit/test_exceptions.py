@@ -14,6 +14,7 @@ from nroute.exceptions import (
 )
 
 
+
 def test_nroute_error_base_initialization() -> None:
     """Test NRouteError initialization with and without details."""
     # Without details
@@ -82,9 +83,6 @@ def test_nroute_error_inheritance() -> None:
     with pytest.raises(NRouteError):
         raise NRouteError("test")
 
-    # B017: Do not assert blind exception: `Exception`
-    # We already verify it's an Exception in test_exception_subclasses
-    # and via isinstance check if needed.
     assert isinstance(NRouteError("test"), Exception)
 
 
@@ -97,7 +95,6 @@ def test_subclass_inheritance() -> None:
         raise ValidationError("invalid")
     assert isinstance(exc_info.value, ValidationError)
     assert exc_info.value.message == "invalid"
-
 
 @pytest.mark.parametrize(
     "exception_class",
