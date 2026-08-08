@@ -161,3 +161,15 @@ def test_api_load_topology_outside_cwd_absolute(client: TestClient) -> None:
     response = client.post("/api/topology/load", json={"path": "/etc/passwd"}, headers=headers)
     assert response.status_code == 403
     assert "Access denied: Path is outside allowed directories" in response.json()["detail"]
+
+
+def test_api_token_verification_uses_constant_time_comparison(client: TestClient) -> None:
+    """Verify that token verification uses secrets.compare_digest to prevent timing attacks (CWE-208)."""
+    import secrets
+    from unittest.mock import patch
+
+    with patch("secrets.compare_digest", wraps=secrets.compare_digest) as mock_compare:
+        headers = {"Authorization": "Bearer invalid_token_xyz"}
+        response = client.get("/api/health", headers=headers)
+        assert response.status_code == 401
+        assert mock_compare.called

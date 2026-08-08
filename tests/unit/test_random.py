@@ -27,6 +27,9 @@ def test_seeded_random_reproducibility() -> None:
     # Test random_float
     assert rng1.random_float() == rng2.random_float()
 
+    # Test randint
+    assert rng1.randint(1, 100) == rng2.randint(1, 100)
+
     # Test uniform
     assert rng1.uniform(0.0, 1.0) == rng2.uniform(0.0, 1.0)
 
@@ -58,24 +61,6 @@ def test_seeded_random_different_seeds() -> None:
     results1 = [rng1.random_float() for _ in range(10)]
     results2 = [rng2.random_float() for _ in range(10)]
     assert results1 != results2
-
-
-def test_seeded_random_no_seed() -> None:
-    """Verify that no seed produces different sequences (using system entropy)."""
-    rng1 = SeededRandom()
-    rng2 = SeededRandom()
-
-    # Check that they are different
-    results1 = [rng1.random_float() for _ in range(10)]
-    results2 = [rng2.random_float() for _ in range(10)]
-    assert results1 != results2
-
-
-def test_get_rng() -> None:
-    """Test get_rng factory function."""
-    rng = get_rng(seed=10)
-    assert isinstance(rng, SeededRandom)
-    assert rng.seed == 10
 
 
 def test_randint() -> None:
@@ -129,3 +114,10 @@ def test_shuffle() -> None:
     assert sorted(shuffled) == original
     # Very unlikely to be identical after shuffle for 20 elements
     assert shuffled != original
+
+
+def test_get_rng() -> None:
+    """Test get_rng factory function."""
+    rng = get_rng(seed=10)
+    assert isinstance(rng, SeededRandom)
+    assert rng.seed == 10

@@ -10,18 +10,6 @@ from pathlib import Path
 
 # Conventional commit types
 VALID_TYPES = {
-    "feat", "feature",  # New feature
-    "fix", "bugfix",    # Bug fix
-    "docs",             # Documentation changes
-    "style",            # Formatting, missing semi-colons, etc (no code changes)
-    "refactor",         # Refactoring production code (e.g. renaming a variable)
-    "perf", "performance", # Code changes that improve performance
-    "test",             # Adding missing tests or correcting existing tests
-    "build",            # Build system/dependency changes
-    "ci",               # CI configurations and scripts
-    "chore",            # Maintenance tasks
-    "revert",           # Revert a previous commit
-    "security",         # Security fixes
     "feat",
     "feature",  # New feature
     "fix",

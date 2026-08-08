@@ -4,8 +4,6 @@ Branch naming convention validator.
 Enforces standard prefixes for branches to ensure governance compliance.
 """
 
-from __future__ import annotations
-
 import re
 import subprocess
 import sys
@@ -30,20 +28,17 @@ ALLOWED_PREFIXES = [
 EXEMPT_BRANCHES = ["main", "dev", "master"]
 
 
-def get_current_branch() -> str | None:
+def get_current_branch():
     try:
         result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True,
-            text=True,
-            check=True,
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, check=True
         )
         return result.stdout.strip()
     except Exception:
         return None
 
 
-def validate_branch_name(branch_name: str) -> tuple[bool, str]:
+def validate_branch_name(branch_name):
     if not branch_name:
         return False, "Could not determine branch name."
 
@@ -66,7 +61,7 @@ def validate_branch_name(branch_name: str) -> tuple[bool, str]:
     )
 
 
-def main() -> int:
+def main():
     # If a branch name is passed as an argument, use it. Otherwise, use current branch.
     branch_name = sys.argv[1] if len(sys.argv) > 1 else get_current_branch()
 

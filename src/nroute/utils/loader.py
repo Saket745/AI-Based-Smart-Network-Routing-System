@@ -30,6 +30,7 @@ def load_custom_class(
         ValueError: If the format is invalid.
         ImportError: If the module or class cannot be loaded.
         TypeError: If the class does not inherit from expected_superclass.
+        PermissionError: If loading from a file is attempted with allow_unsafe=False.
     """
     import_str = import_str.strip()
 
@@ -55,9 +56,10 @@ def load_custom_class(
     # Check if module_part is a path to a local .py file
     if module_part.endswith(".py") or os.path.exists(module_part):
         if not allow_unsafe:
-            raise ImportError(
-                f"Loading custom classes from local files is disallowed for security reasons: '{module_part}'. "
-                "Use 'allow_unsafe=True' or the '--allow-unsafe' CLI flag if you trust the source."
+            raise PermissionError(
+                f"Loading from a local Python file ('{module_part}') is restricted for "
+                "security reasons. Use a standard module path or set allow_unsafe=True "
+                "if you trust the source."
             )
 
         file_path = Path(module_part).resolve()

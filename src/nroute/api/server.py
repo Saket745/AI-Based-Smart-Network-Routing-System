@@ -60,7 +60,8 @@ async def verify_token(
     if not configured_token:
         configured_token = _FALLBACK_TOKEN
 
-    if credentials is None or credentials.credentials != configured_token:
+    # Perform a secure, constant-time comparison to prevent timing attacks (CWE-208)
+    if credentials is None or not secrets.compare_digest(credentials.credentials, configured_token):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -88,17 +89,17 @@ DEFAULT_CORS_ORIGINS = [
 try:
     _cfg = load_config()
     _cors_origins = _cfg.general.cors_origins
-except Exception as e:
-    import os
-=======
     if "*" in _cors_origins:
         raise ValueError(
             "Wildcard '*' is not allowed for CORS origins due to security risks. "
             "Please specify explicit origins."
         )
 except Exception as e:
+    # If the exception is the ValueError we raised above, propagate it
     if isinstance(e, ValueError) and "due to security risks" in str(e):
         raise
+
+    import os
 
     _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "")
     if not _cors_origins_raw:
@@ -112,7 +113,7 @@ except Exception as e:
             ) from e
 
 # Filter out empty strings, ensure secure local development defaults as fallback
-_cors_origins = [o for o in _cors_origins if o and o != "*"]
+_cors_origins = [o for o in _cors_origins if o]
 if not _cors_origins:
     _cors_origins = DEFAULT_CORS_ORIGINS
 
@@ -240,14 +241,7 @@ async def get_topology() -> dict[str, Any]:
 async def ingest_config(file: UploadFile = File(...)) -> dict[str, Any]:  # noqa: B008
     """Upload and ingest a device config file."""
     engine = get_engine()
-    # Enforce maximum file size limit of 5MB to prevent Denial of Service (DoS) via OOM (CWE-400)
-    max_file_size = 5 * 1024 * 1024  # 5MB
-    content = await file.read(max_file_size + 1)
-    if len(content) > max_file_size:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="File size exceeds maximum allowed limit of 5MB.",
-        )
+    content = await file.read()
 
     # Write to a temp file for the parser
     suffix = Path(file.filename or "config.yaml").suffix

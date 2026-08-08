@@ -399,15 +399,6 @@ class TestPredictCLI:
                 model_path,
                 "--allow-unsafe",
             ],
-            [
-                "predict",
-                "congestion",
-                "--topology",
-                topo_file,
-                "--model",
-                model_path,
-                "--allow-unsafe",
-            ],
             catch_exceptions=False,
         )
         assert result.exit_code == 0
@@ -464,15 +455,6 @@ class TestDetectCLI:
         # 3. Run detection
         result = runner.invoke(
             cli,
-            [
-                "detect",
-                "anomalies",
-                "--traffic",
-                str(traffic_csv),
-                "--model",
-                model_path,
-                "--allow-unsafe",
-            ],
             [
                 "detect",
                 "anomalies",

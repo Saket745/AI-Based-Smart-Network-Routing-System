@@ -46,6 +46,7 @@ class Topology:
             for u, v, d in graph.edges(data=True):
                 if d.get("status") == "down":
                     self._down_edges.add((u, v))
+
     @property
     def has_down_nodes(self) -> bool:
         """Check if there are any down nodes in the topology."""
@@ -56,21 +57,10 @@ class Topology:
         """Check if there are any down edges in the topology."""
         return len(self._down_edges) > 0
 
-
     @property
     def graph(self) -> nx.DiGraph:
         """Get the underlying networkx DiGraph instance."""
         return self._graph
-
-    @property
-    def has_down_nodes(self) -> bool:
-        """Return True if any nodes are currently down."""
-        return len(self._down_nodes) > 0
-
-    @property
-    def has_down_edges(self) -> bool:
-        """Return True if any edges are currently down."""
-        return len(self._down_edges) > 0
 
     @property
     def nodes(self) -> list[str]:
@@ -149,9 +139,7 @@ class Topology:
         }
 
         # Preserve any extra custom attributes the user passes
-        for k, v in attrs.items():
-            if k not in validated_attrs:
-                validated_attrs[k] = v
+        validated_attrs = {**attrs, **validated_attrs}
 
         self._graph.add_node(validated_id, **validated_attrs)
         if status == "down":
@@ -171,12 +159,6 @@ class Topology:
         """
         if node_id not in self._graph:
             raise TopologyError(f"Node '{node_id}' does not exist.")
-        # Remove any incident edges from our down edges set
-        for successor in self._graph.successors(node_id):
-            self._down_edges.discard((node_id, successor))
-        for predecessor in self._graph.predecessors(node_id):
-            self._down_edges.discard((predecessor, node_id))
-        self._down_nodes.discard(node_id)
         self._graph.remove_node(node_id)
         self._down_nodes.discard(node_id)
         self._down_edges = {
@@ -242,9 +224,7 @@ class Topology:
         }
 
         # Preserve any extra custom attributes
-        for k, v in attrs.items():
-            if k not in validated_attrs:
-                validated_attrs[k] = v
+        validated_attrs = {**attrs, **validated_attrs}
 
         self._graph.add_edge(src, dst, **validated_attrs)
         if status == "down":
@@ -265,7 +245,6 @@ class Topology:
         """
         if not self._graph.has_edge(src, dst):
             raise TopologyError(f"Edge from '{src}' to '{dst}' does not exist.")
-        self._down_edges.discard((src, dst))
         self._graph.remove_edge(src, dst)
         self._down_edges.discard((src, dst))
 
@@ -327,26 +306,9 @@ class Topology:
                     f"Edge status '{status}' is invalid. Must be one of {self.EDGE_STATUSES}."
                 )
             updated_data["status"] = status
-            if status == "down":
-                self._down_edges.add((src, dst))
-            else:
-                self._down_edges.discard((src, dst))
 
-        # Merge other attributes
-        for k, v in attrs.items():
-            if k not in {
-                "bandwidth",
-                "latency",
-                "jitter",
-                "packet_loss",
-                "utilization",
-                "weight",
-                "status",
-            }:
-                updated_data[k] = v
-
-        # Apply update
-        edge_data.update(updated_data)
+        # Merge other attributes and apply update
+        edge_data.update({**attrs, **updated_data})
         if "status" in updated_data:
             if updated_data["status"] == "down":
                 self._down_edges.add((src, dst))
@@ -404,17 +366,11 @@ class Topology:
             "edges": [{"source": "src", "target": "dst", "bandwidth": ..., ...}, ...]
         }
         """
-        nodes = []
-        for node_id, attrs in self._graph.nodes(data=True):
-            node_dict = {"id": node_id}
-            node_dict.update(attrs)
-            nodes.append(node_dict)
-
-        edges = []
-        for src, dst, attrs in self._graph.edges(data=True):
-            edge_dict = {"source": src, "target": dst}
-            edge_dict.update(attrs)
-            edges.append(edge_dict)
+        nodes = [{"id": node_id, **attrs} for node_id, attrs in self._graph.nodes(data=True)]
+        edges = [
+            {"source": src, "target": dst, **attrs}
+            for src, dst, attrs in self._graph.edges(data=True)
+        ]
 
         return {"nodes": nodes, "edges": edges}
 
@@ -432,19 +388,19 @@ class Topology:
         topo = cls()
         nodes = data.get("nodes", [])
         for node in nodes:
-            node_id = node.get("id")
+            attrs = node.copy()
+            node_id = attrs.pop("id", None)
             if not node_id:
                 raise TopologyError("Node data is missing 'id' attribute.")
-            attrs = {k: v for k, v in node.items() if k != "id"}
             topo.add_node(node_id, **attrs)
 
         edges = data.get("edges", [])
         for edge in edges:
-            src = edge.get("source")
-            dst = edge.get("target")
+            attrs = edge.copy()
+            src = attrs.pop("source", None)
+            dst = attrs.pop("target", None)
             if not src or not dst:
                 raise TopologyError("Edge data is missing 'source' or 'target' attribute.")
-            attrs = {k: v for k, v in edge.items() if k not in {"source", "target"}}
             topo.add_edge(src, dst, **attrs)
 
         return topo
