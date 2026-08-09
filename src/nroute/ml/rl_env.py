@@ -320,7 +320,6 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         info: dict[str, Any],
     ) -> float:
         """Compute the scalar reward for the current transition."""
-      
         alpha = self.reward_params.get("alpha", 5.0)
         beta = self.reward_params.get("beta", 1.0)
         gamma = self.reward_params.get("gamma", 50.0)
@@ -331,44 +330,6 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         bandwidth = float(edge_attr.get("bandwidth", 1000.0))
         loss = float(edge_attr.get("packet_loss", 0.0))
 
-        # 1. Base step reward: low latency, high bandwidth, low loss, hop penalty
-        reward = (
-            alpha * (1.0 / max(0.1, latency)) + beta * (bandwidth / 1000.0) - gamma * loss - delta
-        )
-
-        # 2. Apply revisit penalty (graduated: -10.0 on first revisit)
-        if visit_count_before == 1:
-            reward -= 10.0
-            info["revisit_penalty"] = True
-
-        # 3. Proximity-to-destination bonus (precomputed BFS distance)
-        prev_distance = self._get_distance_to_dest(prev_node)
-        curr_distance = self._get_distance_to_dest(curr_node)
-        distance_delta = prev_distance - curr_distance
-        reward += proximity_weight * distance_delta
-
-        # 4. Jain's fairness index of remaining edge capacities
-=======
-        reward = (
-            alpha * (1.0 / max(0.1, latency)) + beta * (bandwidth / 1000.0) - gamma * loss - delta
-        )
-
-        # 2. Apply revisit penalty (graduated: -10.0 on first revisit)
-        if visit_count_before == 1:
-            reward -= 10.0
-            info["revisit_penalty"] = True
-
-        # 3. Proximity-to-destination bonus (precomputed BFS distance)
-        prev_distance = self._get_distance_to_dest(prev_node)
-        curr_distance = self._get_distance_to_dest(curr_node)
-        distance_delta = prev_distance - curr_distance
-        reward += proximity_weight * distance_delta
-
-        # 4. Jain's fairness index of remaining edge capacities
-        fairness_weight = self.reward_params.get("fairness", 2.0)
-        if fairness_weight > 0 and self.num_edges > 0:
-            remaining_caps = []
-            for _, _, attrs in self.topology.graph.edges(data=True):
         # Base step reward: low latency, high bandwidth, low loss
         step_reward = (
             alpha * (1.0 / max(0.1, latency)) + beta * (bandwidth / 1000.0) - gamma * loss - delta

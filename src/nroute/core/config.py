@@ -47,11 +47,6 @@ class GeneralConfig(BaseModel):
     @classmethod
     def validate_cors_origins_before(cls, v: Any) -> list[str]:
         if isinstance(v, str):
-            v = [o.strip() for o in v.split(",") if o.strip()]
-    def validate_cors_origins(cls, v: Any) -> list[str]:
-        """Validate and sanitize cors_origins."""
-    def validate_cors_origins_before(cls, v: Any) -> list[str]:
-        if isinstance(v, str):
             parts = [o.strip() for o in v.split(",") if o.strip()]
             cleaned = [o for o in parts if o != "*"]
             if not cleaned:
@@ -68,9 +63,6 @@ class GeneralConfig(BaseModel):
             return DEFAULT_CORS_ORIGINS
 
         return DEFAULT_CORS_ORIGINS
-        if isinstance(v, list):
-            return [str(o).strip() for o in v if o and str(o).strip()]
-        return DEFAULT_CORS_ORIGINS
 
     @field_validator("cors_origins")
     @classmethod
@@ -82,12 +74,6 @@ class GeneralConfig(BaseModel):
                     "Wildcard '*' is not allowed for cors_origins due to security risks. "
                     "Please specify explicit origins."
                 )
-        return [str(o).strip() for o in v if o and str(o).strip()]
-        if "*" in v:
-            raise ValueError(
-                "Wildcard '*' is not allowed for cors_origins due to security risks. "
-                "Please specify explicit origins."
-            )
         cleaned_list = [str(o).strip() for o in v if o and str(o).strip()]
         if not cleaned_list:
             return DEFAULT_CORS_ORIGINS
