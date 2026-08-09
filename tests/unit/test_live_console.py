@@ -65,10 +65,6 @@ def test_live_console_basic_logging() -> None:
     assert any("Node A recovered (UP)" in event for event in console_viz.event_log)
 
 
-def test_live_console_event_handling() -> None:
-    """Verify LiveSimulationConsole handles various simulation events."""
-
-
 def test_live_console_helpers() -> None:
     """Test individual helper methods of LiveSimulationConsole."""
     topo = Topology()
@@ -129,7 +125,7 @@ def test_live_console_error_handling() -> None:
         console_viz.update_events(tick=0)
         # Verify errors were logged
         assert mock_logger.error.called
-=======
+
     metric = SimulationMetrics(
         tick=0,
         timestamp=0.0,
