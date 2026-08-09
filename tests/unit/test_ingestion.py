@@ -216,7 +216,6 @@ def test_netflow_parser_read_csv_exception(tmp_path: Path) -> None:
         assert exception_msg in str(exc_info.value)
 
 
-=======
     """Test that NetFlowParser.parse correctly handles and wraps exceptions from pd.read_csv."""
     csv_file = tmp_path / "corrupt_netflow.csv"
     csv_file.touch()
@@ -241,7 +240,6 @@ def test_netflow_parser_corrupt_file(tmp_path: Path) -> None:
         NetFlowParser.parse(csv_file)
 
 
-=======
 @patch("scapy.utils.PcapReader")
 def test_pcap_parser(mock_pcap_reader_cls: MagicMock, tmp_path: Path) -> None:
     """Test PCAP parser by mocking Scapy's PcapReader."""

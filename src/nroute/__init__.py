@@ -83,8 +83,6 @@ class Simulator:
             router=self.router,
             traffic_generator=self.traffic_generator,
         )
-
-    def run(self, seed: int | None = None) -> Any:
         return self.engine.run(duration_ticks=self.duration, seed=seed)
 
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-=======
 """Unit tests for the Ingestion Normalizer."""
 
 from __future__ import annotations
@@ -86,7 +85,6 @@ def test_normalize_topology_invalid_edge_attrs() -> None:
 
 def test_normalize_traffic_valid() -> None:
     """Test Normalizer.normalize_traffic with valid data."""
-=======
 def test_normalize_traffic_happy_path() -> None:
     """Test Normalizer.normalize_traffic with complete and standard field names."""
     raw_records = [
@@ -106,7 +104,6 @@ def test_normalize_traffic_happy_path() -> None:
             "pkts": 5,
             "proto": "UDP",
             # duration and timestamp missing, should default to 0.0
-=======
             "bytes": 5000,
             "packets": 10,
             "duration": 2.5,
@@ -146,7 +143,6 @@ def test_normalize_traffic_missing_fields() -> None:
 
 def test_normalize_traffic_invalid_record() -> None:
     """Test Normalizer.normalize_traffic with invalid field data."""
-=======
     assert len(tm.flows) == 2
 
     flow1 = tm.flows[0]
@@ -182,7 +178,6 @@ def test_normalize_traffic_defaults() -> None:
 
     with pytest.raises(IngestionError, match="Failed to normalize flow record at index 0"):
         Normalizer.normalize_traffic(raw_records)
-=======
             "bytes": 5000,
             "packets": 10,
             "protocol": "TCP",
@@ -334,9 +329,7 @@ def test_normalize_topology_happy_path() -> None:
 def test_normalize_topology_missing_node_id() -> None:
     """Test that node missing ID/name raises IngestionError."""
     raw_nodes = [{"not_id": "value"}]
-=======
     raw_nodes = [{"type": "router"}]
-=======
     raw_nodes = [{"capacity": 1000}]
     with pytest.raises(IngestionError, match=r"Node at index 0 is missing 'id' or 'name'"):
         Normalizer.normalize_topology(raw_nodes, [])

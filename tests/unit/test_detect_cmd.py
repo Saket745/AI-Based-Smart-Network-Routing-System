@@ -8,7 +8,6 @@ import pandas as pd
 import pytest
 from click.testing import CliRunner
 
-=======
 from nroute.cli import cli
 from nroute.cli.detect_cmd import detect_cmd
 from nroute.exceptions import ModelError
@@ -25,7 +24,6 @@ def traffic_file(tmp_path) -> str:
     """Create a dummy traffic file to satisfy click.Path(exists=True)."""
     p = tmp_path / "traffic.csv"
     p.write_text("dummy")
-=======
     """Create a dummy traffic CSV file."""
     p = tmp_path / "traffic.csv"
     p.write_text("col1,col2\n1,2")
@@ -35,7 +33,6 @@ def traffic_file(tmp_path) -> str:
 @pytest.fixture
 def model_file(tmp_path) -> str:
     """Create a dummy model file to satisfy click.Path(exists=True)."""
-=======
     """Create a dummy model file."""
     p = tmp_path / "model.joblib"
     p.write_text("dummy")
@@ -52,7 +49,6 @@ class TestDetectAnomaliesCLI:
         self,
         mock_detect: MagicMock,
         mock_load: MagicMock,
-=======
     @patch("nroute.ml.anomaly.AnomalyDetector")
     def test_anomalies_success_text(
         self,
@@ -68,7 +64,6 @@ class TestDetectAnomaliesCLI:
         results = pd.DataFrame(
             {
                 "anomaly_score": [0.1, 0.8],
-=======
         """Test successful anomaly detection with text output."""
         mock_df = pd.DataFrame(
             {
@@ -78,7 +73,6 @@ class TestDetectAnomaliesCLI:
             }
         )
         mock_detect.return_value = results
-=======
         mock_read_csv.return_value = pd.DataFrame({"fake": [1, 2]})
 
         mock_detector = mock_detector_cls.return_value
@@ -99,7 +93,6 @@ class TestDetectAnomaliesCLI:
 
     @patch("pandas.read_csv")
     def test_anomalies_traffic_load_fail(
-=======
         assert "DDoS" in result.output
         assert "1 anomalies detected out of 2 samples" in result.output
         assert "Anomaly Type" in result.output
@@ -160,7 +153,6 @@ class TestDetectAnomaliesCLI:
     ) -> None:
         """Test failure when traffic data cannot be loaded."""
         mock_read_csv.side_effect = Exception("CSV read error")
-=======
         mock_read_csv.side_effect = Exception("Read error")
 
         result = runner.invoke(
@@ -176,7 +168,6 @@ class TestDetectAnomaliesCLI:
     def test_anomalies_model_load_fail(
         self,
         mock_load: MagicMock,
-=======
     @patch("nroute.ml.anomaly.AnomalyDetector")
     def test_anomalies_load_model_fail(
         self,
@@ -189,7 +180,6 @@ class TestDetectAnomaliesCLI:
         """Test failure when model cannot be loaded."""
         mock_read_csv.return_value = pd.DataFrame({"feat": [1]})
         mock_load.side_effect = ModelError("Invalid model")
-=======
         mock_read_csv.return_value = pd.DataFrame({"fake": [1]})
         mock_detector = mock_detector_cls.return_value
         mock_detector.load.side_effect = ModelError("Load error")
@@ -208,7 +198,6 @@ class TestDetectAnomaliesCLI:
         self,
         mock_detect: MagicMock,
         mock_load: MagicMock,
-=======
     @patch("nroute.ml.anomaly.AnomalyDetector")
     def test_anomalies_detection_fail(
         self,
@@ -221,7 +210,6 @@ class TestDetectAnomaliesCLI:
         """Test failure during detection process."""
         mock_read_csv.return_value = pd.DataFrame({"feat": [1]})
         mock_detect.side_effect = ModelError("Detection error")
-=======
         mock_read_csv.return_value = pd.DataFrame({"fake": [1]})
         mock_detector = mock_detector_cls.return_value
         mock_detector.detect.side_effect = ModelError("Detection error")
@@ -241,7 +229,6 @@ class TestDetectAnomaliesCLI:
         self,
         mock_detect: MagicMock,
         mock_load: MagicMock,
-=======
     def test_anomalies_load_traffic_fail_json(
         self,
         mock_read_csv: MagicMock,
@@ -262,7 +249,6 @@ class TestDetectAnomaliesCLI:
         result = runner.invoke(
             detect_cmd,
             [
-=======
         """Test failure when traffic data cannot be loaded (JSON mode)."""
         mock_read_csv.side_effect = Exception("Read error")
 
@@ -315,7 +301,6 @@ class TestDetectAnomaliesCLI:
         assert result.exit_code == 0
         assert "0 anomalies detected" in result.output
         assert "Anomaly Type" not in result.output
-=======
             ],
         )
 

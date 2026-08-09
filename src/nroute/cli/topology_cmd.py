@@ -135,7 +135,6 @@ def _handle_generate(ctx: click.Context, params: GenerationParams) -> None:
         if is_json:
             if params.output:
                 out_path = Path(params.output)
-=======
 def generate(ctx: click.Context, **kwargs: Any) -> None:
     """Generate a synthetic network topology."""
     args = TopologyGenerateArgs.model_validate(kwargs)
@@ -181,7 +180,6 @@ def generate(ctx: click.Context, **kwargs: Any) -> None:
 
         if params.output:
             out_path = Path(params.output)
-=======
         if args.output:
             out_path = Path(args.output)
             out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -193,7 +191,6 @@ def generate(ctx: click.Context, **kwargs: Any) -> None:
         else:
             # Print summary to stdout
             _print_topology_summary(topo, title=f"{params.topo_type} Topology")
-=======
             _print_topology_summary(topo, title=f"{args.topo_type} Topology")
 
     except TopologyError as e:

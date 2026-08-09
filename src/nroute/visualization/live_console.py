@@ -95,7 +95,6 @@ class LiveSimulationConsole:
     def update_events(self, tick: int) -> None:
         """Inspect engine state and log node/link status changes and packet events."""
         # 1. Check for topology status changes (links & nodes going down/up)
-        graph = self.engine.topology.graph
         current_down_links = set()
         for u, v in self.engine.topology.edges:
             try:
@@ -120,6 +119,7 @@ class LiveSimulationConsole:
                 logger.error("Failed to get node status", node=node, error=str(e))
             except (KeyError, TopologyError) as e:
                 logger.error("Error retrieving node status", node=node, error=str(e), tick=tick)
+
         for u, v, edge_data in graph.edges(data=True):
             if edge_data.get("status") == "down":
                 current_down_links.add((u, v))
@@ -188,9 +188,11 @@ class LiveSimulationConsole:
         plt_ctx.title("Average Latency (ms)")
         plt_ctx.grid(True)
 
+
     def _update_header(self, layout: Layout, tick: int, last_metric: Any) -> None:
         """Update the header section of the layout."""
         algo_name = self.engine.router.__class__.__name__
+
     def _update_history(self, tick: int, last_metric: SimulationMetrics) -> None:
         """Update historical tick, throughput, and average latency metrics."""
         self.ticks_history.append(tick)
@@ -198,7 +200,7 @@ class LiveSimulationConsole:
         self.latency_history.append(last_metric.avg_latency)
 
     def _build_header(self, tick: int, last_metric: SimulationMetrics, algo_name: str) -> Panel:
-        """Build the header panel displaying key simulation stats."""
+        """Build the header panel displaying key simulation stats with Quit help."""
         header_text = Text.assemble(
     def _build_header(
         self, tick: int | None, last_metric: SimulationMetrics | None, algo_name: str
@@ -224,6 +226,15 @@ class LiveSimulationConsole:
             (status_text, status_color),
             ("  |  Algorithm: ", "white"),
             (algo_name, "bold green"),
+            ("  |  Tick: ", "white"),
+            (f"{tick + 1}/{self.duration_ticks}", "bold yellow"),
+            ("  |  Active Flows: ", "white"),
+            (str(last_metric.active_flows), "bold magenta"),
+            ("  |  Press ", "white"),
+            ("Ctrl+C", "bold red"),
+            (" to Quit", "white"),
+        )
+
         ]
 
         if tick is not None:
@@ -289,6 +300,7 @@ class LiveSimulationConsole:
 
             table.add_row(f"{u} ➔ {v}", status_str, bw, lat, util_str)
 
+
         return table
 
     def _update_layout(
@@ -342,24 +354,17 @@ class LiveSimulationConsole:
         footer_text = Text("\n".join(events_to_show))
         layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
 
-    def _update_history(self, tick: int, last_metric: Any) -> None:
-        """Update simulation history for plotting."""
-        self.ticks_history.append(tick)
-        self.throughput_history.append(last_metric.throughput)
-        self.latency_history.append(last_metric.avg_latency)
-
     def _update_all(self, layout: Layout, tick: int, engine: SimulationEngine) -> None:
         """Update all layout components based on the current simulation state."""
         last_metric = engine.collector.results[-1]
         self._update_history(tick, last_metric)
         self.update_events(tick)
-        self._update_header(layout, tick, last_metric)
-        self._update_link_status_table(layout, engine)
-        self._update_plots(layout)
+        self._update_layout(layout, tick, last_metric, engine.router.__class__.__name__, engine)
         self._update_footer(layout)
 
     def _create_layout(self) -> Layout:
         """Create the Rich layout for the live console."""
+
 
     def run(self) -> MetricsCollectionResult:
         """Run the simulation while displaying the live console interface."""
@@ -419,10 +424,33 @@ class LiveSimulationConsole:
 
     def run(self) -> MetricsCollectionResult:
         """Run the simulation while displaying the live console interface."""
+        from nroute.core.metrics import MetricsCollectionResult
+
         layout = self._create_layout()
         algo_name = self.engine.router.__class__.__name__
 
         def tick_callback(tick: int, engine: SimulationEngine) -> None:
+            self._update_all(layout, tick, engine)
+            # Force sleep to pace the visualization
+            time.sleep(self.delay)
+
+        # Start live context
+        try:
+            with Live(layout, refresh_per_second=10, screen=True):
+                self.log_event("[bold cyan]Simulation started[/bold cyan]")
+                result = self.engine.run(
+                    duration_ticks=self.duration_ticks,
+                    seed=self.seed,
+                    callback=tick_callback,
+                    show_progress=False,  # Turn off standard progress bar
+                )
+                self.log_event("[bold green]Simulation completed[/bold green]")
+                # Sleep a tiny bit at the end so the user can see the final state
+                time.sleep(1.0)
+            return result
+        except KeyboardInterrupt:
+            self.console.print("\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n")
+            return MetricsCollectionResult(results=self.engine.collector.results)
             self.status = "Running"
             last_metric = engine.collector.results[-1]
             self._update_history(tick, last_metric)

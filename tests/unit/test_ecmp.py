@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+<<<<<< jules-13186214925063221568-688e78df
+from typing import TYPE_CHECKING, Any
+=======
 from collections.abc import Callable  # noqa: TC003
 =======
+>>>>>> main
 import hashlib
 from collections.abc import Callable  # noqa: TC003
 from typing import TYPE_CHECKING, Any

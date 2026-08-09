@@ -10,7 +10,6 @@ from nroute.core.traffic import FlowRecord
 from nroute.routing.base import BaseRouter
 from nroute.simulation.engine import SimulationEngine
 from nroute.simulation.failure_injector import FailureInjector
-=======
 from unittest.mock import MagicMock, patch
 
 from nroute.core.topology import Topology
@@ -131,7 +130,6 @@ def test_run_multi_hop_flow(
     engine, _, router, traffic_gen = engine_setup
 
     # Flow from A to D via B (2 hops)
-=======
 def test_engine_custom_config(small_graph_data: dict[str, Any]) -> None:
     """Test engine with custom configuration (tick_duration)."""
     topo = _get_topo(small_graph_data)
@@ -238,7 +236,6 @@ def test_run_routing_failure_ingress(
     engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock],
 ) -> None:
     engine, _, router, traffic_gen = engine_setup
-=======
         packets=10,
         duration=0.1,
         protocol="TCP",
@@ -290,7 +287,6 @@ def test_run_midflow_failure_reroute(
     engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock],
 ) -> None:
     engine, _, router, traffic_gen = engine_setup
-=======
         packets=10,
         duration=0.1,
         protocol="TCP",
@@ -446,7 +442,6 @@ def test_rerouting_failure_midflow(
     # Tick 1: B->D fails. Reroute fails. Flow dropped.
     assert results.results[1].packet_loss_rate == 1.0
     assert len(engine.active_flows) == 0
-=======
         packets=10,
         duration=0.1,
         protocol="TCP",

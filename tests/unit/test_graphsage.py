@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-=======
 import torch
 
 from nroute.ml.models.graphsage import GraphSAGEModel
@@ -35,7 +34,6 @@ def test_graphsage_model_forward() -> None:
     logits_empty, lat_empty = model(node_feats, empty_edge_index, empty_edge_feats)
     assert logits_empty.shape == (0,)
     assert lat_empty.shape == (0,)
-=======
 import os
 import tempfile
 
