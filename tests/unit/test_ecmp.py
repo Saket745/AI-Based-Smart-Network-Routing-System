@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable  # noqa: TC003
+=======
 import hashlib
 from collections.abc import Callable  # noqa: TC003
 from typing import TYPE_CHECKING, Any

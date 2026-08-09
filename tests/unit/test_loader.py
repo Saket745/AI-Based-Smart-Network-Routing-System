@@ -233,6 +233,7 @@ class Derived(Base):
 
         # Failure case
         with pytest.raises(TypeError, match="does not inherit from 'Base'"):
+            load_custom_class("pathlib:Path", expected_superclass=base, allow_unsafe=True)
             load_custom_class("pathlib:Path", expected_superclass=base_cls)
     finally:
         if os.path.exists(tmp_path):

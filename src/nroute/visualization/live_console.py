@@ -14,6 +14,9 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from nroute.utils.logging import get_logger
+
+=======
 from nroute.exceptions import TopologyError
 from nroute.utils.logging import get_logger
 
@@ -25,6 +28,8 @@ logger = get_logger(__name__)
 if TYPE_CHECKING:
     from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
     from nroute.simulation.engine import SimulationEngine
+
+logger = get_logger(__name__)
 
 
 class PlotextRenderable:
@@ -97,6 +102,8 @@ class LiveSimulationConsole:
                 edge_data = self.engine.topology.get_edge(u, v)
                 if edge_data.get("status") == "down":
                     current_down_links.add((u, v))
+            except Exception as e:
+                logger.error("Failed to get edge status", edge=(u, v), error=str(e))
             except (KeyError, TopologyError) as e:
                 logger.error("Error retrieving edge status", edge=(u, v), error=str(e), tick=tick)
 
@@ -109,6 +116,8 @@ class LiveSimulationConsole:
                 node_data = self.engine.topology.get_node(node)
                 if node_data.get("status") == "down":
                     current_down_nodes.add(node)
+            except Exception as e:
+                logger.error("Failed to get node status", node=node, error=str(e))
             except (KeyError, TopologyError) as e:
                 logger.error("Error retrieving node status", node=node, error=str(e), tick=tick)
         for u, v, edge_data in graph.edges(data=True):
@@ -406,6 +415,12 @@ class LiveSimulationConsole:
                 style="white",
             )
         )
+        return layout
+
+    def run(self) -> MetricsCollectionResult:
+        """Run the simulation while displaying the live console interface."""
+        layout = self._create_layout()
+        algo_name = self.engine.router.__class__.__name__
 
         def tick_callback(tick: int, engine: SimulationEngine) -> None:
             self.status = "Running"
@@ -413,8 +428,7 @@ class LiveSimulationConsole:
             self._update_history(tick, last_metric)
             self.update_events(tick)
             self._update_layout(layout, tick, last_metric, algo_name, engine)
-            # Force sleep to pace the visualization
-=======
+
             last_metric = engine.collector.results[-1]
             self._update_history(tick, last_metric)
             self.update_events(tick)
@@ -487,7 +501,6 @@ class LiveSimulationConsole:
             layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
 
             # Force sleep to pace the visualization
-=======
             self._update_layout(layout, tick, last_metric, algo_name, engine)
             time.sleep(self.delay)
 

@@ -202,6 +202,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         self._restore_edge_attributes()
         self._randomize_edge_attributes()
 
+        # Pick active nodes for source and destination
         graph = self.topology.graph
         up_nodes = [
             n for n in self.nodes if graph.nodes[n].get("status", "up").lower() == "up"
@@ -318,6 +319,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         visit_count_before: int,
         info: dict[str, Any],
     ) -> float:
+        """Compute the scalar reward for the current transition."""
       
         alpha = self.reward_params.get("alpha", 5.0)
         beta = self.reward_params.get("beta", 1.0)
@@ -328,6 +330,25 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         latency = float(edge_attr.get("latency", 5.0))
         bandwidth = float(edge_attr.get("bandwidth", 1000.0))
         loss = float(edge_attr.get("packet_loss", 0.0))
+
+        # 1. Base step reward: low latency, high bandwidth, low loss, hop penalty
+        reward = (
+            alpha * (1.0 / max(0.1, latency)) + beta * (bandwidth / 1000.0) - gamma * loss - delta
+        )
+
+        # 2. Apply revisit penalty (graduated: -10.0 on first revisit)
+        if visit_count_before == 1:
+            reward -= 10.0
+            info["revisit_penalty"] = True
+
+        # 3. Proximity-to-destination bonus (precomputed BFS distance)
+        prev_distance = self._get_distance_to_dest(prev_node)
+        curr_distance = self._get_distance_to_dest(curr_node)
+        distance_delta = prev_distance - curr_distance
+        reward += proximity_weight * distance_delta
+
+        # 4. Jain's fairness index of remaining edge capacities
+=======
         reward = (
             alpha * (1.0 / max(0.1, latency)) + beta * (bandwidth / 1000.0) - gamma * loss - delta
         )
@@ -382,8 +403,6 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             jains = (sum_r**2) / (n * sum_r2) if sum_r2 > 0 else 1.0
             reward += fairness_weight * jains
 
-        # 5. Destination bonus or truncation penalty
-        # Check if reached destination
         if curr_node == self.destination:
             # Reached destination bonus (scaled inversely by path length)
             efficiency_bonus = max(10.0, 100.0 - self.hops * 2.0)

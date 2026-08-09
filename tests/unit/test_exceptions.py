@@ -95,6 +95,16 @@ def test_subclass_inheritance() -> None:
     assert isinstance(exc_info.value, ValidationError)
     assert exc_info.value.message == "invalid"
 
+
+@pytest.mark.parametrize(
+    "exception_class",
+    [
+        TopologyError,
+        IngestionError,
+        RoutingError,
+        SimulationError,
+        ModelError,
+        ConfigError,
 @pytest.mark.parametrize(
     "exception_class",
     [

@@ -46,16 +46,6 @@ class Topology:
             for u, v, d in graph.edges(data=True):
                 if d.get("status") == "down":
                     self._down_edges.add((u, v))
-    @property
-    def has_down_nodes(self) -> bool:
-        """Check if there are any down nodes in the topology."""
-        return len(self._down_nodes) > 0
-
-    @property
-    def has_down_edges(self) -> bool:
-        """Check if there are any down edges in the topology."""
-        return len(self._down_edges) > 0
-
 
     @property
     def graph(self) -> nx.DiGraph:

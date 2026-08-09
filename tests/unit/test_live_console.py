@@ -64,6 +64,7 @@ def test_live_console_basic_logging() -> None:
     console_viz.update_events(tick=1)
     assert any("Node A recovered (UP)" in event for event in console_viz.event_log)
 
+
 def test_live_console_event_handling() -> None:
     """Verify LiveSimulationConsole handles various simulation events."""
 
