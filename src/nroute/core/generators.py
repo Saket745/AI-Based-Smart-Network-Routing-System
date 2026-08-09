@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
 import networkx as nx
-
-if TYPE_CHECKING:
-    import numpy as np
 
 from nroute.core.topology import Topology
 from nroute.exceptions import TopologyError
@@ -395,47 +392,5 @@ class TopologyGenerator:
             for k_attr, v_attr in default_attrs.items():
                 if not k_attr.endswith("bandwidth") and not k_attr.endswith("latency"):
                     graph.edges[src, dst][k_attr] = v_attr
-
-        return Topology(graph)
-
-    @classmethod
-    def from_adjacency_matrix(
-        cls,
-        matrix: np.ndarray,
-        node_labels: list[str] | None = None,
-        seed: int | None = None,
-        **default_attrs: Any,
-    ) -> Topology:
-        """
-        Generate a topology from a NumPy adjacency matrix.
-
-        Args:
-            matrix: Adjacency matrix where matrix[i, j] > 0 means a link from i to j exists.
-            node_labels: Optional labels for nodes. Defaults to "0", "1", "2", ...
-            seed: Random seed for reproducibility.
-            default_attrs: Optional override attributes.
-        """
-        rows, cols = matrix.shape
-        if rows != cols:
-            raise TopologyError("Adjacency matrix must be square.")
-
-        rng = get_rng(seed)
-        graph = nx.DiGraph()
-
-        if node_labels is None:
-            node_labels = [str(i) for i in range(rows)]
-        elif len(node_labels) != rows:
-            raise TopologyError("Length of node_labels must match matrix dimensions.")
-
-        for label in node_labels:
-            graph.add_node(label)
-
-        for i in range(rows):
-            for j in range(cols):
-                if matrix[i, j] > 0:
-                    graph.add_edge(node_labels[i], node_labels[j])
-
-        cls._assign_default_node_attrs(graph, "router", rng, **default_attrs)
-        cls._assign_random_edge_attrs(graph, rng, **default_attrs)
 
         return Topology(graph)

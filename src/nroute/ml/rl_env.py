@@ -262,14 +262,9 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             info["status"] = "failed_link_down"
             return self._get_obs(), reward, terminated, truncated, info
 
-        # 3. Retrieve link metrics
-        edge_attr = graph.edges[edge]
-        latency = float(edge_attr.get("latency", 5.0))
-        bandwidth = float(edge_attr.get("bandwidth", 1000.0))
-        loss = float(edge_attr.get("packet_loss", 0.0))
+        edge_attr = self.topology.get_edge(*edge)
 
-        # 4. Graduated loop detection
-        # 3. Graduated loop detection
+   
         visit_count = self._visit_counts.get(next_node, 0)
         if visit_count >= 2:
             # Third visit to same node — terminate with heavy penalty
@@ -280,7 +275,6 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
 
         # Capture state before transition
         prev_node = self.current_node
-        edge_attr = self.topology.get_edge(*edge)
 
         # 4. Apply transition
         self._apply_transition(next_node)
@@ -299,6 +293,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             terminated = True
             info["status"] = "success"
         elif self.hops >= self.max_hops:
+            reward -= 10.0
             truncated = True
             info["status"] = "truncated_max_hops"
         else:
@@ -335,27 +330,31 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         bandwidth = float(edge_attr.get("bandwidth", 1000.0))
         loss = float(edge_attr.get("packet_loss", 0.0))
 
-        # 1. Base step reward: low latency, high bandwidth, low loss, hop penalty
-        reward = (
+        # Base step reward: low latency, high bandwidth, low loss
+        step_reward = (
             alpha * (1.0 / max(0.1, latency)) + beta * (bandwidth / 1000.0) - gamma * loss - delta
         )
 
-        # 2. Apply revisit penalty (graduated: -10.0 on first revisit)
+        # Apply revisit penalty (graduated: -10.0 on first revisit)
         if visit_count_before == 1:
-            reward -= 10.0
+            step_reward -= 10.0
             info["revisit_penalty"] = True
 
-        # 3. Proximity-to-destination bonus (precomputed BFS distance)
+        # Proximity-to-destination bonus (precomputed BFS distance)
         prev_distance = self._get_distance_to_dest(prev_node)
         curr_distance = self._get_distance_to_dest(curr_node)
-        distance_delta = prev_distance - curr_distance
-        reward += proximity_weight * distance_delta
 
-        # 4. Jain's fairness index of remaining edge capacities
+        # Bonus for getting closer, penalty for moving away
+        distance_delta = prev_distance - curr_distance
+        step_reward += proximity_weight * distance_delta
+        reward = step_reward
+
+        # Jain's fairness index of remaining edge capacities
         fairness_weight = self.reward_params.get("fairness", 2.0)
         if fairness_weight > 0 and self.num_edges > 0:
             remaining_caps = []
-            for _, _, attrs in graph.edges(data=True):
+            for src, dst in self.edges:
+                attrs = self.topology.get_edge(src, dst)
                 util = float(attrs.get("utilization", 0.0))
                 remaining_caps.append(max(0.0, 1.0 - util))
             remaining = np.array(remaining_caps, dtype=np.float64)
@@ -365,7 +364,6 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             jains = (sum_r**2) / (n * sum_r2) if sum_r2 > 0 else 1.0
             reward += fairness_weight * jains
 
-        # 5. Destination bonus or truncation penalty
         if curr_node == self.destination:
             # Reached destination bonus (scaled inversely by path length)
             efficiency_bonus = max(10.0, 100.0 - self.hops * 2.0)

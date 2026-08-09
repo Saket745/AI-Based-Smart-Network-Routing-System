@@ -1097,7 +1097,7 @@ def _print_compare_table(algo_list: list[str], results: dict[str, Any]) -> None:
             comparison_data[algo] = _get_metrics_summary(r)
         else:
             comparison_data[algo] = {"error": "simulation_failed"}
-            
+
     # Build comparison data once using helper function
     comparison_export_data = _build_comparison_data(results, algo_list)
 
@@ -1363,7 +1363,7 @@ def _save_compare_results(output: str, comparison_data: dict[str, Any]) -> None:
     if args.output:
         _save_json_results(comparison_data, args.output, echo=False)
 
-      
+
     console.print()
 
 def _print_simulation_results(result: Any, algorithm: str) -> None:

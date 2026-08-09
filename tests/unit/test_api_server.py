@@ -130,7 +130,7 @@ def test_api_load_topology_success_cwd(client: TestClient) -> None:
         response = client.post("/api/topology/load", json={"path": str(temp_file)}, headers=headers)
         assert response.status_code == 200
         data = response.json()
-     
+
     assert data["status"] == "ok"
         assert data["nodes"] == 2
         assert data["edges"] == 1
@@ -258,6 +258,6 @@ def test_api_load_topology_outside_cwd_absolute(client: TestClient) -> None:
     response = client.post("/api/topology/load", json={"path": "/etc/passwd"}, headers=headers)
 
 
- 
+
     assert response.status_code == 403
     assert "Access denied: Path is outside allowed directories" in response.json()["detail"]

@@ -269,6 +269,105 @@ class RLRouter(BaseRouter):
             action, _ = self.model.predict(obs, deterministic=True)
             return int(action), 1.0  # Assume full confidence on failure
 
+    def _validate_and_fallback_if_untrained(
+        self,
+        topology: Topology,
+        source: str,
+        destination: str,
+        weight: str | Callable[[dict[str, Any]], float] | None = None,
+        **kwargs: Any,
+    ) -> list[str] | None:
+        """Helper to handle cascade fallback if the model is untrained or not loaded."""
+        if not self.is_trained or self.model is None:
+            if not getattr(self, "_warned_untrained", False):
+                logger.warning(
+                    "RLRouter is not trained. Using cascade fallback (suppressing future warnings)."
+                )
+                self._warned_untrained = True
+            return self._cascade_fallback(topology, source, destination, weight=weight, **kwargs)
+        return None
+
+    def _validate_and_fallback_if_incompatible(
+        self,
+        topology: Topology,
+        source: str,
+        destination: str,
+        weight: str | Callable[[dict[str, Any]], float] | None = None,
+        **kwargs: Any,
+    ) -> list[str] | None:
+        """Helper to check topology compatibility with training metadata and fallback if incompatible."""
+        is_compatible, reason = self._check_topology_compatibility(topology)
+        if not is_compatible:
+            if not getattr(self, "_warned_incompatible", False):
+                logger.warning(
+                    f"Topology incompatible with training topology: {reason}. "
+                    "Using cascade fallback (suppressing future warnings)."
+                )
+                self._warned_incompatible = True
+            return self._cascade_fallback(topology, source, destination, weight=weight, **kwargs)
+        return None
+
+    def _compute_rl_path(
+        self,
+        topology: Topology,
+        source: str,
+        destination: str,
+        weight: str | Callable[[dict[str, Any]], float] | None = None,
+        **kwargs: Any,
+    ) -> list[str]:
+        """Runs step-by-step path construction inside NetworkRoutingEnv using the trained RL model."""
+        # Create inference environment with training_mode=False
+        # to avoid randomizing edge attributes during inference
+        env = NetworkRoutingEnv(topology, training_mode=False)
+
+        # Verify observation space matches training
+        if env.obs_dim != self._training_obs_dim:
+            logger.warning(
+                f"Observation dimension mismatch (training={self._training_obs_dim}, "
+                f"inference={env.obs_dim}). Using cascade fallback."
+            )
+            return self._cascade_fallback(topology, source, destination, weight=weight)
+
+        # Setup env state manually to the source/destination pair
+        if source not in env.node_to_idx or destination not in env.node_to_idx:
+            raise RoutingError(f"Source '{source}' or Destination '{destination}' not in topology.")
+
+        env.current_node = source
+        env.destination = destination
+        env.path = [source]
+        env.hops = 0
+        env._visit_counts = {source: 1}
+
+        obs = env._get_obs()
+        terminated = False
+        truncated = False
+
+        while not (terminated or truncated):
+            action, confidence = self._get_action_confidence(obs)
+
+            if confidence < self.confidence_threshold:
+                logger.warning(
+                    f"RL action confidence {confidence:.3f} below threshold "
+                    f"{self.confidence_threshold}. Using cascade fallback."
+                )
+                return self._cascade_fallback(
+                    topology, source, destination, weight=weight, **kwargs
+                )
+
+            obs, _reward, terminated, truncated, info = env.step(action)
+
+        if info.get("status") == "success" and env.current_node == destination:
+            path = list(env.path)
+            self.validate_path(topology, path, source, destination)
+            return path
+
+        # If terminated in failure
+        logger.warning(
+            f"RL path computation failed (env status: {info.get('status')}). "
+            "Using cascade fallback."
+        )
+        return self._cascade_fallback(topology, source, destination, weight=weight, **kwargs)
+
     def compute_path(
         self,
         topology: Topology,
@@ -291,80 +390,22 @@ class RLRouter(BaseRouter):
             weight: Unused, kept for signature compatibility (RL works on multi-attribute state).
         """
         # 1. Fallback if not trained
-        if not self.is_trained or self.model is None:
-            if not getattr(self, "_warned_untrained", False):
-                logger.warning(
-                    "RLRouter is not trained. Using cascade fallback (suppressing future warnings)."
-                )
-                self._warned_untrained = True
-            return self._cascade_fallback(topology, source, destination, weight=weight, **kwargs)
+        untrained_fallback = self._validate_and_fallback_if_untrained(
+            topology, source, destination, weight, **kwargs
+        )
+        if untrained_fallback is not None:
+            return untrained_fallback
 
         # 2. Check topology compatibility with training topology
-        is_compatible, reason = self._check_topology_compatibility(topology)
-        if not is_compatible:
-            if not getattr(self, "_warned_incompatible", False):
-                logger.warning(
-                    f"Topology incompatible with training topology: {reason}. Using cascade fallback (suppressing future warnings)."
-                )
-                self._warned_incompatible = True
-            return self._cascade_fallback(topology, source, destination, weight=weight, **kwargs)
+        incompatible_fallback = self._validate_and_fallback_if_incompatible(
+            topology, source, destination, weight, **kwargs
+        )
+        if incompatible_fallback is not None:
+            return incompatible_fallback
 
         # 3. Run RL inference step-by-step
         try:
-            # Create inference environment with training_mode=False
-            # to avoid randomizing edge attributes during inference
-            env = NetworkRoutingEnv(topology, training_mode=False)
-
-            # Verify observation space matches training
-            if env.obs_dim != self._training_obs_dim:
-                logger.warning(
-                    f"Observation dimension mismatch (training={self._training_obs_dim}, "
-                    f"inference={env.obs_dim}). Using cascade fallback."
-                )
-                return self._cascade_fallback(topology, source, destination, weight=weight)
-
-            # Setup env state manually to the source/destination pair
-            if source not in env.node_to_idx or destination not in env.node_to_idx:
-                raise RoutingError(
-                    f"Source '{source}' or Destination '{destination}' not in topology."
-                )
-
-            env.current_node = source
-            env.destination = destination
-            env.path = [source]
-            env.hops = 0
-            env._visit_counts = {source: 1}
-
-            obs = env._get_obs()
-            terminated = False
-            truncated = False
-
-            while not (terminated or truncated):
-                action, confidence = self._get_action_confidence(obs)
-
-                if confidence < self.confidence_threshold:
-                    logger.warning(
-                        f"RL action confidence {confidence:.3f} below threshold "
-                        f"{self.confidence_threshold}. Using cascade fallback."
-                    )
-                    return self._cascade_fallback(
-                        topology, source, destination, weight=weight, **kwargs
-                    )
-
-                obs, _reward, terminated, truncated, info = env.step(action)
-
-            if info.get("status") == "success" and env.current_node == destination:
-                path = list(env.path)
-                self.validate_path(topology, path, source, destination)
-                return path
-
-            # If terminated in failure
-            logger.warning(
-                f"RL path computation failed (env status: {info.get('status')}). "
-                "Using cascade fallback."
-            )
-            return self._cascade_fallback(topology, source, destination, weight=weight, **kwargs)
-
+            return self._compute_rl_path(topology, source, destination, weight, **kwargs)
         except Exception as e:
             if isinstance(e, RoutingError):
                 raise

@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+<<<<<< jules-13186214925063221568-688e78df
 from typing import TYPE_CHECKING, Any
+=======
+from collections.abc import Callable  # noqa: TC003
+=======
+>>>>>> main
 import hashlib
 from collections.abc import Callable  # noqa: TC003
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
+
+from collections.abc import Callable
+from typing import Any
 
 import pytest
 
@@ -45,7 +53,6 @@ def test_ecmp_equal_cost_paths() -> None:
     query = RoutingQuery(source="A", destination="D", weight="weight")
     paths = router.compute_all_equal_cost_paths(topo, query)
     assert len(paths) == 2
-
 
     # Test backward compatible style
     paths_compat = router.compute_all_equal_cost_paths(
@@ -140,11 +147,8 @@ def test_k_shortest_paths() -> None:
     router = ECMPRouter(k=3)
 
     query = RoutingQuery(source="A", destination="D", weight="weight", k=3)
-
-    query = RoutingQuery(source="A", destination="D", weight="weight")
     paths = router.compute_k_shortest_paths(topo, query)
     assert len(paths) == 3
-
 
     # Test backward compatible style
     paths_compat = router.compute_k_shortest_paths(

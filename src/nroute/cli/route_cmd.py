@@ -268,7 +268,7 @@ def _init_router(
 
         import typing
 
-        
+
         from nroute.utils.loader import load_custom_class
 
     if is_json:
@@ -326,7 +326,7 @@ def _init_router(
         )
         return router
 
-    
+
         import typing
 
         inst = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
