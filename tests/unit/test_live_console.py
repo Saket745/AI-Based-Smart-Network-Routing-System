@@ -129,6 +129,7 @@ def test_live_console_error_handling() -> None:
         console_viz.update_events(tick=0)
         # Verify errors were logged
         assert mock_logger.error.called
+=======
     metric = SimulationMetrics(
         tick=0,
         timestamp=0.0,

@@ -21,7 +21,6 @@ def load_custom_class(
     Args:
         import_str: The import target string in module:class or path:class format.
         expected_superclass: Optional superclass to validate inheritance against.
-        allow_unsafe: Whether to allow loading from local filesystem paths.
 
     Returns:
         The loaded class type.
@@ -30,6 +29,7 @@ def load_custom_class(
         ValueError: If the format is invalid.
         ImportError: If the module or class cannot be loaded.
         TypeError: If the class does not inherit from expected_superclass.
+        PermissionError: If loading from a file is attempted with allow_unsafe=False.
     """
     import_str = import_str.strip()
 

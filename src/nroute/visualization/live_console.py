@@ -16,6 +16,15 @@ from rich.text import Text
 
 from nroute.utils.logging import get_logger
 
+=======
+from nroute.exceptions import TopologyError
+from nroute.utils.logging import get_logger
+
+
+from nroute.utils.logging import get_logger
+
+logger = get_logger(__name__)
+
 if TYPE_CHECKING:
     from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
     from nroute.simulation.engine import SimulationEngine
@@ -43,6 +52,9 @@ class PlotextRenderable:
         ansi_output = plt.build()
         decoder = AnsiDecoder()
         yield from decoder.decode(ansi_output)
+
+
+logger = get_logger(__name__)
 
 
 class LiveSimulationConsole:
@@ -83,6 +95,7 @@ class LiveSimulationConsole:
     def update_events(self, tick: int) -> None:
         """Inspect engine state and log node/link status changes and packet events."""
         # 1. Check for topology status changes (links & nodes going down/up)
+        graph = self.engine.topology.graph
         current_down_links = set()
         for u, v in self.engine.topology.edges:
             try:
@@ -91,6 +104,11 @@ class LiveSimulationConsole:
                     current_down_links.add((u, v))
             except Exception as e:
                 logger.error("Failed to get edge status", edge=(u, v), error=str(e))
+            except (KeyError, TopologyError) as e:
+                logger.error("Error retrieving edge status", edge=(u, v), error=str(e), tick=tick)
+
+            except Exception as e:
+                logger.error("Failed to check edge status", edge=(u, v), error=str(e))
 
         current_down_nodes = set()
         for node in self.engine.topology.nodes:
@@ -100,6 +118,19 @@ class LiveSimulationConsole:
                     current_down_nodes.add(node)
             except Exception as e:
                 logger.error("Failed to get node status", node=node, error=str(e))
+            except (KeyError, TopologyError) as e:
+                logger.error("Error retrieving node status", node=node, error=str(e), tick=tick)
+        for u, v, edge_data in graph.edges(data=True):
+            if edge_data.get("status") == "down":
+                current_down_links.add((u, v))
+
+        current_down_nodes = set()
+        for node, node_data in graph.nodes(data=True):
+            if node_data.get("status") == "down":
+                current_down_nodes.add(node)
+
+            except Exception as e:
+                logger.error("Failed to check node status", node=node, error=str(e))
 
         # Links going down
         for u, v in current_down_links - self.prev_down_links:
@@ -157,12 +188,18 @@ class LiveSimulationConsole:
         plt_ctx.title("Average Latency (ms)")
         plt_ctx.grid(True)
 
+    def _update_header(self, layout: Layout, tick: int, last_metric: Any) -> None:
+        """Update the header section of the layout."""
+        algo_name = self.engine.router.__class__.__name__
     def _update_history(self, tick: int, last_metric: SimulationMetrics) -> None:
         """Update historical tick, throughput, and average latency metrics."""
         self.ticks_history.append(tick)
         self.throughput_history.append(last_metric.throughput)
         self.latency_history.append(last_metric.avg_latency)
 
+    def _build_header(self, tick: int, last_metric: SimulationMetrics, algo_name: str) -> Panel:
+        """Build the header panel displaying key simulation stats."""
+        header_text = Text.assemble(
     def _build_header(
         self, tick: int | None, last_metric: SimulationMetrics | None, algo_name: str
     ) -> Panel:
@@ -206,6 +243,10 @@ class LiveSimulationConsole:
             )
 
         header_text = Text.assemble(*parts)
+        return Panel(header_text, style="cyan")
+
+    def _update_link_status_table(self, layout: Layout, engine: SimulationEngine) -> None:
+        """Update the link status table in the layout."""
         return Panel(header_text, style="cyan")
 
     def _build_link_status_table(self, engine: SimulationEngine) -> Table:
@@ -266,6 +307,26 @@ class LiveSimulationConsole:
         table = self._build_link_status_table(engine)
         layout["left"].update(Panel(table, style="magenta"))
 
+    def _update_plots(self, layout: Layout) -> None:
+        """Update the throughput and latency plots in the layout."""
+        return table
+
+    def _update_layout(
+        self,
+        layout: Layout,
+        tick: int,
+        last_metric: SimulationMetrics,
+        algo_name: str,
+        engine: SimulationEngine,
+    ) -> None:
+        """Update all layout parts (header, left panel, right panel plots, and footer)."""
+        # Header
+        layout["header"].update(self._build_header(tick, last_metric, algo_name))
+
+        # Left Panel: Link Status Table
+        table = self._build_link_status_table(engine)
+        layout["left"].update(Panel(table, style="magenta"))
+
         # Right Panel: Plots
         layout["right"]["throughput_plot"].update(
             Panel(PlotextRenderable(self.plot_throughput), style="cyan")
@@ -274,13 +335,34 @@ class LiveSimulationConsole:
             Panel(PlotextRenderable(self.plot_latency), style="yellow")
         )
 
+    def _update_footer(self, layout: Layout) -> None:
+        """Update the event log footer in the layout."""
         # Footer: Event Log
         events_to_show = self.event_log[-5:] if self.event_log else ["No events yet."]
         footer_text = Text("\n".join(events_to_show))
         layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
 
+    def _update_history(self, tick: int, last_metric: Any) -> None:
+        """Update simulation history for plotting."""
+        self.ticks_history.append(tick)
+        self.throughput_history.append(last_metric.throughput)
+        self.latency_history.append(last_metric.avg_latency)
+
+    def _update_all(self, layout: Layout, tick: int, engine: SimulationEngine) -> None:
+        """Update all layout components based on the current simulation state."""
+        last_metric = engine.collector.results[-1]
+        self._update_history(tick, last_metric)
+        self.update_events(tick)
+        self._update_header(layout, tick, last_metric)
+        self._update_link_status_table(layout, engine)
+        self._update_plots(layout)
+        self._update_footer(layout)
+
     def _create_layout(self) -> Layout:
         """Create the Rich layout for the live console."""
+
+    def run(self) -> MetricsCollectionResult:
+        """Run the simulation while displaying the live console interface."""
         layout = Layout()
         layout.split_column(
             Layout(name="header", size=3),
@@ -346,7 +428,80 @@ class LiveSimulationConsole:
             self._update_history(tick, last_metric)
             self.update_events(tick)
             self._update_layout(layout, tick, last_metric, algo_name, engine)
+
+            last_metric = engine.collector.results[-1]
+            self._update_history(tick, last_metric)
+            self.update_events(tick)
+
+            # Build elements for render
+            # Header
+            header_text = Text.assemble(
+                ("nroute LIVE SIMULATION CONSOLE", "bold cyan"),
+                ("  |  Algorithm: ", "white"),
+                (algo_name, "bold green"),
+                ("  |  Tick: ", "white"),
+                (f"{tick + 1}/{self.duration_ticks}", "bold yellow"),
+                ("  |  Active Flows: ", "white"),
+                (str(last_metric.active_flows), "bold magenta"),
+            )
+            layout["header"].update(Panel(header_text, style="cyan"))
+
+            # Left Panel: Link Status Table
+            table = Table(
+                title="Link Status & Utilization",
+                show_header=True,
+                header_style="bold magenta",
+                expand=True,
+            )
+            table.add_column("Link (U ➔ V)", style="cyan")
+            table.add_column("Status", justify="center")
+            table.add_column("Bandwidth", justify="right")
+            table.add_column("Latency", justify="right")
+            table.add_column("Utilization", justify="right")
+
+            # Sort edges for stable rendering
+            graph = engine.topology.graph
+            sorted_edges = sorted(graph.edges(data=True))
+            for u, v, edge_data in sorted_edges:
+                status = str(edge_data.get("status", "up")).upper()
+                if status == "DOWN":
+                    status_str = "[bold red]🔴 DOWN[/bold red]"
+                else:
+                    status_str = "[bold green]🟢 UP[/bold green]"
+
+                bw = f"{edge_data.get('bandwidth', 1000):.0f} Mbps"
+                lat = f"{edge_data.get('latency', 5):.1f} ms"
+                util = float(edge_data.get("utilization", 0.0))
+
+                # Color coding based on utilization
+                if status == "DOWN":
+                    util_str = "[grey]--[/grey]"
+                elif util > 0.85:
+                    util_str = f"[bold red]{util:.1%}[/bold red] 🔴"
+                elif util > 0.60:
+                    util_str = f"[bold yellow]{util:.1%}[/bold yellow] 🟡"
+                else:
+                    util_str = f"[bold green]{util:.1%}[/bold green] 🟢"
+
+                table.add_row(f"{u} ➔ {v}", status_str, bw, lat, util_str)
+
+            layout["left"].update(Panel(table, style="magenta"))
+
+            # Right Panel: Plots
+            layout["right"]["throughput_plot"].update(
+                Panel(PlotextRenderable(self.plot_throughput), style="cyan")
+            )
+            layout["right"]["latency_plot"].update(
+                Panel(PlotextRenderable(self.plot_latency), style="yellow")
+            )
+
+            # Footer: Event Log
+            events_to_show = self.event_log[-5:] if self.event_log else ["No events yet."]
+            footer_text = Text("\n".join(events_to_show))
+            layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
+
             # Force sleep to pace the visualization
+            self._update_layout(layout, tick, last_metric, algo_name, engine)
             time.sleep(self.delay)
 
         # Start live context

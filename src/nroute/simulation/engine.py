@@ -42,13 +42,13 @@ class SimulationEngine:
         Initialize the SimulationEngine.
 
         Args:
-            topology: The network topology instance to run simulation on.
-            router: Router implementing the routing algorithm.
-            traffic_generator: Generator to spawn traffic flows.
-            failure_injector: Optional injector to trigger link/node failures.
-            config: Optional system configuration overrides.
+            topology: The network topology (will be copied to avoid mutating the original).
+            router: A BaseRouter implementation.
+            traffic_generator: A TrafficGenerator instance.
+            failure_injector: Optional FailureInjector scheduling link/node events.
+            config: Optional NRouteConfig instance.
         """
-        self.topology = topology
+        self.topology = topology.copy()
         self.router = router
         self.traffic_generator = traffic_generator
         self.failure_injector = failure_injector
