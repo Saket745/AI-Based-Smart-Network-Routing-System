@@ -61,18 +61,6 @@ from nroute.routing import (
 
 
 class Simulator:
-    """
-    Convenience facade class for running network simulations.
-    Matches the PRD and Quickstart API signature.
-    """
-
-    def __init__(self, topology: Topology, algorithm: Any, duration: int) -> None:
-        from nroute.routing import get_router
-=======
-from nroute.routing import BaseRouter, get_router, register_router
-
-
-class Simulator:
     """Facade class for simplifying simulation execution."""
 
     def __init__(self, topology: Any, algorithm: Any, duration: int) -> None:
@@ -81,8 +69,6 @@ class Simulator:
 
         self.topology = topology
         self.algorithm = algorithm
-        self.duration = duration
-
         self.duration = duration
 
         if isinstance(algorithm, str):
@@ -103,8 +89,6 @@ class Simulator:
             router=self.router,
             traffic_generator=self.traffic_generator,
         )
-
-    def run(self, seed: int | None = None) -> Any:
         return self.engine.run(duration_ticks=self.duration, seed=seed)
 
 
