@@ -22,7 +22,6 @@ VALID_TYPES = {
     "chore",            # Maintenance tasks
     "revert",           # Revert a previous commit
     "security",         # Security fixes
-=======
     "feat",
     "feature",  # New feature
     "fix",

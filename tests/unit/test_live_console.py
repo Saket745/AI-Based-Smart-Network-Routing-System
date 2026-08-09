@@ -65,10 +65,13 @@ def test_live_console_basic_logging() -> None:
     assert any("Node A recovered (UP)" in event for event in console_viz.event_log)
 
 
+<<<<<< jules-13186214925063221568-688e78df
+=======
 def test_live_console_event_handling() -> None:
     """Verify LiveSimulationConsole handles various simulation events."""
 
 
+>>>>>> main
 def test_live_console_helpers() -> None:
     """Test individual helper methods of LiveSimulationConsole."""
     topo = Topology()
@@ -106,30 +109,6 @@ def test_live_console_helpers() -> None:
         console_viz.log_event(f"Event {i}")
     assert len(console_viz.event_log) == 50
 
-
-def test_live_console_error_handling() -> None:
-    """Verify LiveSimulationConsole handles and logs topology access errors."""
-    topo = Topology()
-    topo.add_node("A", type="router")
-    topo.add_node("B", type="router")
-    topo.add_edge("A", "B", bandwidth=1000, latency=5)
-
-    router = DijkstraRouter()
-    traffic = TrafficGenerator(model="uniform", n_flows_per_tick=1)
-    engine = SimulationEngine(topo, router, traffic)
-
-    console_viz = LiveSimulationConsole(engine, duration_ticks=5, delay=0.0)
-
-    # Mock get_edge and get_node to raise TopologyError
-    with (
-        patch.object(engine.topology, "get_edge", side_effect=TopologyError("Edge error")),
-        patch.object(engine.topology, "get_node", side_effect=TopologyError("Node error")),
-        patch("nroute.visualization.live_console.logger") as mock_logger,
-    ):
-        console_viz.update_events(tick=0)
-        # Verify errors were logged
-        assert mock_logger.error.called
-=======
     metric = SimulationMetrics(
         tick=0,
         timestamp=0.0,
@@ -176,8 +155,13 @@ def test_live_console_error_handling() -> None:
     assert layout["header"] is not None
 
 
+<<<<<< jules-13186214925063221568-688e78df
+def test_live_console_error_handling() -> None:
+    """Verify LiveSimulationConsole handles and logs topology access errors."""
+=======
 def test_live_console_status_transitions() -> None:
     """Verify that the console tracking status transitions through Initializing, Running, and Completed states."""
+>>>>>> main
     topo = Topology()
     topo.add_node("A", type="router")
     topo.add_node("B", type="router")
@@ -187,6 +171,19 @@ def test_live_console_status_transitions() -> None:
     traffic = TrafficGenerator(model="uniform", n_flows_per_tick=1)
     engine = SimulationEngine(topo, router, traffic)
 
+<<<<<< jules-13186214925063221568-688e78df
+    console_viz = LiveSimulationConsole(engine, duration_ticks=5, delay=0.0)
+
+    # Mock get_edge and get_node to raise TopologyError
+    with (
+        patch.object(engine.topology, "get_edge", side_effect=TopologyError("Edge error")),
+        patch.object(engine.topology, "get_node", side_effect=TopologyError("Node error")),
+        patch("nroute.visualization.live_console.logger") as mock_logger,
+    ):
+        console_viz.update_events(tick=0)
+        # Verify errors were logged
+        assert mock_logger.error.called
+=======
     console_viz = LiveSimulationConsole(engine, duration_ticks=2, delay=0.0)
 
     # 1. Check initial state
@@ -198,3 +195,4 @@ def test_live_console_status_transitions() -> None:
     with patch.object(engine, "run", return_value=MagicMock()):
         console_viz.run()
         assert console_viz.status == "Completed"
+>>>>>> main

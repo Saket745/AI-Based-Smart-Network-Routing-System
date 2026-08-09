@@ -7,10 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import click
 from pydantic import BaseModel, Field
-=======
-=======
 from typing import Any
-=======
 from typing import TYPE_CHECKING, Any
 
 import click
@@ -96,7 +93,6 @@ def train_cmd() -> None:
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
 def train_congestion(ctx: click.Context, **kwargs: Any) -> None:
-=======
 def train_congestion(ctx: click.Context, /, **kwargs: Any) -> None:
     """Train a congestion prediction model from simulation data."""
     import numpy as np
@@ -185,7 +181,6 @@ def train_congestion(ctx: click.Context, /, **kwargs: Any) -> None:
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
 def train_anomaly(ctx: click.Context, **kwargs: Any) -> None:
-=======
 def train_anomaly(ctx: click.Context, /, **kwargs: Any) -> None:
     """Train an anomaly detection model from normal traffic patterns."""
     import numpy as np
@@ -271,7 +266,6 @@ def train_anomaly(ctx: click.Context, /, **kwargs: Any) -> None:
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
 def train_rl(ctx: click.Context, **kwargs: Any) -> None:
-=======
 def train_rl(ctx: click.Context, /, **kwargs: Any) -> None:
     """Train a reinforcement learning routing agent."""
     from nroute.routing.rl_router import RLRouter
@@ -392,7 +386,6 @@ def train_gnn(ctx: click.Context, /, **kwargs: Any) -> None:
             config=config, logger_callback=lambda msg: console.print(msg)
         )
 
-=======
         topo = Topology.load(args.topo_path)
     except Exception as e:
         console.print(f"[red]x Failed to load topology:[/red] {e}")

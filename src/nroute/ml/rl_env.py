@@ -264,7 +264,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
 
         edge_attr = self.topology.get_edge(*edge)
 
-        # 3. Graduated loop detection
+   
         visit_count = self._visit_counts.get(next_node, 0)
         if visit_count >= 2:
             # Third visit to same node — terminate with heavy penalty

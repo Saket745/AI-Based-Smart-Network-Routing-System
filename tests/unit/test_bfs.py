@@ -33,7 +33,6 @@ def _get_topo(small_graph_data: dict[str, Any]) -> Topology:
 
 def test_bfs_routing_basic(small_graph_data: dict[str, Any]) -> None:
     """Test standard unweighted shortest path computation on small topology."""
-=======
     """Test standard minimum-hop path computation on small topology."""
     topo = _get_topo(small_graph_data)
     router = BFSRouter()
@@ -67,7 +66,6 @@ def test_bfs_ignores_weights(small_graph_data: dict[str, Any]) -> None:
 
     # Dijkstra with latency would now choose A -> C -> E -> D (25ms)
     # But BFS should still choose A -> B -> D (2 hops)
-=======
     # Path A -> E should be A -> B -> E (2 hops)
     path_e = router.compute_path(topo, "A", "E")
     assert path_e == ["A", "B", "E"]
@@ -107,7 +105,6 @@ def test_bfs_routing_failure_recovery(small_graph_data: dict[str, Any]) -> None:
     # Path should switch to another 3-hop path, e.g., A -> B -> E -> D or A -> C -> E -> D
     path = router.compute_path(topo, "A", "D")
     assert len(path) == 4
-=======
     assert len(path) == 4  # 3 hops = 4 nodes
     assert path[0] == "A"
     assert path[-1] == "D"
@@ -116,7 +113,6 @@ def test_bfs_routing_failure_recovery(small_graph_data: dict[str, Any]) -> None:
     topo.set_node_down("B")
 
     # Path must be A -> C -> E -> D
-=======
     # Path must switch to A -> C -> E -> D (3 hops)
     path_nodes_down = router.compute_path(topo, "A", "D")
     assert path_nodes_down == ["A", "C", "E", "D"]
@@ -128,7 +124,6 @@ def test_bfs_routing_errors(small_graph_data: dict[str, Any]) -> None:
     router = BFSRouter()
 
     # Make target unreachable by bringing down links
-=======
     # Make target unreachable
     topo.set_link_down("E", "D")
     topo.set_link_down("B", "D")
@@ -146,7 +141,6 @@ def test_bfs_routing_errors(small_graph_data: dict[str, Any]) -> None:
     # Node down
     topo.set_node_down("A")
     with pytest.raises(RoutingError, match="Source node 'A' is down"):
-=======
 
 def test_bfs_routing_unhandled_exception(
     small_graph_data: dict[str, Any], monkeypatch: pytest.MonkeyPatch

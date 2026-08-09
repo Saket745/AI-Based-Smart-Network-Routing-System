@@ -456,9 +456,11 @@ class TestDetectCLI:
         # 3. Run detection
         result = runner.invoke(
             cli,
+            ["detect", "anomalies", "--traffic", str(traffic_csv), "--model", model_path, "--allow-unsafe"],
 
             ["detect", "anomalies", "--traffic", str(traffic_csv), "--model", model_path, "--allow-unsafe"],
 
+ 
             [
                 "detect",
                 "anomalies",
