@@ -61,18 +61,6 @@ from nroute.routing import (
 
 
 class Simulator:
-    """
-    Convenience facade class for running network simulations.
-    Matches the PRD and Quickstart API signature.
-    """
-
-    def __init__(self, topology: Topology, algorithm: Any, duration: int) -> None:
-        from nroute.routing import get_router
-=======
-from nroute.routing import BaseRouter, get_router, register_router
-
-
-class Simulator:
     """Facade class for simplifying simulation execution."""
 
     def __init__(self, topology: Any, algorithm: Any, duration: int) -> None:
@@ -83,20 +71,12 @@ class Simulator:
         self.algorithm = algorithm
         self.duration = duration
 
-        self.duration = duration
-
         if isinstance(algorithm, str):
             self.router = get_router(algorithm, topology=topology)
         else:
             self.router = algorithm
 
-        # Default to a uniform traffic generator with 5 flows per tick
-        self.traffic_gen = TrafficGenerator(model="uniform", n_flows_per_tick=5)
-        self.engine = SimulationEngine(topology, self.router, self.traffic_gen)
-
-    def run(self, seed: int | None = None) -> MetricsCollectionResult:
-        """Run the simulation for the configured duration."""
-        # Default traffic generator
+        # Default traffic generator with 3 flows per tick
         self.traffic_generator = TrafficGenerator(model="uniform", n_flows_per_tick=3)
         self.engine = SimulationEngine(
             topology=self.topology,
