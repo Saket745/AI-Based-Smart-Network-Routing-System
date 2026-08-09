@@ -320,7 +320,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         info: dict[str, Any],
     ) -> float:
         """Compute the scalar reward for the current transition."""
-      
+
         alpha = self.reward_params.get("alpha", 5.0)
         beta = self.reward_params.get("beta", 1.0)
         gamma = self.reward_params.get("gamma", 50.0)
