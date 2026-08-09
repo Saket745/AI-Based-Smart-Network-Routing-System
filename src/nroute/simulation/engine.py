@@ -42,13 +42,13 @@ class SimulationEngine:
         Initialize the SimulationEngine.
 
         Args:
-            topology: The network topology instance to run simulation on.
-            router: Router implementing the routing algorithm.
-            traffic_generator: Generator to spawn traffic flows.
-            failure_injector: Optional injector to trigger link/node failures.
-            config: Optional system configuration overrides.
+            topology: The network topology (will be copied to avoid mutating the original).
+            router: A BaseRouter implementation.
+            traffic_generator: A TrafficGenerator instance.
+            failure_injector: Optional FailureInjector scheduling link/node events.
+            config: Optional NRouteConfig instance.
         """
-        self.topology = topology
+        self.topology = topology.copy()
         self.router = router
         self.traffic_generator = traffic_generator
         self.failure_injector = failure_injector
@@ -259,24 +259,23 @@ class SimulationEngine:
 
     def _is_path_obstructed(self, u: str, v: str) -> bool:
         """Check if the edge u->v or node v is currently down."""
-        edge_down = False
-        try:
-            edge_data = self.topology.get_edge(u, v)
-            edge_down = edge_data.get("status", "up") == "down"
-        except Exception:
-            edge_down = True
+        # Fast path O(1) check
+        if not self.topology.has_down_nodes and not self.topology.has_down_edges:
+            return (
+                u not in self.topology.graph
+                or v not in self.topology.graph
+                or not self.topology.graph.has_edge(u, v)
+            )
 
-        if edge_down:
+        # If there are down elements, use fast set lookups or fallbacks
+        if (u, v) in self.topology._down_edges or v in self.topology._down_nodes:
             return True
 
-        node_down = False
-        try:
-            node_data = self.topology.get_node(v)
-            node_down = node_data.get("status", "up") == "down"
-        except Exception:
-            node_down = True
-
-        return node_down
+        return (
+            u not in self.topology.graph
+            or v not in self.topology.graph
+            or not self.topology.graph.has_edge(u, v)
+        )
 
     def _update_link_utilizations(self) -> None:
         """
