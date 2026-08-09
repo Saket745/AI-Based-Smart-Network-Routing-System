@@ -259,23 +259,24 @@ class SimulationEngine:
 
     def _is_path_obstructed(self, u: str, v: str) -> bool:
         """Check if the edge u->v or node v is currently down."""
-        # Fast path O(1) check
-        if not self.topology.has_down_nodes and not self.topology.has_down_edges:
-            return (
-                u not in self.topology.graph
-                or v not in self.topology.graph
-                or not self.topology.graph.has_edge(u, v)
-            )
+        edge_down = False
+        try:
+            edge_data = self.topology.get_edge(u, v)
+            edge_down = edge_data.get("status", "up") == "down"
+        except Exception:
+            edge_down = True
 
-        # If there are down elements, use fast set lookups or fallbacks
-        if (u, v) in self.topology._down_edges or v in self.topology._down_nodes:
+        if edge_down:
             return True
 
-        return (
-            u not in self.topology.graph
-            or v not in self.topology.graph
-            or not self.topology.graph.has_edge(u, v)
-        )
+        node_down = False
+        try:
+            node_data = self.topology.get_node(v)
+            node_down = node_data.get("status", "up") == "down"
+        except Exception:
+            node_down = True
+
+        return node_down
 
     def _update_link_utilizations(self) -> None:
         """

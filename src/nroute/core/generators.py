@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import networkx as nx
+
+if TYPE_CHECKING:
+    import numpy as np
 
 from nroute.core.topology import Topology
 from nroute.exceptions import TopologyError
@@ -106,20 +109,6 @@ class TopologyGenerator:
         return core_nodes
 
     @staticmethod
-    def _add_fat_tree_pod(
-        graph: nx.DiGraph, k: int, pod_idx: int, core_nodes: list[str], **default_attrs: Any
-    ) -> None:
-        """Add a single pod (switches and hosts) and its connections to the Fat-Tree graph."""
-        num_agg_per_pod = k // 2
-        num_edge_per_pod = k // 2
-        num_hosts_per_edge = k // 2
-
-        agg_nodes = []
-        edge_nodes = []
-
-        # Add Aggregation Switches
-        for agg in range(num_agg_per_pod):
-=======
     def _add_pod_agg_switches(graph: nx.DiGraph, pod_idx: int, num_agg: int) -> list[str]:
         """Add Aggregation Switches for a pod."""
         agg_nodes = []
@@ -129,10 +118,6 @@ class TopologyGenerator:
                 agg_id, type="switch", capacity=10000.0, status="up", location=f"pod_{pod_idx}"
             )
             agg_nodes.append(agg_id)
-
-        # Add Edge Switches and Hosts
-        for edge in range(num_edge_per_pod):
-=======
         return agg_nodes
 
     @staticmethod
@@ -151,9 +136,6 @@ class TopologyGenerator:
             )
             edge_nodes.append(edge_id)
 
-            # Add Hosts and connect to Edge Switch
-            for host in range(num_hosts_per_edge):
-=======
             for host in range(num_hosts):
                 host_id = f"pod_{pod_idx}_host_{edge}_{host}"
                 graph.add_node(
@@ -161,10 +143,6 @@ class TopologyGenerator:
                 )
 
                 # Connect Host <--> Edge Switch (bidirectional)
-                host_bw = default_attrs.get("host_bandwidth", 1000.0)
-                host_lat = default_attrs.get("host_latency", 0.5)
-
-=======
                 for u, v in [(host_id, edge_id), (edge_id, host_id)]:
                     graph.add_edge(
                         u,
@@ -177,8 +155,6 @@ class TopologyGenerator:
                         status="up",
                         weight=host_lat,
                     )
-
-        # Connect Edge <--> Aggregation Switches inside Pod
         return edge_nodes
 
     @staticmethod
@@ -203,11 +179,6 @@ class TopologyGenerator:
                         weight=pod_lat,
                     )
 
-        # Connect Aggregation <--> Core Switches
-        core_bw = default_attrs.get("core_bandwidth", 40000.0)
-        core_lat = default_attrs.get("core_latency", 2.0)
-        stride = k // 2
-=======
     @staticmethod
     def _connect_agg_to_core(
         graph: nx.DiGraph,
@@ -397,5 +368,47 @@ class TopologyGenerator:
             for k_attr, v_attr in default_attrs.items():
                 if not k_attr.endswith("bandwidth") and not k_attr.endswith("latency"):
                     graph.edges[src, dst][k_attr] = v_attr
+
+        return Topology(graph)
+
+    @classmethod
+    def from_adjacency_matrix(
+        cls,
+        matrix: np.ndarray,
+        node_labels: list[str] | None = None,
+        seed: int | None = None,
+        **default_attrs: Any,
+    ) -> Topology:
+        """
+        Generate a topology from a NumPy adjacency matrix.
+
+        Args:
+            matrix: Adjacency matrix where matrix[i, j] > 0 means a link from i to j exists.
+            node_labels: Optional labels for nodes. Defaults to "0", "1", "2", ...
+            seed: Random seed for reproducibility.
+            default_attrs: Optional override attributes.
+        """
+        rows, cols = matrix.shape
+        if rows != cols:
+            raise TopologyError("Adjacency matrix must be square.")
+
+        rng = get_rng(seed)
+        graph = nx.DiGraph()
+
+        if node_labels is None:
+            node_labels = [str(i) for i in range(rows)]
+        elif len(node_labels) != rows:
+            raise TopologyError("Length of node_labels must match matrix dimensions.")
+
+        for label in node_labels:
+            graph.add_node(label)
+
+        for i in range(rows):
+            for j in range(cols):
+                if matrix[i, j] > 0:
+                    graph.add_edge(node_labels[i], node_labels[j])
+
+        cls._assign_default_node_attrs(graph, "router", rng, **default_attrs)
+        cls._assign_random_edge_attrs(graph, rng, **default_attrs)
 
         return Topology(graph)

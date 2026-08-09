@@ -17,7 +17,7 @@ def test_load_custom_class_security() -> None:
         import_str = f"{file_path}:TestClass"
 
         # Should fail by default
-        with pytest.raises(ImportError, match="disallowed for security reasons"):
+        with pytest.raises(PermissionError, match="restricted for security reasons"):
             load_custom_class(import_str)
 
         # Should succeed with allow_unsafe=True
