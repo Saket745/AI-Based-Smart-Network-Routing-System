@@ -303,14 +303,14 @@ class SimulationEngine:
                 mbps = (flow.bytes * 8.0) / (duration * 1e6)
                 link_demands[(u, v)] += mbps
 
-        # 3. Update edge utilization ratios in topology
+        # 3. Update edge utilization ratios directly in networkx graph to bypass
+        # slow schema validation, looping, and function call overhead on the simulation hot-path.
+        # Note: utilization is a pure numeric attribute that does not affect topology down-tracking
+        # sets (_down_nodes / _down_edges), making direct mutation safe and desync-free.
         for (u, v), demand in link_demands.items():
-            try:
-                edge_data = self.topology.get_edge(u, v)
+            if g.has_edge(u, v):
+                edge_data = g.edges[u, v]
                 bandwidth = float(edge_data.get("bandwidth", 1000.0))
                 util = demand / bandwidth if bandwidth > 0.0 else 0.0
-                # Clamp to [0.0, 1.0] for topology validation rules
-                util = min(1.0, max(0.0, util))
-                self.topology.update_edge(u, v, utilization=util)
-            except Exception:
-                pass
+                # Clamp to [0.0, 1.0] to satisfy schema constraints
+                edge_data["utilization"] = min(1.0, max(0.0, util))
