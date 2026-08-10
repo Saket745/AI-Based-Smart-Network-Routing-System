@@ -209,9 +209,19 @@ class LiveSimulationConsole:
                 ]
             )
 
+        # Add keyboard guide instruction for accessibility and usability
+        parts.extend(
+            [
+                ("  |  Press ", "white"),
+                ("Ctrl+C", "bold red"),
+                (" to Quit", "white"),
+            ]
+        )
+
         header_text = Text.assemble(*parts)
         return Panel(header_text, style="cyan")
 
+=======
     def _build_link_status_table(self, engine: SimulationEngine) -> Table:
         """Build a Table displaying active and inactive links and their utilizations."""
         table = Table(
@@ -303,6 +313,10 @@ class LiveSimulationConsole:
 
     def run(self) -> MetricsCollectionResult:
         """Run the simulation while displaying the live console interface."""
+        from nroute.core.metrics import MetricsCollectionResult
+
+    def run(self) -> MetricsCollectionResult:
+        """Run the simulation while displaying the live console interface."""
         layout = self._create_layout()
         algo_name = self.engine.router.__class__.__name__
 
@@ -351,6 +365,30 @@ class LiveSimulationConsole:
             time.sleep(self.delay)
 
         # Start live context
+        try:
+            with Live(layout, refresh_per_second=10, screen=True):
+                self.log_event("[bold cyan]Simulation started[/bold cyan]")
+                result = self.engine.run(
+                    duration_ticks=self.duration_ticks,
+                    seed=self.seed,
+                    callback=tick_callback,
+                    show_progress=False,  # Turn off standard progress bar
+                )
+                # Finish simulation, mark status completed and show final render
+                self.status = "Completed"
+                self.log_event("[bold green]Simulation completed[/bold green]")
+                if self.engine.collector.results:
+                    last_metric = self.engine.collector.results[-1]
+                    self._update_layout(
+                        layout, self.duration_ticks - 1, last_metric, algo_name, self.engine
+                    )
+                time.sleep(1.0)
+            return result
+        except KeyboardInterrupt:
+            self.status = "Completed"
+            self.console.print("\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n")
+            return MetricsCollectionResult(results=self.engine.collector.results)
+=======
         with Live(layout, refresh_per_second=10, screen=True):
             self.log_event("[bold cyan]Simulation started[/bold cyan]")
             result = self.engine.run(
