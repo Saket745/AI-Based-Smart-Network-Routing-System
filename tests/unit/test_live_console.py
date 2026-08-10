@@ -101,6 +101,30 @@ def test_live_console_helpers() -> None:
         console_viz.log_event(f"Event {i}")
     assert len(console_viz.event_log) == 50
 
+
+def test_live_console_error_handling() -> None:
+    """Verify LiveSimulationConsole handles and logs topology access errors."""
+    topo = Topology()
+    topo.add_node("A", type="router")
+    topo.add_node("B", type="router")
+    topo.add_edge("A", "B", bandwidth=1000, latency=5)
+
+    router = DijkstraRouter()
+    traffic = TrafficGenerator(model="uniform", n_flows_per_tick=1)
+    engine = SimulationEngine(topo, router, traffic)
+
+    console_viz = LiveSimulationConsole(engine, duration_ticks=5, delay=0.0)
+
+    # Mock get_edge and get_node to raise TopologyError
+    with (
+        patch.object(engine.topology, "get_edge", side_effect=TopologyError("Edge error")),
+        patch.object(engine.topology, "get_node", side_effect=TopologyError("Node error")),
+        patch("nroute.visualization.live_console.logger") as mock_logger,
+    ):
+        console_viz.update_events(tick=0)
+        # Verify errors were logged
+        assert mock_logger.error.called
+
     metric = SimulationMetrics(
         tick=0,
         timestamp=0.0,
@@ -149,6 +173,9 @@ def test_live_console_helpers() -> None:
 
 def test_live_console_error_handling() -> None:
     """Verify LiveSimulationConsole handles and logs topology access errors."""
+=======
+def test_live_console_status_transitions() -> None:
+    """Verify that the console tracking status transitions through Initializing, Running, and Completed states."""
     topo = Topology()
     topo.add_node("A", type="router")
     topo.add_node("B", type="router")
@@ -193,7 +220,6 @@ def test_live_console_status_transitions() -> None:
     with patch.object(engine, "run", return_value=MagicMock()):
         console_viz.run()
         assert console_viz.status == "Completed"
-
 
 def test_live_console_ctrl_c_hint() -> None:
     """Verify the header contains the Ctrl+C keyboard hint."""
@@ -297,3 +323,4 @@ def test_live_console_normal_completion_preserved() -> None:
         mock_run.assert_called_once()
         assert result == expected_result
         assert console_viz.status == "Completed"
+

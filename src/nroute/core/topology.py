@@ -74,12 +74,12 @@ class Topology:
 
     @property
     def has_down_nodes(self) -> bool:
-        """Check if any nodes are currently down."""
+        """Check if there are any down nodes in the topology."""
         return len(self._down_nodes) > 0
 
     @property
     def has_down_edges(self) -> bool:
-        """Check if any edges are currently down."""
+        """Check if there are any down edges in the topology."""
         return len(self._down_edges) > 0
 
     def neighbors(self, node_id: str) -> list[str]:
