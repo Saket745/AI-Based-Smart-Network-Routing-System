@@ -204,9 +204,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
 
         # Pick active nodes for source and destination
         graph = self.topology.graph
-        up_nodes = [
-            n for n in self.nodes if graph.nodes[n].get("status", "up").lower() == "up"
-        ]
+        up_nodes = [n for n in self.nodes if graph.nodes[n].get("status", "up").lower() == "up"]
 
         if len(up_nodes) < 2:
             raise TopologyError("Topology must have at least 2 active ('up') nodes.")
@@ -264,7 +262,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
 
         edge_attr = self.topology.get_edge(*edge)
 
-   
+        # 3. Graduated loop detection
         visit_count = self._visit_counts.get(next_node, 0)
         if visit_count >= 2:
             # Third visit to same node — terminate with heavy penalty

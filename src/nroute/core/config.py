@@ -45,8 +45,8 @@ class GeneralConfig(BaseModel):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
-    def validate_cors_origins(cls, v: Any) -> list[str]:
     def validate_cors_origins_before(cls, v: Any) -> list[str]:
+        """Convert a comma-separated string to a list of origins before standard validation."""
         if isinstance(v, str):
             parts = [o.strip() for o in v.split(",") if o.strip()]
             cleaned = [o for o in parts if o != "*"]
@@ -61,9 +61,6 @@ class GeneralConfig(BaseModel):
             return cleaned
 
         if not v:
-            return DEFAULT_CORS_ORIGINS
-        return DEFAULT_CORS_ORIGINS
-
             return DEFAULT_CORS_ORIGINS
 
         return DEFAULT_CORS_ORIGINS
@@ -82,6 +79,7 @@ class GeneralConfig(BaseModel):
         if not cleaned_list:
             return DEFAULT_CORS_ORIGINS
         return cleaned_list
+
 
 class TopologyConfig(BaseModel):
     """Default topology parameters."""

@@ -75,7 +75,7 @@ try:
     _cors_origins = _cfg.general.cors_origins
     if "*" in _cors_origins:
         raise ValueError(
-            "Wildcard "*" is not allowed for CORS origins due to security risks. "
+            "Wildcard '*' is not allowed for CORS origins due to security risks. "
             "Please specify explicit origins."
         )
 except Exception as e:
@@ -87,21 +87,12 @@ except Exception as e:
     if not _cors_origins_raw:
         _cors_origins = DEFAULT_CORS_ORIGINS
     else:
-=======
-except ValueError:
-    raise
-except Exception as e:
-    import os
-    _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "")
-    if _cors_origins_raw:
         _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
         if "*" in _cors_origins:
             raise ValueError(
-                "Wildcard "*" is not allowed in NROUTE_CORS_ORIGINS due to security risks. "
+                "Wildcard '*' is not allowed in NROUTE_CORS_ORIGINS due to security risks. "
                 "Please specify explicit origins."
             ) from e
-    else:
-        _cors_origins = DEFAULT_CORS_ORIGINS
 
 # Filter out empty strings, ensure secure local development defaults as fallback
 _cors_origins = [o for o in _cors_origins if o and o != "*"]
@@ -115,6 +106,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 # Global engine instance (per-process)
 _engine: DigitalTwinEngine | None = None
 
@@ -231,7 +223,6 @@ async def get_topology() -> dict[str, Any]:
 async def ingest_config(request: Request, file: UploadFile = File(...)) -> dict[str, Any]:  # noqa: B008
     """Upload and ingest a device config file."""
     engine = get_engine()
-    # Secure maximum file size limit of 5MB to protect against OOM DoS (CWE-400)
     max_file_size = 5 * 1024 * 1024  # 5 MB
 
     # Check if the Content-Length header exceeds the limit to reject early
@@ -239,7 +230,7 @@ async def ingest_config(request: Request, file: UploadFile = File(...)) -> dict[
     if content_length and int(content_length) > max_file_size:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="File size exceeds maximum limit of 5MB.",
+            detail="File size exceeds maximum allowed limit of 5MB.",
         )
 
     # In addition, check actual bytes read to protect against chunked transfer encoding bypass
