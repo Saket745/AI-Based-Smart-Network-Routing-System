@@ -80,15 +80,7 @@ class Simulator:
         self.traffic_gen = TrafficGenerator(model="uniform", n_flows_per_tick=5)
         self.engine = SimulationEngine(topology, self.router, self.traffic_gen)
 
-    def run(self, seed: int | None = None) -> MetricsCollectionResult:
-        """Run the simulation for the configured duration."""
-        # Default traffic generator
-        self.traffic_generator = TrafficGenerator(model="uniform", n_flows_per_tick=3)
-        self.engine = SimulationEngine(
-            topology=self.topology,
-            router=self.router,
-            traffic_generator=self.traffic_generator,
-        )
+    def run(self, seed: int | None = None) -> Any:
         return self.engine.run(duration_ticks=self.duration, seed=seed)
 
 
