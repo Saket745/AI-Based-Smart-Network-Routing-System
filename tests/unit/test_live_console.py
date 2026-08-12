@@ -171,7 +171,6 @@ def test_live_console_error_handling() -> None:
     assert layout["header"] is not None
 
 
-
 def test_live_console_status_transitions() -> None:
     """Verify that the console tracking status transitions through Initializing, Running, and Completed states."""
     topo = Topology()
@@ -194,6 +193,7 @@ def test_live_console_status_transitions() -> None:
     with patch.object(engine, "run", return_value=MagicMock()):
         console_viz.run()
         assert console_viz.status == "Completed"
+
 
 def test_live_console_ctrl_c_hint() -> None:
     """Verify the header contains the Ctrl+C keyboard hint."""
@@ -297,4 +297,3 @@ def test_live_console_normal_completion_preserved() -> None:
         mock_run.assert_called_once()
         assert result == expected_result
         assert console_viz.status == "Completed"
-
