@@ -194,6 +194,7 @@ def test_live_console_status_transitions() -> None:
         console_viz.run()
         assert console_viz.status == "Completed"
 
+
 def test_live_console_ctrl_c_hint() -> None:
     """Verify the header contains the Ctrl+C keyboard hint."""
     topo = Topology()
