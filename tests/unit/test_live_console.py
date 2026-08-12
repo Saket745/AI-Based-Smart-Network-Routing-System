@@ -171,33 +171,6 @@ def test_live_console_error_handling() -> None:
     assert layout["header"] is not None
 
 
-def test_live_console_error_handling() -> None:
-    """Verify LiveSimulationConsole handles and logs topology access errors."""
-=======
-def test_live_console_status_transitions() -> None:
-    """Verify that the console tracking status transitions through Initializing, Running, and Completed states."""
-    topo = Topology()
-    topo.add_node("A", type="router")
-    topo.add_node("B", type="router")
-    topo.add_edge("A", "B", bandwidth=1000, latency=5)
-
-    router = DijkstraRouter()
-    traffic = TrafficGenerator(model="uniform", n_flows_per_tick=1)
-    engine = SimulationEngine(topo, router, traffic)
-
-    console_viz = LiveSimulationConsole(engine, duration_ticks=5, delay=0.0)
-
-    # Mock get_edge and get_node to raise TopologyError
-    with (
-        patch.object(engine.topology, "get_edge", side_effect=TopologyError("Edge error")),
-        patch.object(engine.topology, "get_node", side_effect=TopologyError("Node error")),
-        patch("nroute.visualization.live_console.logger") as mock_logger,
-    ):
-        console_viz.update_events(tick=0)
-        # Verify errors were logged
-        assert mock_logger.error.called
-
-
 def test_live_console_status_transitions() -> None:
     """Verify that the console tracking status transitions through Initializing, Running, and Completed states."""
     topo = Topology()
@@ -324,3 +297,33 @@ def test_live_console_normal_completion_preserved() -> None:
         assert result == expected_result
         assert console_viz.status == "Completed"
 
+
+def test_live_console_progress_bar_rendering() -> None:
+    """Verify that the compact progress bar renders correctly in the console header."""
+    topo = Topology()
+    topo.add_node("A", type="router")
+    topo.add_node("B", type="router")
+    topo.add_edge("A", "B", bandwidth=1000, latency=5)
+
+    router = DijkstraRouter()
+    traffic = TrafficGenerator(model="uniform", n_flows_per_tick=1)
+    engine = SimulationEngine(topo, router, traffic)
+
+    # 1. Start simulation, duration = 10. At tick 0, progress is 1/10 = 10%
+    console_viz = LiveSimulationConsole(engine, duration_ticks=10, delay=0.0)
+    header_panel = console_viz._build_header(0, None, "DijkstraRouter")
+    header_text = header_panel.renderable.plain
+    # Expect bar to be [█░░░░░░░░░] 10%
+    assert "[█░░░░░░░░░] 10%" in header_text
+
+    # 2. At tick 4, progress is 5/10 = 50%
+    header_panel = console_viz._build_header(4, None, "DijkstraRouter")
+    header_text = header_panel.renderable.plain
+    # Expect bar to be [█████░░░░░] 50%
+    assert "[█████░░░░░] 50%" in header_text
+
+    # 3. At tick 9, progress is 10/10 = 100%
+    header_panel = console_viz._build_header(9, None, "DijkstraRouter")
+    header_text = header_panel.renderable.plain
+    # Expect bar to be [██████████] 100%
+    assert "[██████████] 100%" in header_text
