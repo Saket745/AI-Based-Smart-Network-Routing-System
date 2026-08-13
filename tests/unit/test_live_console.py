@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from rich.layout import Layout
 
-from nroute.core.metrics import SimulationMetrics, MetricsCollectionResult
+from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
 from nroute.core.topology import Topology
 from nroute.exceptions import TopologyError
 from nroute.routing.dijkstra import DijkstraRouter
@@ -171,33 +171,6 @@ def test_live_console_error_handling() -> None:
     assert layout["header"] is not None
 
 
-def test_live_console_error_handling() -> None:
-    """Verify LiveSimulationConsole handles and logs topology access errors."""
-=======
-def test_live_console_status_transitions() -> None:
-    """Verify that the console tracking status transitions through Initializing, Running, and Completed states."""
-    topo = Topology()
-    topo.add_node("A", type="router")
-    topo.add_node("B", type="router")
-    topo.add_edge("A", "B", bandwidth=1000, latency=5)
-
-    router = DijkstraRouter()
-    traffic = TrafficGenerator(model="uniform", n_flows_per_tick=1)
-    engine = SimulationEngine(topo, router, traffic)
-
-    console_viz = LiveSimulationConsole(engine, duration_ticks=5, delay=0.0)
-
-    # Mock get_edge and get_node to raise TopologyError
-    with (
-        patch.object(engine.topology, "get_edge", side_effect=TopologyError("Edge error")),
-        patch.object(engine.topology, "get_node", side_effect=TopologyError("Node error")),
-        patch("nroute.visualization.live_console.logger") as mock_logger,
-    ):
-        console_viz.update_events(tick=0)
-        # Verify errors were logged
-        assert mock_logger.error.called
-
-
 def test_live_console_status_transitions() -> None:
     """Verify that the console tracking status transitions through Initializing, Running, and Completed states."""
     topo = Topology()
@@ -268,7 +241,7 @@ def test_live_console_keyboard_interrupt_handling() -> None:
     # Mock engine.run to raise KeyboardInterrupt
     with (
         patch.object(engine, "run", side_effect=KeyboardInterrupt),
-        patch("nroute.visualization.live_console.Live") as mock_live,
+        patch("nroute.visualization.live_console.Live"),
     ):
         result = console_viz.run()
         assert isinstance(result, MetricsCollectionResult)
@@ -317,7 +290,7 @@ def test_live_console_normal_completion_preserved() -> None:
 
     with (
         patch.object(engine, "run", return_value=expected_result) as mock_run,
-        patch("nroute.visualization.live_console.Live") as mock_live,
+        patch("nroute.visualization.live_console.Live"),
     ):
         result = console_viz.run()
         mock_run.assert_called_once()
