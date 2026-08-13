@@ -173,9 +173,6 @@ def test_live_console_error_handling() -> None:
 
 def test_live_console_error_handling() -> None:
     """Verify LiveSimulationConsole handles and logs topology access errors."""
-=======
-def test_live_console_status_transitions() -> None:
-    """Verify that the console tracking status transitions through Initializing, Running, and Completed states."""
     topo = Topology()
     topo.add_node("A", type="router")
     topo.add_node("B", type="router")
