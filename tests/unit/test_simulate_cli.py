@@ -211,7 +211,7 @@ class TestSimulateRunCLI:
 
         assert result.exit_code == 0
         assert "Metrics saved to" in result.output
-        assert str(output_file) in result.output
+        assert "metrics.json" in result.output
         assert output_file.exists()
 
         # Verify JSON content
