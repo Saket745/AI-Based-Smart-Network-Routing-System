@@ -9,16 +9,18 @@ from typing import Any
 import click
 
 import nroute
-from nroute.cli.api_cmd import api_cmd
-from nroute.cli.configs_cmd import config_cmd
-from nroute.cli.detect_cmd import detect_cmd
-from nroute.cli.export_cmd import export_cmd
-from nroute.cli.predict_cmd import predict_cmd
-from nroute.cli.route_cmd import route_cmd
-from nroute.cli.simulate_cmd import simulate_cmd
-from nroute.cli.topology_cmd import topology_cmd
-from nroute.cli.train_cmd import train_cmd
-from nroute.cli.twin_cmd import twin_cmd
+from nroute.cli import (
+    api_cmd,
+    configs_cmd,
+    detect_cmd,
+    export_cmd,
+    predict_cmd,
+    route_cmd,
+    simulate_cmd,
+    topology_cmd,
+    train_cmd,
+    twin_cmd,
+)
 
 
 @click.group(
@@ -120,30 +122,16 @@ def cli(ctx: click.Context, /, **kwargs: Any) -> None:
 
 
 # ── Register Subcommand Groups ──────────────────────────────
-cli.add_command(topology_cmd, "topology")
-cli.add_command(route_cmd, "route")
-cli.add_command(simulate_cmd, "simulate")
-cli.add_command(train_cmd, "train")
-cli.add_command(predict_cmd, "predict")
-cli.add_command(detect_cmd, "detect")
-cli.add_command(twin_cmd, "twin")
-cli.add_command(export_cmd, "export")
-cli.add_command(api_cmd, "api")
-cli.add_command(config_cmd, "config")
-
-# Clean up namespace to avoid shadowing submodules for mock patches under Python 3.10
-del (
-    api_cmd,
-    config_cmd,
-    detect_cmd,
-    export_cmd,
-    predict_cmd,
-    route_cmd,
-    simulate_cmd,
-    topology_cmd,
-    train_cmd,
-    twin_cmd,
-)
+cli.add_command(topology_cmd.topology_cmd, "topology")
+cli.add_command(route_cmd.route_cmd, "route")
+cli.add_command(simulate_cmd.simulate_cmd, "simulate")
+cli.add_command(train_cmd.train_cmd, "train")
+cli.add_command(predict_cmd.predict_cmd, "predict")
+cli.add_command(detect_cmd.detect_cmd, "detect")
+cli.add_command(twin_cmd.twin_cmd, "twin")
+cli.add_command(export_cmd.export_cmd, "export")
+cli.add_command(api_cmd.api_cmd, "api")
+cli.add_command(configs_cmd.config_cmd, "config")
 
 
 # ── Shell Completion Subcommand ─────────────────────────────
