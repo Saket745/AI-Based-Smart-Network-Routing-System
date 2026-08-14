@@ -170,7 +170,6 @@ def test_live_console_error_handling() -> None:
     console_viz._update_layout(layout, 0, metric, "DijkstraRouter", engine)
     assert layout["header"] is not None
 
-
 def test_live_console_status_transitions() -> None:
     """Verify that the console tracking status transitions through Initializing, Running, and Completed states."""
     topo = Topology()
@@ -193,7 +192,6 @@ def test_live_console_status_transitions() -> None:
         console_viz.update_events(tick=0)
         # Verify errors were logged
         assert mock_logger.error.called
-
 
 def test_live_console_status_transitions() -> None:
     """Verify that the console tracking status transitions through Initializing, Running, and Completed states."""
