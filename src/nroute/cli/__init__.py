@@ -131,6 +131,20 @@ cli.add_command(export_cmd, "export")
 cli.add_command(api_cmd, "api")
 cli.add_command(config_cmd, "config")
 
+# Clean up namespace to avoid shadowing submodules for mock patches under Python 3.10
+del (
+    api_cmd,
+    config_cmd,
+    detect_cmd,
+    export_cmd,
+    predict_cmd,
+    route_cmd,
+    simulate_cmd,
+    topology_cmd,
+    train_cmd,
+    twin_cmd,
+)
+
 
 # ── Shell Completion Subcommand ─────────────────────────────
 @cli.command(name="completion", help="Generate shell completion scripts.")
