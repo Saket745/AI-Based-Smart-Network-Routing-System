@@ -149,6 +149,7 @@ class TestTopologyShowCLI:
         assert result.exit_code == 0
         assert "Topology:" in result.output
         assert "topo.json" in result.output
+
         assert "Nodes" in result.output
         assert "10" in result.output
         mock_load.assert_called_once_with(topo_file)
