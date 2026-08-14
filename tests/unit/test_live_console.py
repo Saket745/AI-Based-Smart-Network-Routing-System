@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from rich.layout import Layout
 
-from nroute.core.metrics import SimulationMetrics, MetricsCollectionResult
+from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
 from nroute.core.topology import Topology
 from nroute.exceptions import TopologyError
 from nroute.routing.dijkstra import DijkstraRouter
@@ -218,6 +218,7 @@ def test_live_console_status_transitions() -> None:
         console_viz.run()
         assert console_viz.status == "Completed"
 
+
 def test_live_console_ctrl_c_hint() -> None:
     """Verify the header contains the Ctrl+C keyboard hint."""
     topo = Topology()
@@ -265,7 +266,7 @@ def test_live_console_keyboard_interrupt_handling() -> None:
     # Mock engine.run to raise KeyboardInterrupt
     with (
         patch.object(engine, "run", side_effect=KeyboardInterrupt),
-        patch("nroute.visualization.live_console.Live") as mock_live,
+        patch("nroute.visualization.live_console.Live"),
     ):
         result = console_viz.run()
         assert isinstance(result, MetricsCollectionResult)
@@ -314,10 +315,9 @@ def test_live_console_normal_completion_preserved() -> None:
 
     with (
         patch.object(engine, "run", return_value=expected_result) as mock_run,
-        patch("nroute.visualization.live_console.Live") as mock_live,
+        patch("nroute.visualization.live_console.Live"),
     ):
         result = console_viz.run()
         mock_run.assert_called_once()
         assert result == expected_result
         assert console_viz.status == "Completed"
-
