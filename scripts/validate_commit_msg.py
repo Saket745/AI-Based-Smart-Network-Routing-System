@@ -21,6 +21,8 @@ VALID_TYPES = {
     "ci",               # CI configurations and scripts
     "chore",            # Maintenance tasks
     "revert",           # Revert a previous commit
+    "security",         # Security fixes
+    "daily",            # Daily repository health audits / governance work
     "security",  # Security fixes
 }
 

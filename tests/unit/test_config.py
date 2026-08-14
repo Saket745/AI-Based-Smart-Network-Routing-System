@@ -168,6 +168,8 @@ def test_load_config_home_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
 
     monkeypatch.setenv("HOME", str(fake_home))
     monkeypatch.setenv("USERPROFILE", str(fake_home))
+    monkeypatch.setenv("HOMEPATH", str(fake_home))
+
     # Ensure current directory doesn't have a config file
     empty_dir = tmp_path / "empty"
     empty_dir.mkdir()
