@@ -182,6 +182,30 @@ def test_live_console_status_transitions() -> None:
     traffic = TrafficGenerator(model="uniform", n_flows_per_tick=1)
     engine = SimulationEngine(topo, router, traffic)
 
+    console_viz = LiveSimulationConsole(engine, duration_ticks=5, delay=0.0)
+
+    # Mock get_edge and get_node to raise TopologyError
+    with (
+        patch.object(engine.topology, "get_edge", side_effect=TopologyError("Edge error")),
+        patch.object(engine.topology, "get_node", side_effect=TopologyError("Node error")),
+        patch("nroute.visualization.live_console.logger") as mock_logger,
+    ):
+        console_viz.update_events(tick=0)
+        # Verify errors were logged
+        assert mock_logger.error.called
+
+
+def test_live_console_status_transitions() -> None:
+    """Verify that the console tracking status transitions through Initializing, Running, and Completed states."""
+    topo = Topology()
+    topo.add_node("A", type="router")
+    topo.add_node("B", type="router")
+    topo.add_edge("A", "B", bandwidth=1000, latency=5)
+
+    router = DijkstraRouter()
+    traffic = TrafficGenerator(model="uniform", n_flows_per_tick=1)
+    engine = SimulationEngine(topo, router, traffic)
+
     console_viz = LiveSimulationConsole(engine, duration_ticks=2, delay=0.0)
 
     # 1. Check initial state

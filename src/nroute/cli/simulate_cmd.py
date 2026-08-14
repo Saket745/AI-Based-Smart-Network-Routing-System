@@ -370,6 +370,23 @@ def _load_topology(topo_path: str, is_json: bool) -> Topology:
     """Load topology from JSON file."""
     try:
         return Topology.load(topo_path)
+    except FileNotFoundError as e:
+        if is_json:
+            click.echo(
+                json.dumps(
+                    {
+                        "error": f"Failed to load topology: File not found at '{topo_path}'",
+                        "suggestion": "You can generate a default topology using 'nroute topology generate --output topo.json' or use the pre-packaged 'data/sample_topology.json'.",
+                    }
+                ),
+                err=True,
+            )
+            raise SystemExit(1) from e
+        console.print(f"[red]x Failed to load topology: File not found at '{topo_path}'[/red]")
+        console.print("[cyan]💡 UX Tip: You can generate a default topology using the command:[/cyan]")
+        console.print("   [bold green]nroute topology generate --output topo.json[/bold green]")
+        console.print("   Or use the pre-packaged sample topology: [bold green]data/sample_topology.json[/bold green]")
+        raise SystemExit(1) from e
     except Exception as e:
         if is_json:
             click.echo(json.dumps({"error": f"Failed to load topology: {e}"}), err=True)
