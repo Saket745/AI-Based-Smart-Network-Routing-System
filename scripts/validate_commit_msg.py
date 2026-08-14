@@ -23,6 +23,7 @@ VALID_TYPES = {
     "revert",           # Revert a previous commit
     "security",         # Security fixes
     "daily",            # Daily repository health audits / governance work
+    "security",  # Security fixes
 }
 
 # Regex to match conventional commits header

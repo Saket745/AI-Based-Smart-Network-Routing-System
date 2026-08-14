@@ -131,6 +131,7 @@ def validate_file_path(path: Any, must_exist: bool = False) -> Path:
 =======
 def validate_file_path(path: Any, must_exist: bool = True) -> Path:
     """
+=======
     Validate a file path to prevent security vulnerabilities and ensure existence.
 
     Args:
