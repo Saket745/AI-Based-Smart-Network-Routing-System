@@ -349,4 +349,3 @@ def test_live_console_progress_bar_rendering() -> None:
     header_text = header_panel.renderable.plain
     # Expect bar to be [██████████] 100%
     assert "[██████████] 100%" in header_text
-=======
