@@ -141,6 +141,7 @@ class BaseRouter(ABC):
         if not topology.has_down_nodes and not topology.has_down_edges:
             return topology.graph
 
+=======
         # Optimization: Use fast O(1) set membership lookups on cached local references
         # instead of nested dict lookups, string casting, and case lowering.
         down_nodes = topology._down_nodes

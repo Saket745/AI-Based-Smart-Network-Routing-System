@@ -137,6 +137,7 @@ def validate_file_path(path: Any, must_exist: bool = False) -> Path:
     if must_exist and not p.exists():
         raise ValidationError(f"Path '{p}' does not exist.")
 
+=======
     return p
 
 def validate_file_path(path: Any, must_exist: bool = False) -> Path:
