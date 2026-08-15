@@ -141,11 +141,14 @@ class BaseRouter(ABC):
         if not topology.has_down_nodes and not topology.has_down_edges:
             return topology.graph
 
+        down_nodes = topology._down_nodes
+        down_edges = topology._down_edges
+
         def filter_node(node: str) -> bool:
-            return str(graph.nodes[node].get("status", "up")).lower() != "down"
+            return node not in down_nodes
 
         def filter_edge(u: str, v: str) -> bool:
-            return str(graph.edges[u, v].get("status", "up")).lower() != "down"
+            return (u, v) not in down_edges
 
         return nx.subgraph_view(
             graph,
