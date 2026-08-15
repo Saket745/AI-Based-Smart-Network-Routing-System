@@ -73,11 +73,12 @@ class DefaultGraphFeatureExtractor(BaseFeatureExtractor):
         for src, dst in edges:
             edge_index.append([node_to_idx[src], node_to_idx[dst]])
             attrs = graph.edges[src, dst]
-            bw = float(attrs.get("bandwidth", 1000.0)) / 1000.0
-            lat = float(attrs.get("latency", 5.0)) / 100.0
-            util = float(attrs.get("utilization", 0.0))
-            loss = float(attrs.get("packet_loss", 0.0))
-            status = 1.0 if attrs.get("status", "up").lower() == "up" else 0.0
+            get = attrs.get
+            bw = float(get("bandwidth", 1000.0)) / 1000.0
+            lat = float(get("latency", 5.0)) / 100.0
+            util = float(get("utilization", 0.0))
+            loss = float(get("packet_loss", 0.0))
+            status = 1.0 if get("status", "up").lower() == "up" else 0.0
             edge_features.append([bw, lat, util, loss, status])
 
         if len(edges) > 0:
