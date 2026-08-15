@@ -15,6 +15,7 @@ from rich.table import Table
 from rich.text import Text
 
 from nroute.core.metrics import MetricsCollectionResult
+from nroute.core.metrics import MetricsCollectionResult  # noqa: TC001
 from nroute.exceptions import TopologyError
 from nroute.utils.logging import get_logger
 
@@ -201,6 +202,19 @@ class LiveSimulationConsole:
                     (f"{tick + 1}/{self.duration_ticks}", "bold yellow"),
                 ]
             )
+            # Add dynamic, compact visual progress bar for delightful feedback
+            progress_ratio = min(1.0, max(0.0, (tick + 1) / self.duration_ticks))
+            percent = int(progress_ratio * 100)
+            bar_length = 10
+            filled = int(progress_ratio * bar_length)
+            bar = "█" * filled + "░" * (bar_length - filled)
+            parts.extend(
+                [
+                    ("  [", "white"),
+                    (bar, "cyan"),
+                    (f"] {percent}%", "white"),
+                ]
+            )
 
         if last_metric is not None:
             parts.extend(
@@ -311,8 +325,11 @@ class LiveSimulationConsole:
         )
         return layout
 
+
     def run(self) -> MetricsCollectionResult:
         """Run the simulation while displaying the live console interface."""
+        from nroute.core.metrics import MetricsCollectionResult
+
         layout = self._create_layout()
         algo_name = self.engine.router.__class__.__name__
 
@@ -385,4 +402,15 @@ class LiveSimulationConsole:
             self.console.print(
                 "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
             )
+
+
+            self.console.print(
+                "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
+            )
+            self.console.print("\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n")
+
+            self.console.print(
+                "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
+            )
+ 
             return MetricsCollectionResult(results=self.engine.collector.results)
