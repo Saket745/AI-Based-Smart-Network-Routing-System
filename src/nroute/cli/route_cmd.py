@@ -189,6 +189,17 @@ def _print_json_metrics(
     click.echo(json.dumps(out, indent=2))
 
 
+def _format_utilization(util: float, status: str = "up") -> str:
+    """Format link utilization percentage with color coding and visual status indicator."""
+    if status == "down":
+        return "[grey]--[/grey]"
+    if util > 0.85:
+        return f"[bold red]{util:.1%}[/bold red] 🔴"
+    if util > 0.60:
+        return f"[bold yellow]{util:.1%}[/bold yellow] 🟡"
+    return f"[bold green]{util:.1%}[/bold green] 🟢"
+
+
 def _print_console_metrics(
     algorithm: str,
     source: str,
@@ -219,7 +230,7 @@ def _print_console_metrics(
         if metrics.bottleneck_bandwidth < float("inf")
         else "N/A",
     )
-    table.add_row("Bottleneck Utilization", f"{metrics.bottleneck_utilization:.1%}")
+    table.add_row("Bottleneck Utilization", _format_utilization(metrics.bottleneck_utilization))
 
     console.print(table)
 
@@ -242,8 +253,8 @@ def _print_console_metrics(
                 edge = topo.get_edge(u, v)
                 lat_str = f"{float(edge.get('latency', 0)):.1f}"
                 bw_str = f"{float(edge.get('bandwidth', 0)):.0f}"
-                util_str = f"{float(edge.get('utilization', 0)):.1%}"
                 status = edge.get("status", "up")
+                util_str = _format_utilization(float(edge.get("utilization", 0.0)), status)
                 status_icon = "[green]up[/green]" if status == "up" else "[red]down[/red]"
             except Exception:
                 lat_str = "?"
