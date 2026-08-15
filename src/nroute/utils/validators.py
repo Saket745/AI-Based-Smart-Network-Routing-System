@@ -98,6 +98,33 @@ def validate_probability(value: Any) -> float:
 
 def validate_file_path(path: Any, must_exist: bool = False) -> Path:
     """
+    Validate that a path is correct and secure.
+
+    Args:
+        path: The path to validate, as a string or Path object.
+        must_exist: If True, check if the file or directory exists.
+
+    Returns:
+        The validated and resolved Path object.
+
+    Raises:
+        ValidationError: If the path is empty, has invalid format, or does not exist.
+    """
+    if not isinstance(path, (str, Path)):
+        raise ValidationError("Invalid path format: path must be a string or Path object.")
+
+    # Check for empty path
+    path_str = str(path).strip()
+    if not path_str:
+        raise ValidationError("Path cannot be empty.")
+
+    # Check for null bytes (security check for path traversal/injection)
+    if "\0" in path_str:
+        raise ValidationError("Invalid path format: path contains null bytes.")
+=======
+
+def validate_file_path(path: Any, must_exist: bool = False) -> Path:
+    """
     Validate that a path is valid.
 
     Args:

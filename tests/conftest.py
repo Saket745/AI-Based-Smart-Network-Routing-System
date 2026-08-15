@@ -19,6 +19,7 @@ cli_modules_and_commands = [
     ("nroute.cli.twin_cmd", nroute.cli.twin_cmd),
     ("nroute.cli.export_cmd", nroute.cli.export_cmd),
     ("nroute.cli.api_cmd", nroute.cli.api_cmd),
+    ("nroute.cli.configs_cmd", nroute.cli.configs_cmd.config_cmd),
     ("nroute.cli.configs_cmd", nroute.cli.configs_cmd),
     ("nroute.cli.train_cmd", nroute.cli.train_cmd),
 ]
