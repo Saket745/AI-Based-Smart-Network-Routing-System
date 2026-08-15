@@ -14,14 +14,13 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from nroute.core.metrics import MetricsCollectionResult
 from nroute.exceptions import TopologyError
 from nroute.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 if TYPE_CHECKING:
-    from nroute.core.metrics import SimulationMetrics
+    from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
     from nroute.simulation.engine import SimulationEngine
 
 
@@ -398,7 +397,6 @@ class LiveSimulationConsole:
         except KeyboardInterrupt:
             self.status = "Completed"
 
-            self.console.print("\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n")
             self.console.print(
                 "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
             )
