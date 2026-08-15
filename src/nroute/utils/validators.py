@@ -96,6 +96,8 @@ def validate_probability(value: Any) -> float:
     return val
 
 
+def validate_file_path(path: Any, must_exist: bool = True) -> Path:
+=======
 def validate_file_path(path: Any, must_exist: bool = False) -> Path:
     """
     Validate that a path is correct and secure.
@@ -121,7 +123,17 @@ def validate_file_path(path: Any, must_exist: bool = False) -> Path:
     # Check for null bytes (security check for path traversal/injection)
     if "\0" in path_str:
         raise ValidationError("Invalid path format: path contains null bytes.")
-=======
+
+    try:
+        p = Path(path).resolve()
+    except Exception as e:
+        raise ValidationError(f"Invalid path format: {e}") from e
+
+    if must_exist and not p.exists():
+        raise ValidationError(f"Path '{p}' does not exist.")
+
+    return p
+
 
 def validate_file_path(path: Any, must_exist: bool = False) -> Path:
     """
