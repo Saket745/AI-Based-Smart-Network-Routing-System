@@ -132,3 +132,17 @@ def validate_file_path(path: Any, must_exist: bool = False) -> Path:
         raise ValidationError(f"Invalid path format: {e}") from e
 
     return p
+=======
+    try:
+        # Check for null bytes which cause ValueError/TypeError in Path/resolve on some systems
+        if isinstance(path, str) and "\0" in path:
+            raise ValidationError("Invalid path format.")
+        p = Path(path)
+        resolved = p.resolve()
+    except (TypeError, ValueError, OSError) as e:
+        raise ValidationError(f"Invalid path format: {e}") from e
+
+    if must_exist and not resolved.exists():
+        raise ValidationError(f"Path does not exist: {path}")
+
+    return resolved
