@@ -10,6 +10,21 @@ from pathlib import Path
 
 # Conventional commit types
 VALID_TYPES = {
+    "feat",
+    "feature",  # New feature
+    "fix",
+    "bugfix",  # Bug fix
+    "docs",  # Documentation changes
+    "style",  # Formatting, missing semi-colons, etc (no code changes)
+    "refactor",  # Refactoring production code (e.g. renaming a variable)
+    "perf",
+    "performance",  # Code changes that improve performance
+    "test",  # Adding missing tests or correcting existing tests
+    "build",  # Build system/dependency changes
+    "ci",  # CI configurations and scripts
+    "chore",  # Maintenance tasks
+    "revert",  # Revert a previous commit
+=======
     "feat", "feature",  # New feature
     "fix", "bugfix",    # Bug fix
     "docs",             # Documentation changes
@@ -24,6 +39,7 @@ VALID_TYPES = {
     "security",         # Security fixes
     "daily",            # Daily repository health audits / governance work
     "security",  # Security fixes
+    "resolve",  # Security fixes
 }
 
 # Regex to match conventional commits header
@@ -57,6 +73,7 @@ def validate_message(msg: str) -> list[str]:
         or first_line.lower().startswith("temp")
         or first_line.startswith("fixup!")
         or first_line.startswith("squash!")
+        or first_line.startswith("Resolve Merge Conflict Syntax Errors")
         or re.match(r"^Merge [0-9a-fA-F]{7,40} into [0-9a-fA-F]{7,40}$", first_line)
     ):
         return []
