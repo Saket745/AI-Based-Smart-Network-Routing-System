@@ -172,7 +172,10 @@ class TestSimulateCLI:
         assert result.exit_code != 0
         assert "Please provide at least 2 algorithms" in result.output
 
-    @patch("nroute.cli.simulate_cmd.Topology.load", side_effect=FileNotFoundError("Mock File Not Found"))
+    @patch(
+        "nroute.cli.simulate_cmd.Topology.load",
+        side_effect=FileNotFoundError("Mock File Not Found"),
+    )
     def test_run_sim_missing_topology_prints_ux_tip(
         self, mock_topo_load: MagicMock, runner: CliRunner, topo_file: str
     ) -> None:
@@ -187,7 +190,10 @@ class TestSimulateCLI:
         assert "nroute topology generate" in result.output
         assert "data/sample_topology.json" in result.output
 
-    @patch("nroute.cli.simulate_cmd.Topology.load", side_effect=FileNotFoundError("Mock File Not Found"))
+    @patch(
+        "nroute.cli.simulate_cmd.Topology.load",
+        side_effect=FileNotFoundError("Mock File Not Found"),
+    )
     def test_run_sim_missing_topology_json_output_includes_suggestion(
         self, mock_topo_load: MagicMock, runner: CliRunner, topo_file: str
     ) -> None:
