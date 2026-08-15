@@ -131,23 +131,17 @@ def test_congestion_predictor_security(dummy_dataset: tuple[pd.DataFrame, np.nda
             return (os.system, ("touch VULNERABLE",))
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        # 1. Test legacy joblib rejection
+        # 1. Legacy joblib files are rejected regardless of allow_unsafe.
         legacy_xgb_path = os.path.join(tmpdir, "legacy_xgb.joblib")
         legacy_data = {"model_type": "xgboost", "is_trained": True, "model": "fake_model"}
         joblib.dump(legacy_data, legacy_xgb_path)
 
         predictor = CongestionPredictor()
-        with pytest.raises(ModelError, match="Insecure model file detected"):
-            predictor.load(legacy_xgb_path)
+        for allow_unsafe in (False, True):
+            with pytest.raises(ModelError, match="Legacy pickle/joblib model loading is no longer supported"):
+                predictor.load(legacy_xgb_path, allow_unsafe=allow_unsafe)
 
-        # 2. Test legacy joblib opt-in
-        # It will fail on 'fake_model' not being a real XGBoost object, but it should pass the security check
-        try:
-            predictor.load(legacy_xgb_path, allow_unsafe=True)
-        except Exception as e:
-            assert "Insecure model file detected" not in str(e)
-
-        # 3. Test malicious PyTorch payload rejection
+        # 2. Malicious PyTorch payloads remain blocked even with allow_unsafe=True.
         malicious_pt_path = os.path.join(tmpdir, "malicious.pt")
         malicious_data = {
             "metadata": {"model_type": "lstm", "is_trained": True},
@@ -155,10 +149,11 @@ def test_congestion_predictor_security(dummy_dataset: tuple[pd.DataFrame, np.nda
         }
         torch.save(malicious_data, malicious_pt_path)
 
-        with pytest.raises(ModelError, match="Failed to load PyTorch model securely"):
-            predictor.load(malicious_pt_path)
+        for allow_unsafe in (False, True):
+            with pytest.raises(ModelError, match="Failed to load PyTorch model securely"):
+                predictor.load(malicious_pt_path, allow_unsafe=allow_unsafe)
 
-        # 4. Test custom model without save method
+        # 3. Test custom model without save method.
         class CustomNoSave:
             def train(self, features: pd.DataFrame, labels: np.ndarray) -> None:
                 pass
@@ -171,7 +166,7 @@ def test_congestion_predictor_security(dummy_dataset: tuple[pd.DataFrame, np.nda
         with pytest.raises(ModelError, match="does not implement a 'save' method"):
             predictor_custom.save(os.path.join(tmpdir, "custom.model"))
 
-        # 5. Verify no vulnerability was triggered (VULNERABLE file should not exist)
+        # 4. Verify no vulnerability was triggered (VULNERABLE file should not exist).
         assert not os.path.exists("VULNERABLE")
 
 
