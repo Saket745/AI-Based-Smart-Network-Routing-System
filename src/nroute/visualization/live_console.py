@@ -323,6 +323,7 @@ class LiveSimulationConsole:
         )
         return layout
 
+
     def run(self) -> MetricsCollectionResult:
         """Run the simulation while displaying the live console interface."""
         from nroute.core.metrics import MetricsCollectionResult
@@ -396,6 +397,10 @@ class LiveSimulationConsole:
             return result
         except KeyboardInterrupt:
             self.status = "Completed"
-
             self.console.print("\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n")
+
+            self.console.print(
+                "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
+            )
+ 
             return MetricsCollectionResult(results=self.engine.collector.results)
