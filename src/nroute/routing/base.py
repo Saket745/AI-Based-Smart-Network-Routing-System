@@ -141,11 +141,17 @@ class BaseRouter(ABC):
         if not topology.has_down_nodes and not topology.has_down_edges:
             return topology.graph
 
+=======
+        # Optimization: Use fast O(1) set membership lookups on cached local references
+        # instead of nested dict lookups, string casting, and case lowering.
+        down_nodes = topology._down_nodes
+        down_edges = topology._down_edges
+
         def filter_node(node: str) -> bool:
-            return str(graph.nodes[node].get("status", "up")).lower() != "down"
+            return node not in down_nodes
 
         def filter_edge(u: str, v: str) -> bool:
-            return str(graph.edges[u, v].get("status", "up")).lower() != "down"
+            return (u, v) not in down_edges
 
         return nx.subgraph_view(
             graph,
