@@ -291,7 +291,7 @@ class TestSimulateCompareCLI:
     def test_compare_too_few_algorithms(
         self, mock_topo_load: MagicMock, runner: CliRunner, topo_file: str
     ) -> None:
-        """Test failure when fewer than 2 algorithms are provided."""
+        """Test failure when fewer than 2 algorithms are provided for comparison."""
         result = runner.invoke(
             simulate_cmd,
             ["compare", "--topology", topo_file, "--algorithms", "dijkstra"],
