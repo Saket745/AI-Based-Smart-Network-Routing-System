@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from nroute.exceptions import ValidationError
 from nroute.utils.validators import (
+    validate_file_path,
     validate_node_id,
     validate_positive_float,
     validate_probability,
@@ -123,6 +126,7 @@ def test_validate_probability_non_numeric_raises() -> None:
 def test_validate_probability_nan_raises() -> None:
     with pytest.raises(ValidationError, match=r"between 0\.0 and 1\.0"):
         validate_probability(float("nan"))
+
 
 def test_validate_file_path_existing_file(tmp_path: Path) -> None:
     tmp_file = tmp_path / "test.txt"
