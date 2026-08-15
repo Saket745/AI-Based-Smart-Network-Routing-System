@@ -15,15 +15,6 @@ def validate_node_id(node_id: Any) -> str:
 
     Accepts strings, integers, and finite floats (coerced to string).
     Rejects booleans, NaN, and Infinity.
-
-    Args:
-        node_id: The node ID to validate.
-
-    Returns:
-        The validated node ID as a string.
-
-    Raises:
-        ValidationError: If the node ID is invalid.
     """
     if isinstance(node_id, bool):
         raise ValidationError("Node ID cannot be a boolean.")
@@ -44,19 +35,7 @@ def validate_node_id(node_id: Any) -> str:
 
 
 def validate_positive_float(value: Any, name: str) -> float:
-   
-    Validate that a value is a non-negative float.
-
-    Args:
-        value: The value to validate.
-        name: The name of the parameter (for error messages).
-
-    Returns:
-        The validated value as a float.
-
-    Raises:
-       ValidationError: If the value is negative or not a number.
-    
+    """Validate that a value is a non-negative float."""
     try:
         val = float(value)
     except (TypeError, ValueError) as e:
@@ -71,18 +50,7 @@ def validate_positive_float(value: Any, name: str) -> float:
 
 
 def validate_probability(value: Any) -> float:
-    
-    Validate that a value is a valid probability (between 0.0 and 1.0 inclusive).
-
-    Args:
-        value: The value to validate.
-
-    Returns:
-        The validated probability as a float.
-
-    Raises:
-        ValidationError: If the value is not a valid probability.
-    
+    """Validate that a value is a valid probability between 0.0 and 1.0 inclusive."""
     try:
         val = float(value)
     except (TypeError, ValueError) as e:
@@ -97,101 +65,35 @@ def validate_probability(value: Any) -> float:
 
 
 def validate_file_path(path: Any, must_exist: bool = False) -> Path:
-    
-    Validate that a path is valid and secure against path traversal vulnerabilities.
-=======
-def validate_file_path(path: Any, must_exist: bool = True) -> Path:
-
-def validate_file_path(path: Any, must_exist: bool = False) -> Path:
-    
-    Validate that a path is correct and secure.
+    """
+    Validate and resolve a filesystem path safely.
 
     Args:
         path: The path to validate, as a string or Path object.
-        must_exist: If True, check if the file or directory exists.
+        must_exist: If True, require the resolved path to exist.
 
     Returns:
         The validated and resolved Path object.
 
     Raises:
-        ValidationError: If the path is empty, has invalid format, or does not exist.
-    
+        ValidationError: If the path is invalid or does not exist when required.
+    """
     if not isinstance(path, (str, Path)):
         raise ValidationError("Invalid path format: path must be a string or Path object.")
-    # Check for empty path
-    path_str = str(path).strip()
-    if not path_str:
-        raise ValidationError("Path cannot be empty.")
-
-    if "\0" in path_str:
-        raise ValidationError("Invalid path format: path contains null bytes.")
-    # Check for null bytes (security check for path traversal/injection)
-    if "\0" in path_str:
-        raise ValidationError("Invalid path format: path contains null bytes.")
-
-    try:
-        p = Path(path).resolve()
-    except Exception as e:
-        raise ValidationError(f"Invalid path format: {e}") from e
-
-    if must_exist and not p.exists():
-        raise ValidationError(f"Path '{p}' does not exist.")
-
-=======
-    return p
-
-def validate_file_path(path: Any, must_exist: bool = False) -> Path:
-    
-    Validate that a path is valid.
-
-    Args:
-        path: The path (str or Path) to validate.
-        must_exist: Whether the path must exist.
-
-    Returns:
-        The validated path as a Path object.
-
-    Raises:
-        ValidationError: If the path is empty, invalid format, or does not exist.
-    
-    if not isinstance(path, (str, Path)):
-        raise ValidationError("Invalid path format.")
 
     path_str = str(path).strip()
     if not path_str:
         raise ValidationError("Path cannot be empty.")
 
     if "\0" in path_str:
-        raise ValidationError("Invalid path format.")
+        raise ValidationError("Invalid path format: path contains null bytes.")
 
     try:
-        p = Path(path)
-        if must_exist:
-            if not p.exists():
-                raise ValidationError(f"Path does not exist: {path}")
-            p = p.resolve()
-        else:
-            p = p.resolve()
-    except (TypeError, ValueError, OSError) as e:
-        raise ValidationError(f"Invalid path format: {e}") from e
-
-    return p
-
-    try:
-        p = Path(path).resolve()
-    except (TypeError, ValueError, OSError) as e:
-        raise ValidationError(f"Invalid path format: {e}") from e
-
-    if must_exist and not p.exists():
-        # Check for null bytes which cause ValueError/TypeError in Path/resolve on some systems
-        if isinstance(path, str) and "\0" in path:
-            raise ValidationError("Invalid path format.")
-        p = Path(path)
-        resolved = p.resolve()
+        resolved = Path(path).resolve()
     except (TypeError, ValueError, OSError) as e:
         raise ValidationError(f"Invalid path format: {e}") from e
 
     if must_exist and not resolved.exists():
-        raise ValidationError(f"Path does not exist: {path}")
+        raise ValidationError(f"Path '{resolved}' does not exist.")
 
     return resolved
