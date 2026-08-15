@@ -97,7 +97,7 @@ def validate_probability(value: Any) -> float:
 
 
 def validate_file_path(path: Any, must_exist: bool = True) -> Path:
-=======
+
 def validate_file_path(path: Any, must_exist: bool = False) -> Path:
     """
     Validate that a path is correct and secure.
@@ -133,7 +133,6 @@ def validate_file_path(path: Any, must_exist: bool = False) -> Path:
         raise ValidationError(f"Path '{p}' does not exist.")
 
     return p
-
 
 def validate_file_path(path: Any, must_exist: bool = False) -> Path:
     """
