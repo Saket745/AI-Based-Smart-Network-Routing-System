@@ -163,18 +163,28 @@ class TopologyGenerator:
                 host_bw = default_attrs.get("host_bandwidth", 1000.0)
                 host_lat = default_attrs.get("host_latency", 0.5)
 
-                for u, v in [(host_id, edge_id), (edge_id, host_id)]:
-                    graph.add_edge(
-                        u,
-                        v,
-                        bandwidth=host_bw,
-                        latency=host_lat,
-                        jitter=0.01,
-                        packet_loss=0.0,
-                        utilization=0.0,
-                        status="up",
-                        weight=host_lat,
-                    )
+                graph.add_edge(
+                    host_id,
+                    edge_id,
+                    bandwidth=host_bw,
+                    latency=host_lat,
+                    jitter=0.01,
+                    packet_loss=0.0,
+                    utilization=0.0,
+                    status="up",
+                    weight=host_lat,
+                )
+                graph.add_edge(
+                    edge_id,
+                    host_id,
+                    bandwidth=host_bw,
+                    latency=host_lat,
+                    jitter=0.01,
+                    packet_loss=0.0,
+                    utilization=0.0,
+                    status="up",
+                    weight=host_lat,
+                )
 
         # Connect Edge <--> Aggregation Switches inside Pod
         pod_bw = default_attrs.get("pod_bandwidth", 10000.0)
