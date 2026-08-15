@@ -14,7 +14,6 @@ to isolate root failures.
 
 from __future__ import annotations
 
-import copy
 import functools
 import json
 from dataclasses import dataclass, field
@@ -62,6 +61,10 @@ _CATEGORY_PRIORITY: dict[EventCategory, int] = {
     EventCategory.SYSLOG: 3,
     EventCategory.UNKNOWN: 99,
 }
+
+# Pre-computed sets of valid enum values for fast O(1) lookups in hot loops
+_VALID_CATEGORIES = {c.value for c in EventCategory}
+_VALID_SEVERITIES = {s.value for s in EventSeverity}
 
 
 @dataclass
@@ -209,8 +212,7 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
 
     try:
         stat = p.stat()
-        raw_cached = _load_raw_file_cached(str(p.resolve()), stat.st_mtime, stat.st_size)
-        raw = copy.deepcopy(raw_cached)
+        raw = _load_raw_file_cached(str(p.resolve()), stat.st_mtime, stat.st_size)
     except Exception as exc:
         if isinstance(exc, SimulationError):
             raise
@@ -242,12 +244,8 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
                 interface=str(item.get("interface", "")),
                 peer_node=str(item.get("peer_node", "")),
                 event_type=str(item.get("event_type", "")),
-                category=EventCategory(cat)
-                if cat in EventCategory.__members__.values()
-                else EventCategory.UNKNOWN,
-                severity=EventSeverity(sev)
-                if sev in EventSeverity.__members__.values()
-                else EventSeverity.INFO,
+                category=EventCategory(cat) if cat in _VALID_CATEGORIES else EventCategory.UNKNOWN,
+                severity=EventSeverity(sev) if sev in _VALID_SEVERITIES else EventSeverity.INFO,
                 message=str(item.get("message", "")),
                 raw=item,
             )

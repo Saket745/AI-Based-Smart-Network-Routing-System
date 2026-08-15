@@ -14,13 +14,15 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from nroute.core.metrics import MetricsCollectionResult
+from nroute.core.metrics import MetricsCollectionResult  # noqa: TC001
 from nroute.exceptions import TopologyError
 from nroute.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 if TYPE_CHECKING:
-    from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
+    from nroute.core.metrics import SimulationMetrics
     from nroute.simulation.engine import SimulationEngine
 
 
@@ -200,6 +202,19 @@ class LiveSimulationConsole:
                     (f"{tick + 1}/{self.duration_ticks}", "bold yellow"),
                 ]
             )
+            # Add dynamic, compact visual progress bar for delightful feedback
+            progress_ratio = min(1.0, max(0.0, (tick + 1) / self.duration_ticks))
+            percent = int(progress_ratio * 100)
+            bar_length = 10
+            filled = int(progress_ratio * bar_length)
+            bar = "█" * filled + "░" * (bar_length - filled)
+            parts.extend(
+                [
+                    ("  [", "white"),
+                    (bar, "cyan"),
+                    (f"] {percent}%", "white"),
+                ]
+            )
 
         if last_metric is not None:
             parts.extend(
@@ -221,7 +236,6 @@ class LiveSimulationConsole:
         header_text = Text.assemble(*parts)
         return Panel(header_text, style="cyan")
 
-=======
     def _build_link_status_table(self, engine: SimulationEngine) -> Table:
         """Build a Table displaying active and inactive links and their utilizations."""
         table = Table(
@@ -311,12 +325,11 @@ class LiveSimulationConsole:
         )
         return layout
 
+
     def run(self) -> MetricsCollectionResult:
         """Run the simulation while displaying the live console interface."""
         from nroute.core.metrics import MetricsCollectionResult
 
-    def run(self) -> MetricsCollectionResult:
-        """Run the simulation while displaying the live console interface."""
         layout = self._create_layout()
         algo_name = self.engine.router.__class__.__name__
 
@@ -386,25 +399,18 @@ class LiveSimulationConsole:
             return result
         except KeyboardInterrupt:
             self.status = "Completed"
-            self.console.print("\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n")
-            return MetricsCollectionResult(results=self.engine.collector.results)
-=======
-        with Live(layout, refresh_per_second=10, screen=True):
-            self.log_event("[bold cyan]Simulation started[/bold cyan]")
-            result = self.engine.run(
-                duration_ticks=self.duration_ticks,
-                seed=self.seed,
-                callback=tick_callback,
-                show_progress=False,  # Turn off standard progress bar
+            self.console.print(
+                "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
             )
-            # Finish simulation, mark status completed and show final render
-            self.status = "Completed"
-            self.log_event("[bold green]Simulation completed[/bold green]")
-            if self.engine.collector.results:
-                last_metric = self.engine.collector.results[-1]
-                self._update_layout(
-                    layout, self.duration_ticks - 1, last_metric, algo_name, self.engine
-                )
-            time.sleep(1.0)
 
-        return result
+
+            self.console.print(
+                "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
+            )
+            self.console.print("\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n")
+
+            self.console.print(
+                "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
+            )
+ 
+            return MetricsCollectionResult(results=self.engine.collector.results)
