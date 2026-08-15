@@ -110,12 +110,29 @@ def validate_file_path(path: Any, must_exist: bool = False) -> Path:
     Raises:
         ValidationError: If the path is empty, invalid format, or does not exist.
     """
-    if isinstance(path, str) and path == "":
-        raise ValidationError("Path cannot be empty.")
-
     if not isinstance(path, (str, Path)):
         raise ValidationError("Invalid path format.")
 
+    path_str = str(path).strip()
+    if not path_str:
+        raise ValidationError("Path cannot be empty.")
+
+    if "\0" in path_str:
+        raise ValidationError("Invalid path format.")
+
+    try:
+        p = Path(path)
+        if must_exist:
+            if not p.exists():
+                raise ValidationError(f"Path does not exist: {path}")
+            p = p.resolve()
+        else:
+            p = p.resolve()
+    except (TypeError, ValueError, OSError) as e:
+        raise ValidationError(f"Invalid path format: {e}") from e
+
+    return p
+=======
     try:
         # Check for null bytes which cause ValueError/TypeError in Path/resolve on some systems
         if isinstance(path, str) and "\0" in path:
