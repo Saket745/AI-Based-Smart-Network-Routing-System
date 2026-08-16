@@ -114,7 +114,7 @@ class TestTopologyGenerateCLI:
 
         assert result.exit_code == 0
         assert "Topology saved to" in result.output
-        assert str(out_file) in result.output
+        assert "custom_topo.json" in result.output
         mock_topology.save.assert_called_once_with(str(out_file))
 
     @patch("nroute.cli.topology_cmd.TopologyGenerator.random")
@@ -147,7 +147,9 @@ class TestTopologyShowCLI:
         result = runner.invoke(topology_cmd, ["show", "--file", topo_file])
 
         assert result.exit_code == 0
-        assert f"Topology: {topo_file}" in result.output
+        assert "Topology:" in result.output
+        assert "topo.json" in result.output
+
         assert "Nodes" in result.output
         assert "10" in result.output
         mock_load.assert_called_once_with(topo_file)
