@@ -60,8 +60,30 @@ def _load_topology(topo_path: str, is_json: bool) -> Topology:
         return Topology.load(topo_path)
     except Exception as e:
         _handle_error(f"Failed to load topology: {e}", is_json, e)
-        # Unreachable but for mypy
         raise SystemExit(1) from e
+
+
+def _print_no_edges_feedback(is_json: bool) -> None:
+    """Explain why congestion prediction has nothing to analyze and what to do next."""
+    message = "No links found in topology; congestion prediction needs at least one edge."
+    tips = [
+        "Add links between topology nodes.",
+        "Check the topology file if edges were expected.",
+    ]
+    if is_json:
+        import json
+
+        click.echo(
+            json.dumps(
+                {"links": [], "congested_count": 0, "warning": message, "next_steps": tips},
+                indent=2,
+            )
+        )
+    else:
+        console.print(f"[yellow]⚠ {message}[/yellow]")
+        console.print("[dim]Next steps:[/dim]")
+        for tip in tips:
+            console.print(f"  • {tip}")
 
 
 @predict_cmd.command(name="congestion")
@@ -110,11 +132,10 @@ def congestion(ctx: click.Context, /, **kwargs: Any) -> None:
     except ModelError as e:
         _handle_error(f"Failed to load model: {e}", is_json, e)
 
-    # Extract current link features
     edge_ids, features = _extract_congestion_features(topo)
 
     if not edge_ids:
-        console.print("[yellow]No edges found in topology.[/yellow]")
+        _print_no_edges_feedback(is_json)
         return
 
     try:
@@ -150,8 +171,8 @@ def _extract_congestion_features(topo: Topology) -> tuple[list[str], Any]:
                 "latency": float(edge.get("latency", 5.0)),
                 "jitter": float(edge.get("jitter", 0.5)),
                 "packet_loss": float(edge.get("packet_loss", 0.0)),
-                "flow_count": 10,  # default placeholder
-                "queue_depth": 0.0,  # default placeholder
+                "flow_count": 10,
+                "queue_depth": 0.0,
             }
         )
         edge_ids.append(f"{u} -> {v}")
@@ -209,7 +230,6 @@ def _print_congestion_console(edge_ids: list[str], probs: list[Any], threshold: 
 
     console.print(table)
 
-    # Summary
     congested_count = sum(1 for p in probs if float(p) >= threshold)
     console.print(
         f"\n  [bold]{congested_count}[/bold] of {len(edge_ids)} links flagged as congested "
@@ -268,15 +288,10 @@ def predict_gnn(ctx: click.Context, /, **kwargs: Any) -> None:
     topo = _load_topology(args.topo_path, is_json)
 
     # 1. Instantiate the GNN model structure
+
     model = _init_gnn_model(args.model_type)
-
-    # 2. Load model state via ModelStore
     _load_gnn_model_state(model, args, is_json)
-
-    # 3. Build graph representation & features
     bundle = _build_gnn_features(topo, is_json)
-
-    # 4. Perform model prediction
     probs, predicted_latencies = _run_gnn_inference(model, bundle)
 
     if is_json:

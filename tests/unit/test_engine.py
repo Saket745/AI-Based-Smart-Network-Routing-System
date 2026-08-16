@@ -95,6 +95,60 @@ def test_update_link_utilizations(
     assert engine.topology.get_edge("B", "D")["utilization"] == 0.0
 
 
+def test_update_link_utilizations_edge_cases(
+    engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock],
+) -> None:
+    """Verify O(U) tracking across zero active flows, moving flows, multiple flows, and stale clearing."""
+    engine, _, _, _ = engine_setup
+
+    flow1 = FlowRecord(
+        source="A",
+        destination="D",
+        bytes=1250000,  # 10 Mbps demand
+        packets=1000,
+        duration=1.0,
+        protocol="TCP",
+        timestamp=0.0,
+    )
+    flow2 = FlowRecord(
+        source="A",
+        destination="B",
+        bytes=2500000,  # 20 Mbps demand
+        packets=2000,
+        duration=1.0,
+        protocol="UDP",
+        timestamp=0.0,
+    )
+
+    # 1. Multiple flows on same edge (A->B): total demand 30 Mbps on 1000 Mbps bandwidth = 0.03 util
+    engine.active_flows = [
+        {"flow": flow1, "path": ["A", "B", "D"], "current_hop_idx": 0, "accumulated_latency": 0.0},
+        {"flow": flow2, "path": ["A", "B"], "current_hop_idx": 0, "accumulated_latency": 0.0},
+    ]
+
+    engine._update_link_utilizations()
+    assert engine.topology.get_edge("A", "B")["utilization"] == pytest.approx(0.03)
+    assert engine._utilized_edges == {("A", "B")}
+
+    # 2. Flows move to new edge (flow1 advances to B->D, flow2 completes)
+    engine.active_flows = [
+        {"flow": flow1, "path": ["A", "B", "D"], "current_hop_idx": 1, "accumulated_latency": 10.0},
+    ]
+
+    engine._update_link_utilizations()
+    # Stale edge A->B should now be reset to 0.0
+    assert engine.topology.get_edge("A", "B")["utilization"] == 0.0
+    # New active edge B->D (1000 Mbps bandwidth in fixture) should be 10 / 1000 = 0.01 util
+    assert engine.topology.get_edge("B", "D")["utilization"] == pytest.approx(0.01)
+    assert engine._utilized_edges == {("B", "D")}
+
+    # 3. Zero active flows: all utilizations return to 0.0 and _utilized_edges is cleared
+    engine.active_flows = []
+    engine._update_link_utilizations()
+    assert engine.topology.get_edge("B", "D")["utilization"] == 0.0
+    assert len(engine._utilized_edges) == 0
+
+
 def test_run_basic_flow_completion(
     engine_setup: tuple[SimulationEngine, Topology, MagicMock, MagicMock],
 ) -> None:

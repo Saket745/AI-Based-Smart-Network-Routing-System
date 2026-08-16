@@ -24,8 +24,9 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
-from nroute.exceptions import SimulationError
+from nroute.exceptions import SimulationError, ValidationError
 from nroute.utils.logging import get_logger
+from nroute.utils.validators import validate_file_path
 
 if TYPE_CHECKING:
     from nroute.core.topology import Topology
@@ -61,6 +62,10 @@ _CATEGORY_PRIORITY: dict[EventCategory, int] = {
     EventCategory.SYSLOG: 3,
     EventCategory.UNKNOWN: 99,
 }
+
+# Pre-computed sets of valid enum values for fast O(1) lookups in hot loops
+_VALID_CATEGORIES = {c.value for c in EventCategory}
+_VALID_SEVERITIES = {s.value for s in EventSeverity}
 
 
 @dataclass
@@ -196,14 +201,19 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
     ``event_id``, ``timestamp``, ``node_id``, ``interface``,
     ``peer_node``, ``event_type``, ``category``, ``severity``, ``message``.
     """
-    p = Path(path)
-    if not p.is_file():
-        raise SimulationError(f"Events file not found: {path}")
+    try:
+        p = validate_file_path(path, must_exist=True)
+        if not p.is_file():
+            raise SimulationError(f"Events path is not a file: {path}")
+    except ValidationError as exc:
+        msg = str(exc)
+        if "does not exist" in msg:
+            raise SimulationError(f"Events file not found: {path}") from exc
+        raise SimulationError(msg) from exc
 
     try:
         stat = p.stat()
-        raw_cached = _load_raw_file_cached(str(p.resolve()), stat.st_mtime, stat.st_size)
-        raw = copy.deepcopy(raw_cached)
+        raw = _load_raw_file_cached(str(p.resolve()), stat.st_mtime, stat.st_size)
     except Exception as exc:
         if isinstance(exc, SimulationError):
             raise
@@ -235,12 +245,8 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
                 interface=str(item.get("interface", "")),
                 peer_node=str(item.get("peer_node", "")),
                 event_type=str(item.get("event_type", "")),
-                category=EventCategory(cat)
-                if cat in EventCategory.__members__.values()
-                else EventCategory.UNKNOWN,
-                severity=EventSeverity(sev)
-                if sev in EventSeverity.__members__.values()
-                else EventSeverity.INFO,
+                category=EventCategory(cat) if cat in _VALID_CATEGORIES else EventCategory.UNKNOWN,
+                severity=EventSeverity(sev) if sev in _VALID_SEVERITIES else EventSeverity.INFO,
                 message=str(item.get("message", "")),
                 raw=item,
             )
