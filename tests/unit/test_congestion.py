@@ -138,7 +138,9 @@ def test_congestion_predictor_security(dummy_dataset: tuple[pd.DataFrame, np.nda
 
         predictor = CongestionPredictor()
         for allow_unsafe in (False, True):
-            with pytest.raises(ModelError, match="Legacy pickle/joblib model loading is no longer supported"):
+            with pytest.raises(
+                ModelError, match="Legacy pickle/joblib model loading is no longer supported"
+            ):
                 predictor.load(legacy_xgb_path, allow_unsafe=allow_unsafe)
 
         # 2. Malicious PyTorch payloads remain blocked even with allow_unsafe=True.
