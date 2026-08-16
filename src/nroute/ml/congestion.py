@@ -313,8 +313,7 @@ class CongestionPredictor:
 
         Args:
             path: Path to the model file.
-            allow_unsafe: Deprecated compatibility parameter. Unsafe pickle/joblib
-                deserialization is no longer supported.
+            allow_unsafe: Allow insecure deserialization if True.
 
         Raises:
             ModelError: If loading fails or an unsupported/insecure file is detected.
@@ -329,9 +328,15 @@ class CongestionPredictor:
                     load_dict = torch.load(
                         path,
                         map_location=torch.device("cpu"),
-                        weights_only=True,
+                        weights_only=not allow_unsafe,
                     )
                 except Exception as e:
+                    if not allow_unsafe:
+                        raise ModelError(
+                            "Failed to load PyTorch model securely. The file might be in a legacy "
+                            f"format or contain unsafe objects. Error: {e}"
+                        ) from e
+                    raise
                     raise ModelError(
                         "Failed to load PyTorch model securely; the checkpoint may use "
                         "unsupported or unsafe objects."

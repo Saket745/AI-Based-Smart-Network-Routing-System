@@ -43,6 +43,8 @@ def validate_node_id(node_id: Any) -> str:
 
 
 def validate_positive_float(value: Any, name: str) -> float:
+    Validate that a value is a non-negative float.
+
     """Validate that a value is a non-negative float.
 
     Args:
@@ -69,6 +71,8 @@ def validate_positive_float(value: Any, name: str) -> float:
 
 
 def validate_probability(value: Any) -> float:
+    """
+    Validate that a value is a valid probability (between 0.0 and 1.0 inclusive).
     """Validate that a value is a valid probability (between 0.0 and 1.0 inclusive).
 
     Args:
@@ -98,11 +102,14 @@ def validate_file_path(
     must_exist: bool = False,
     allowed_roots: list[str | Path] | None = None,
 ) -> Path:
+    """
+    Validate that a path is valid and optionally within allowed root directories to prevent path traversal.
     """Validate that a path is valid and optionally within allowed root directories to prevent path traversal.
 
     Args:
         path: The file path to validate.
         must_exist: Whether the path must exist on the file system.
+        allowed_roots: Optional list of root directories that path must reside within.
         allowed_roots: Optional list of root directories that path must be contained within.
 
     Returns:
@@ -114,6 +121,9 @@ def validate_file_path(
     if not isinstance(path, (str, Path)):
         raise ValidationError("Invalid path format.")
 
+    path_str = str(path).strip()
+    if not path_str:
+        raise ValidationError("File path cannot be empty.")
     path_str = str(path)
     if not path_str.strip():
         raise ValidationError("Path cannot be empty.")

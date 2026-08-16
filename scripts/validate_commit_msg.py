@@ -18,6 +18,16 @@ VALID_TYPES = {
     "style",
     "refactor",
     "perf",
+    "performance",  # Code changes that improve performance
+    "test",  # Adding missing tests or correcting existing tests
+    "build",  # Build system/dependency changes
+    "ci",  # CI configurations and scripts
+    "chore",  # Maintenance tasks
+    "revert",  # Revert a previous commit
+    "security",  # Security fixes
+    "daily",  # Daily repository health audits / governance work
+    "resolve",  # Security fixes
+=======
     "performance",
     "test",
     "build",
