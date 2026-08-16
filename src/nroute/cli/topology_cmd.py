@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -17,29 +16,6 @@ from nroute.core.topology import Topology
 from nroute.exceptions import TopologyError
 
 console = Console()
-
-
-@dataclass(frozen=True)
-class GenerationParams:
-    """Parameters for topology generation.
-
-    Attributes:
-        topo_type: Topology generation model.
-        nodes: Number of nodes.
-        edge_prob: Edge probability (random only).
-        k: Port count k (fat-tree) or k-neighbors (small-world).
-        rewire_prob: Rewire probability (small-world only).
-        seed: Random seed for reproducibility.
-        output: Output path for the topology JSON.
-    """
-
-    topo_type: str
-    nodes: int
-    edge_prob: float
-    k: int
-    rewire_prob: float
-    seed: int | None
-    output: str | None
 
 
 @click.group(name="topology")
@@ -98,44 +74,6 @@ class TopologyGenerateArgs(BaseModel):
     help="Output path for the topology JSON. Defaults to stdout summary.",
 )
 @click.pass_context
-def generate(ctx: click.Context, /, **kwargs: Any) -> None:
-    """Generate a synthetic network topology."""
-    params = GenerationParams(**kwargs)
-    _handle_generate(ctx, params)
-
-
-def _handle_generate(ctx: click.Context, params: GenerationParams) -> None:
-    """Internal handler for topology generation."""
-    # Inherit global seed if not overridden
-    seed = params.seed or (ctx.obj.get("seed") if ctx.obj is not None else None)
-    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
-
-    try:
-        topo_type_lower = params.topo_type.lower()
-        topo: Topology
-
-        if topo_type_lower == "random":
-            topo = TopologyGenerator.random(
-                n_nodes=params.nodes, edge_prob=params.edge_prob, seed=seed
-            )
-        elif topo_type_lower == "scale-free":
-            topo = TopologyGenerator.scale_free(n_nodes=params.nodes, seed=seed)
-        elif topo_type_lower == "small-world":
-            topo = TopologyGenerator.small_world(
-                n_nodes=params.nodes,
-                k_neighbors=params.k,
-                rewire_prob=params.rewire_prob,
-                seed=seed,
-            )
-        elif topo_type_lower == "fat-tree":
-            topo = TopologyGenerator.fat_tree(k=params.k, seed=seed)
-        else:
-            raise TopologyError(f"Unknown topology type: {params.topo_type}")
-
-        if is_json:
-            if params.output:
-                out_path = Path(params.output)
-=======
 def generate(ctx: click.Context, **kwargs: Any) -> None:
     """Generate a synthetic network topology."""
     args = TopologyGenerateArgs.model_validate(kwargs)
@@ -179,9 +117,6 @@ def generate(ctx: click.Context, **kwargs: Any) -> None:
                 click.echo(json.dumps(topo.to_dict(), indent=2))
             return
 
-        if params.output:
-            out_path = Path(params.output)
-=======
         if args.output:
             out_path = Path(args.output)
             out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -192,8 +127,6 @@ def generate(ctx: click.Context, **kwargs: Any) -> None:
             )
         else:
             # Print summary to stdout
-            _print_topology_summary(topo, title=f"{params.topo_type} Topology")
-=======
             _print_topology_summary(topo, title=f"{args.topo_type} Topology")
 
     except TopologyError as e:
@@ -274,18 +207,13 @@ def _print_topology_summary(topo: Topology, title: str = "Topology Summary") -> 
         stats_table.add_row("Avg Degree", f"{sum(degrees) / len(degrees):.1f}")
 
     # Count node statuses
-    graph = topo.graph
-    up_nodes = sum(
-        1 for _, d in graph.nodes(data=True) if str(d.get("status", "up")).lower() == "up"
-    )
+    up_nodes = sum(1 for n in topo.nodes if topo.get_node(n).get("status") == "up")
     down_nodes = topo.node_count - up_nodes
     stats_table.add_row("Nodes Up", str(up_nodes))
     stats_table.add_row("Nodes Down", str(down_nodes))
 
     # Count edge statuses
-    up_edges = sum(
-        1 for _, _, d in graph.edges(data=True) if str(d.get("status", "up")).lower() == "up"
-    )
+    up_edges = sum(1 for u, v in topo.edges if topo.get_edge(u, v).get("status") == "up")
     down_edges = topo.edge_count - up_edges
     stats_table.add_row("Links Up", str(up_edges))
     stats_table.add_row("Links Down", str(down_edges))
@@ -294,8 +222,8 @@ def _print_topology_summary(topo: Topology, title: str = "Topology Summary") -> 
 
     # Node type breakdown
     node_types: dict[str, int] = {}
-    for _, d in graph.nodes(data=True):
-        ntype = d.get("type", "unknown")
+    for n in topo.nodes:
+        ntype = topo.get_node(n).get("type", "unknown")
         node_types[ntype] = node_types.get(ntype, 0) + 1
 
     if node_types:
