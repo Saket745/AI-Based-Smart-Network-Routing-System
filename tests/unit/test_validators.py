@@ -14,6 +14,10 @@ from nroute.utils.validators import (
     validate_probability,
 )
 
+# ---------------------------------------------------------------------------
+# validate_node_id
+# ---------------------------------------------------------------------------
+
 
 def test_validate_node_id_valid_string() -> None:
     assert validate_node_id("R1") == "R1"
@@ -28,7 +32,8 @@ def test_validate_node_id_int_coerced_to_string() -> None:
 
 
 def test_validate_node_id_float_coerced_to_string() -> None:
-    assert validate_node_id(3.0) == "3.0"
+    result = validate_node_id(3.0)
+    assert result == "3.0"
 
 
 def test_validate_node_id_empty_string_raises() -> None:
@@ -58,6 +63,11 @@ def test_validate_node_id_none_raises() -> None:
         validate_node_id(None)
 
 
+# ---------------------------------------------------------------------------
+# validate_positive_float
+# ---------------------------------------------------------------------------
+
+
 def test_validate_positive_float_valid() -> None:
     assert validate_positive_float(5.5, "latency") == pytest.approx(5.5)
 
@@ -81,12 +91,18 @@ def test_validate_positive_float_non_numeric_raises() -> None:
 
 
 def test_validate_positive_float_nan_raises() -> None:
+    # NaN is technically a float but usually we don't want it in validation for positive floats
     with pytest.raises(ValidationError, match="must be a non-negative number"):
         validate_positive_float(float("nan"), "val")
 
 
 def test_validate_positive_float_inf_allowed() -> None:
     assert validate_positive_float(float("inf"), "limit") == float("inf")
+
+
+# ---------------------------------------------------------------------------
+# validate_probability
+# ---------------------------------------------------------------------------
 
 
 def test_validate_probability_valid_range() -> None:
@@ -110,6 +126,11 @@ def test_validate_probability_non_numeric_raises() -> None:
 def test_validate_probability_nan_raises() -> None:
     with pytest.raises(ValidationError, match=r"between 0\.0 and 1\.0"):
         validate_probability(float("nan"))
+
+
+# ---------------------------------------------------------------------------
+# validate_file_path
+# ---------------------------------------------------------------------------
 
 
 def test_validate_file_path_existing_file(tmp_path: Path) -> None:
