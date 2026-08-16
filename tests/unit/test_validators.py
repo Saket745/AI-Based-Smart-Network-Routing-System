@@ -6,14 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from pathlib import Path
 from nroute.exceptions import ValidationError
 from nroute.utils.validators import (
     validate_file_path,
     validate_node_id,
     validate_positive_float,
     validate_probability,
-    validate_file_path,
 )
 
 # ---------------------------------------------------------------------------
@@ -158,6 +156,15 @@ def test_validate_file_path_empty_raises() -> None:
 
 
 def test_validate_file_path_invalid_format_raises() -> None:
-    # On some systems, null bytes in path raise OSError when resolving
     with pytest.raises(ValidationError, match="Invalid path format"):
         validate_file_path("\0", must_exist=False)
+
+
+def test_validate_file_path_rejects_path_traversal(tmp_path: Path) -> None:
+    allowed_root = tmp_path / "configs"
+    allowed_root.mkdir()
+    outside = tmp_path / "secret.txt"
+    outside.write_text("secret")
+
+    with pytest.raises(ValidationError, match="outside the allowed root"):
+        validate_file_path(outside, must_exist=True, allowed_root=allowed_root)
