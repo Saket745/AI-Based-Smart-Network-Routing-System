@@ -3,13 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable  # noqa: TC003
-=======
-import hashlib
-from collections.abc import Callable  # noqa: TC003
-from typing import TYPE_CHECKING, Any
-from unittest.mock import patch
-
-from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -20,9 +13,6 @@ from nroute.exceptions import RoutingError
 from nroute.routing.base import FallbackRouter
 from nroute.routing.dijkstra import DijkstraRouter
 from nroute.routing.ecmp import ECMPRouter
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 
 def test_ecmp_equal_cost_paths() -> None:
@@ -49,6 +39,7 @@ def test_ecmp_equal_cost_paths() -> None:
     query = RoutingQuery(source="A", destination="D", weight="weight")
     paths = router.compute_all_equal_cost_paths(topo, query)
     assert len(paths) == 2
+
 
     # Test backward compatible style
     paths_compat = router.compute_all_equal_cost_paths(
@@ -95,6 +86,9 @@ def test_ecmp_deterministic_selection() -> None:
 
 def test_ecmp_uses_sha256() -> None:
     """Verify that ECMPRouter uses SHA-256 and NOT MD5 for flow-based path selection."""
+    import hashlib
+    from unittest.mock import patch
+
     topo = Topology()
     topo.add_node("A")
     topo.add_node("B")
@@ -143,8 +137,11 @@ def test_k_shortest_paths() -> None:
     router = ECMPRouter(k=3)
 
     query = RoutingQuery(source="A", destination="D", weight="weight", k=3)
+
+    query = RoutingQuery(source="A", destination="D", weight="weight")
     paths = router.compute_k_shortest_paths(topo, query)
     assert len(paths) == 3
+
 
     # Test backward compatible style
     paths_compat = router.compute_k_shortest_paths(
