@@ -324,8 +324,7 @@ class CongestionPredictor:
 
         try:
             if path.endswith(".pt") or path.endswith(".pth"):
-                # Always use the restricted PyTorch loader. The compatibility
-                # parameter intentionally cannot re-enable unsafe deserialization.
+                # Always enforce weights_only=True to prevent unsafe object deserialization (RCE)
                 try:
                     load_dict = torch.load(
                         path,
@@ -334,8 +333,8 @@ class CongestionPredictor:
                     )
                 except Exception as e:
                     raise ModelError(
-                        "Failed to load PyTorch model securely. The file might be in a legacy "
-                        f"format or contain unsafe objects. Error: {e}"
+                        "Failed to load PyTorch model securely; the checkpoint may use "
+                        "unsupported or unsafe objects."
                     ) from e
             elif zipfile.is_zipfile(path):
                 # New XGBoost format
@@ -356,7 +355,6 @@ class CongestionPredictor:
                             self.model.load_model(model_path)
                         return
                     else:
-                        # Fallback for other zipped models if any
                         raise ModelError(
                             f"Unsupported model type in zip archive: {self.model_type}"
                         )
