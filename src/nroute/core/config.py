@@ -39,13 +39,18 @@ class GeneralConfig(BaseModel):
     @classmethod
     def validate_cors_origins(cls, v: Any) -> list[str]:
         if isinstance(v, str):
-            v = [o.strip() for o in v.split(",") if o.strip()]
-        if not isinstance(v, list):
-            v = [v]
-        cleaned = [str(o).strip() for o in v if o and str(o).strip() != "*"]
-        if not cleaned:
-            return DEFAULT_CORS_ORIGINS
-        return cleaned
+            cleaned = [o.strip() for o in v.split(",") if o.strip() and o.strip() != "*"]
+            if not cleaned:
+                return DEFAULT_CORS_ORIGINS
+            return cleaned
+        if isinstance(v, list):
+            if "*" in v or any(origin == "*" for origin in v):
+                raise ValueError(
+                    "Wildcard '*' is not allowed for cors_origins due to security risks. "
+                    "Please specify explicit origins."
+                )
+            return v
+        return [v]
 
 
 class TopologyConfig(BaseModel):
