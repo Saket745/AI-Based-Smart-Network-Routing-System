@@ -113,8 +113,6 @@ except Exception as e:
                 "Wildcard '*' is not allowed in NROUTE_CORS_ORIGINS due to security risks. "
                 "Please specify explicit origins."
             ) from e
-=======
-    _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
 
 # Filter out '*' and empty strings, ensure secure local development defaults as fallback
 _cors_origins = [o for o in _cors_origins if o and o != "*"]
