@@ -6,19 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from pathlib import Path
 from nroute.exceptions import ValidationError
 from nroute.utils.validators import (
     validate_file_path,
     validate_node_id,
     validate_positive_float,
     validate_probability,
-    validate_file_path,
 )
-
-# ---------------------------------------------------------------------------
-# validate_node_id
-# ---------------------------------------------------------------------------
 
 
 def test_validate_node_id_valid_string() -> None:
@@ -34,8 +28,7 @@ def test_validate_node_id_int_coerced_to_string() -> None:
 
 
 def test_validate_node_id_float_coerced_to_string() -> None:
-    result = validate_node_id(3.0)
-    assert result == "3.0"
+    assert validate_node_id(3.0) == "3.0"
 
 
 def test_validate_node_id_empty_string_raises() -> None:
@@ -65,11 +58,6 @@ def test_validate_node_id_none_raises() -> None:
         validate_node_id(None)
 
 
-# ---------------------------------------------------------------------------
-# validate_positive_float
-# ---------------------------------------------------------------------------
-
-
 def test_validate_positive_float_valid() -> None:
     assert validate_positive_float(5.5, "latency") == pytest.approx(5.5)
 
@@ -93,18 +81,12 @@ def test_validate_positive_float_non_numeric_raises() -> None:
 
 
 def test_validate_positive_float_nan_raises() -> None:
-    # NaN is technically a float but usually we don't want it in validation for positive floats
     with pytest.raises(ValidationError, match="must be a non-negative number"):
         validate_positive_float(float("nan"), "val")
 
 
 def test_validate_positive_float_inf_allowed() -> None:
     assert validate_positive_float(float("inf"), "limit") == float("inf")
-
-
-# ---------------------------------------------------------------------------
-# validate_probability
-# ---------------------------------------------------------------------------
 
 
 def test_validate_probability_valid_range() -> None:
@@ -130,11 +112,6 @@ def test_validate_probability_nan_raises() -> None:
         validate_probability(float("nan"))
 
 
-# ---------------------------------------------------------------------------
-# validate_file_path
-# ---------------------------------------------------------------------------
-
-
 def test_validate_file_path_existing_file(tmp_path: Path) -> None:
     tmp_file = tmp_path / "test.txt"
     tmp_file.write_text("hello")
@@ -158,6 +135,15 @@ def test_validate_file_path_empty_raises() -> None:
 
 
 def test_validate_file_path_invalid_format_raises() -> None:
-    # On some systems, null bytes in path raise OSError when resolving
     with pytest.raises(ValidationError, match="Invalid path format"):
         validate_file_path("\0", must_exist=False)
+
+
+def test_validate_file_path_rejects_path_traversal(tmp_path: Path) -> None:
+    allowed_root = tmp_path / "configs"
+    allowed_root.mkdir()
+    outside = tmp_path / "secret.txt"
+    outside.write_text("secret")
+
+    with pytest.raises(ValidationError, match="outside the allowed root"):
+        validate_file_path(outside, must_exist=True, allowed_root=allowed_root)
