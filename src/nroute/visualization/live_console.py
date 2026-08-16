@@ -15,7 +15,6 @@ from rich.table import Table
 from rich.text import Text
 
 from nroute.core.metrics import MetricsCollectionResult
-from nroute.core.metrics import MetricsCollectionResult  # noqa: TC001
 from nroute.exceptions import TopologyError
 from nroute.utils.logging import get_logger
 
@@ -325,11 +324,8 @@ class LiveSimulationConsole:
         )
         return layout
 
-
     def run(self) -> MetricsCollectionResult:
         """Run the simulation while displaying the live console interface."""
-        from nroute.core.metrics import MetricsCollectionResult
-
         layout = self._create_layout()
         algo_name = self.engine.router.__class__.__name__
 
@@ -402,15 +398,4 @@ class LiveSimulationConsole:
             self.console.print(
                 "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
             )
-
-
-            self.console.print(
-                "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
-            )
-            self.console.print("\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n")
-
-            self.console.print(
-                "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
-            )
- 
             return MetricsCollectionResult(results=self.engine.collector.results)

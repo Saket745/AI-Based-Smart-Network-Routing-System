@@ -5,7 +5,7 @@ from __future__ import annotations
 from click.testing import CliRunner
 
 from nroute.cli import cli as package_cli
-from nroute.cli.main import cli, __all__
+from nroute.cli.main import __all__, cli
 
 
 def test_main_reexports_root_cli() -> None:
