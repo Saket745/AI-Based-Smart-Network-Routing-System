@@ -25,22 +25,18 @@ class TopologyGenerator:
         for src, dst in graph.edges:
             bandwidth = default_attrs.get("bandwidth")
             if bandwidth is None:
-                # Random bandwidth in Mbps (100, 1000, 10000)
                 bandwidth = float(rng.choice([100.0, 1000.0, 10000.0]))
 
             latency = default_attrs.get("latency")
             if latency is None:
-                # Random propagation delay between 1ms and 50ms
                 latency = float(round(rng.uniform(1.0, 50.0), 1))
 
             jitter = default_attrs.get("jitter")
             if jitter is None:
-                # Random jitter between 0.1ms and 5ms
                 jitter = float(round(rng.uniform(0.1, 5.0), 2))
 
             packet_loss = default_attrs.get("packet_loss")
             if packet_loss is None:
-                # Random packet loss rate between 0.0% and 2.0%
                 packet_loss = float(rng.choice([0.0, 0.001, 0.005, 0.01, 0.02]))
 
             utilization = default_attrs.get("utilization", 0.0)
@@ -56,7 +52,6 @@ class TopologyGenerator:
                 "weight": weight,
                 "status": status,
             }
-            # Add other extra custom attributes
             for k, v in default_attrs.items():
                 if k not in edge_attrs:
                     edge_attrs[k] = v
@@ -71,7 +66,6 @@ class TopologyGenerator:
         for node in graph.nodes:
             capacity = default_attrs.get("capacity")
             if capacity is None:
-                # Node capacity ranges based on node type
                 if node_type == "host":
                     capacity = 1000.0
                 elif node_type == "switch":
@@ -90,7 +84,6 @@ class TopologyGenerator:
                 "status": status,
                 "location": location,
             }
-            # Add extra custom attributes
             for k, v in default_attrs.items():
                 if k not in node_attrs:
                     node_attrs[k] = v
@@ -142,19 +135,30 @@ class TopologyGenerator:
                     host_id, type="host", capacity=1000.0, status="up", location=f"pod_{pod_idx}"
                 )
 
-                # Connect Host <--> Edge Switch (bidirectional)
-                for u, v in [(host_id, edge_id), (edge_id, host_id)]:
-                    graph.add_edge(
-                        u,
-                        v,
-                        bandwidth=host_bw,
-                        latency=host_lat,
-                        jitter=0.01,
-                        packet_loss=0.0,
-                        utilization=0.0,
-                        status="up",
-                        weight=host_lat,
-                    )
+                # Connect Host <--> Edge Switch (bidirectional) without allocating
+                # a temporary list of direction tuples for every host.
+                graph.add_edge(
+                    host_id,
+                    edge_id,
+                    bandwidth=host_bw,
+                    latency=host_lat,
+                    jitter=0.01,
+                    packet_loss=0.0,
+                    utilization=0.0,
+                    status="up",
+                    weight=host_lat,
+                )
+                graph.add_edge(
+                    edge_id,
+                    host_id,
+                    bandwidth=host_bw,
+                    latency=host_lat,
+                    jitter=0.01,
+                    packet_loss=0.0,
+                    utilization=0.0,
+                    status="up",
+                    weight=host_lat,
+                )
         return edge_nodes
 
     @staticmethod
@@ -216,18 +220,11 @@ class TopologyGenerator:
         num_edge_per_pod = k // 2
         num_hosts_per_edge = k // 2
 
-        # 1. Add Aggregation Switches
         agg_nodes = TopologyGenerator._add_pod_agg_switches(graph, pod_idx, num_agg_per_pod)
-
-        # 2. Add Edge Switches and Hosts
         edge_nodes = TopologyGenerator._add_pod_edge_switches_and_hosts(
             graph, pod_idx, num_edge_per_pod, num_hosts_per_edge, **default_attrs
         )
-
-        # 3. Connect Edge <--> Aggregation Switches inside Pod
         TopologyGenerator._connect_edge_to_agg(graph, edge_nodes, agg_nodes, **default_attrs)
-
-        # 4. Connect Aggregation <--> Core Switches
         stride = k // 2
         TopologyGenerator._connect_agg_to_core(
             graph, agg_nodes, core_nodes, stride, **default_attrs
@@ -237,61 +234,32 @@ class TopologyGenerator:
     def random(
         cls, n_nodes: int, edge_prob: float, seed: int | None = None, **default_attrs: Any
     ) -> Topology:
-        """
-        Generate a random network topology using Erdős-Rényi model.
-
-        Args:
-            n_nodes: Total number of nodes.
-            edge_prob: Probability of link creation between any pair of nodes.
-            seed: Random seed for reproducibility.
-            default_attrs: Optional override attributes for nodes/edges.
-        """
+        """Generate a random network topology using Erdős-Rényi model."""
         if n_nodes <= 0:
             raise TopologyError("Number of nodes must be positive.")
         if not (0.0 <= edge_prob <= 1.0):
             raise TopologyError("Edge probability must be between 0.0 and 1.0.")
-
         rng = get_rng(seed)
-
-        # Generate undirected graph and convert to directed
         undirected = nx.erdos_renyi_graph(n_nodes, edge_prob, seed=seed)
         directed = nx.DiGraph(undirected)
-
-        # Relabel nodes to strings
         mapping = {node: str(node) for node in directed.nodes}
         directed = cast("nx.DiGraph", nx.relabel_nodes(directed, mapping))
-
         cls._assign_default_node_attrs(directed, "router", rng, **default_attrs)
         cls._assign_random_edge_attrs(directed, rng, **default_attrs)
-
         return Topology(directed)
 
     @classmethod
     def scale_free(cls, n_nodes: int, seed: int | None = None, **default_attrs: Any) -> Topology:
-        """
-        Generate a scale-free network topology using Barabási-Albert model.
-
-        Args:
-            n_nodes: Total number of nodes.
-            seed: Random seed for reproducibility.
-            default_attrs: Optional override attributes.
-        """
+        """Generate a scale-free network topology using Barabási-Albert model."""
         if n_nodes < 3:
             raise TopologyError("Scale-free topologies require at least 3 nodes.")
-
         rng = get_rng(seed)
-
-        # Generate Barabási-Albert graph (m=2 attachments per new node)
         undirected = nx.barabasi_albert_graph(n_nodes, m=2, seed=seed)
         directed = nx.DiGraph(undirected)
-
-        # Relabel nodes to strings
         mapping = {node: str(node) for node in directed.nodes}
         directed = cast("nx.DiGraph", nx.relabel_nodes(directed, mapping))
-
         cls._assign_default_node_attrs(directed, "router", rng, **default_attrs)
         cls._assign_random_edge_attrs(directed, rng, **default_attrs)
-
         return Topology(directed)
 
     @classmethod
@@ -303,72 +271,33 @@ class TopologyGenerator:
         seed: int | None = None,
         **default_attrs: Any,
     ) -> Topology:
-        """
-        Generate a small-world network topology using Watts-Strogatz model.
-
-        Args:
-            n_nodes: Total number of nodes.
-            k_neighbors: Each node is joined with its k nearest neighbors in a ring.
-            rewire_prob: The probability of rewiring each edge.
-            seed: Random seed for reproducibility.
-            default_attrs: Optional override attributes.
-        """
+        """Generate a small-world network topology using Watts-Strogatz model."""
         if n_nodes <= k_neighbors:
             raise TopologyError("Number of nodes must be greater than k_neighbors.")
         if not (0.0 <= rewire_prob <= 1.0):
             raise TopologyError("Rewire probability must be between 0.0 and 1.0.")
-
         rng = get_rng(seed)
-
         undirected = nx.watts_strogatz_graph(n_nodes, k_neighbors, rewire_prob, seed=seed)
         directed = nx.DiGraph(undirected)
-
-        # Relabel nodes to strings
         mapping = {node: str(node) for node in directed.nodes}
         directed = cast("nx.DiGraph", nx.relabel_nodes(directed, mapping))
-
         cls._assign_default_node_attrs(directed, "router", rng, **default_attrs)
         cls._assign_random_edge_attrs(directed, rng, **default_attrs)
-
         return Topology(directed)
 
     @classmethod
     def fat_tree(cls, k: int, seed: int | None = None, **default_attrs: Any) -> Topology:
-        """
-        Generate a k-ary Fat-Tree data center topology.
-
-        A k-ary fat-tree consists of k pods.
-        - Core layer: (k/2)^2 nodes
-        - Each pod has:
-          - k/2 aggregation switches
-          - k/2 edge switches
-          - (k/2)^2 hosts
-        - Links connect hosts to edge, edge to aggregation, aggregation to core.
-
-        Args:
-            k: Port count of each switch (must be an even integer >= 2).
-            seed: Random seed for reproducibility.
-            default_attrs: Optional override attributes.
-        """
+        """Generate a k-ary Fat-Tree data center topology."""
         if k % 2 != 0 or k < 2:
             raise TopologyError("Fat-Tree port count k must be an even integer >= 2.")
-
         graph = nx.DiGraph()
-
-        # 1. Add Core switches
         core_nodes = cls._add_fat_tree_core_layer(graph, k)
-
-        # 2. Add pod switches and hosts
         for pod_idx in range(k):
             cls._add_fat_tree_pod(graph, k, pod_idx, core_nodes, **default_attrs)
-
-        # 3. Fill in any missing or customized attributes
         for src, dst in graph.edges:
-            # Overwrite default parameters if specifically provided in kwargs
             for k_attr, v_attr in default_attrs.items():
                 if not k_attr.endswith("bandwidth") and not k_attr.endswith("latency"):
                     graph.edges[src, dst][k_attr] = v_attr
-
         return Topology(graph)
 
     @classmethod
@@ -379,36 +308,22 @@ class TopologyGenerator:
         seed: int | None = None,
         **default_attrs: Any,
     ) -> Topology:
-        """
-        Generate a topology from a NumPy adjacency matrix.
-
-        Args:
-            matrix: Adjacency matrix where matrix[i, j] > 0 means a link from i to j exists.
-            node_labels: Optional labels for nodes. Defaults to "0", "1", "2", ...
-            seed: Random seed for reproducibility.
-            default_attrs: Optional override attributes.
-        """
+        """Generate a topology from a NumPy adjacency matrix."""
         rows, cols = matrix.shape
         if rows != cols:
             raise TopologyError("Adjacency matrix must be square.")
-
         rng = get_rng(seed)
         graph = nx.DiGraph()
-
         if node_labels is None:
             node_labels = [str(i) for i in range(rows)]
         elif len(node_labels) != rows:
             raise TopologyError("Length of node_labels must match matrix dimensions.")
-
         for label in node_labels:
             graph.add_node(label)
-
         for i in range(rows):
             for j in range(cols):
                 if matrix[i, j] > 0:
                     graph.add_edge(node_labels[i], node_labels[j])
-
         cls._assign_default_node_attrs(graph, "router", rng, **default_attrs)
         cls._assign_random_edge_attrs(graph, rng, **default_attrs)
-
         return Topology(graph)
