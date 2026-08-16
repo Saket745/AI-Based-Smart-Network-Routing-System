@@ -53,7 +53,7 @@ from nroute.cli.twin_cmd import twin_cmd
     type=click.Choice(["text", "json"]),
     default="text",
     show_default=True,
-    help="Set the output format for commands.",
+    help="Choose text for people or JSON for scripts and automation.",
 )
 @click.option(
     "--config",
