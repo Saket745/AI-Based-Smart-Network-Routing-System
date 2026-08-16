@@ -6,14 +6,19 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import click
+from pydantic import BaseModel, Field
+=======
+=======
+from typing import Any
+=======
+from typing import TYPE_CHECKING, Any
+
+import click
 from pydantic import BaseModel
 from rich.console import Console
 
 from nroute.core.topology import Topology
 from nroute.exceptions import ModelError
-
-if TYPE_CHECKING:
-    import torch
 
 console = Console()
 
@@ -90,6 +95,8 @@ def train_cmd() -> None:
 )
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
+def train_congestion(ctx: click.Context, **kwargs: Any) -> None:
+=======
 def train_congestion(ctx: click.Context, /, **kwargs: Any) -> None:
     """Train a congestion prediction model from simulation data."""
     import numpy as np
@@ -177,6 +184,8 @@ def train_congestion(ctx: click.Context, /, **kwargs: Any) -> None:
 )
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
+def train_anomaly(ctx: click.Context, **kwargs: Any) -> None:
+=======
 def train_anomaly(ctx: click.Context, /, **kwargs: Any) -> None:
     """Train an anomaly detection model from normal traffic patterns."""
     import numpy as np
@@ -261,6 +270,8 @@ def train_anomaly(ctx: click.Context, /, **kwargs: Any) -> None:
 )
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
+def train_rl(ctx: click.Context, **kwargs: Any) -> None:
+=======
 def train_rl(ctx: click.Context, /, **kwargs: Any) -> None:
     """Train a reinforcement learning routing agent."""
     from nroute.routing.rl_router import RLRouter
@@ -291,6 +302,19 @@ def train_rl(ctx: click.Context, /, **kwargs: Any) -> None:
     except Exception as e:
         console.print(f"[red]x RL training error:[/red] {e}")
         raise SystemExit(1) from e
+
+
+class GNNTrainArgs(BaseModel):
+    """Arguments for training a GNN model."""
+
+    topo_path: str = Field(..., description="Path to a topology JSON file.")
+    model_type: str = Field(default="gcn", description="GNN model architecture.")
+    epochs: int = Field(default=10, description="Number of training epochs.")
+    lr: float = Field(default=0.01, description="Learning rate.")
+    hidden_dim: int = Field(default=32, description="Hidden dimension size.")
+    output_dir: str = Field(default="models/gnn", description="Output directory.")
+    dataset_dir: str = Field(default="data/gnn_dataset", description="Dataset directory.")
+    seed: int = Field(default=42, description="Random seed.")
 
 
 @train_cmd.command(name="gnn")
@@ -347,22 +371,28 @@ def train_rl(ctx: click.Context, /, **kwargs: Any) -> None:
 )
 @click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
 @click.pass_context
+def train_gnn(ctx: click.Context, **kwargs: Any) -> None:
 def train_gnn(ctx: click.Context, /, **kwargs: Any) -> None:
     """Train a Graph Neural Network (GCN/GraphSAGE) on network topologies."""
-    import os
-    import shutil
-
-    from torch.utils.data import DataLoader
-
-    from nroute.ml.datasets.generator import DatasetGenerator
-    from nroute.ml.model_store import ModelStore
-    from nroute.ml.models.gcn import GCNModel
-    from nroute.ml.models.graphsage import GraphSAGEModel
-    from nroute.ml.training.trainer import GNNGraphDataset, GNNTrainer, collate_dataset_batch
+    from nroute.ml.training.trainer import GNNTrainer, GNNTrainingConfig
 
     args = GNNTrainArgs(**kwargs)
 
+    args = GNNTrainArgs(**kwargs)
+
+    args = GNNTrainArgs.model_validate(kwargs)
+
     try:
+        config = GNNTrainingConfig(**kwargs)
+        console.print(
+            f"\n[cyan]Starting GNN training workflow for {config.model_type.upper()}...[/cyan]"
+        )
+
+        saved_path = GNNTrainer.run_training_workflow(
+            config=config, logger_callback=lambda msg: console.print(msg)
+        )
+
+=======
         topo = Topology.load(args.topo_path)
     except Exception as e:
         console.print(f"[red]x Failed to load topology:[/red] {e}")
@@ -438,5 +468,5 @@ def train_gnn(ctx: click.Context, /, **kwargs: Any) -> None:
         saved_path = model_store.save_model(model, name=args.model_type.lower(), version="1.0.0")
         console.print(f"[green]+[/green] GNN model saved to [bold]{saved_path}[/bold]")
     except Exception as e:
-        console.print(f"[red]x Saving error:[/red] {e}")
+        console.print(f"[red]x GNN Training failed:[/red] {e}")
         raise SystemExit(1) from e

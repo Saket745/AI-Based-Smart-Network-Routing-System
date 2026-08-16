@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 from rich.layout import Layout
 
 from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
+from nroute.core.metrics import SimulationMetrics
 from nroute.core.topology import Topology
 from nroute.exceptions import TopologyError
 from nroute.routing.dijkstra import DijkstraRouter
@@ -54,6 +55,7 @@ def test_live_console_basic_logging() -> None:
     assert "Initialize Simulation Run" in console_viz.event_log[0]
 
     # Test node down/up detection
+    # Toggling node down on the engine's copied topology directly
     engine.topology.set_node_down("A")
     console_viz.update_events(tick=0)
     assert any("Node A went DOWN" in event for event in console_viz.event_log)
@@ -62,6 +64,10 @@ def test_live_console_basic_logging() -> None:
     engine.topology.set_node_up("A")
     console_viz.update_events(tick=1)
     assert any("Node A recovered (UP)" in event for event in console_viz.event_log)
+
+
+def test_live_console_event_handling() -> None:
+    """Verify LiveSimulationConsole handles various simulation events."""
 
 
 def test_live_console_helpers() -> None:
@@ -124,7 +130,6 @@ def test_live_console_error_handling() -> None:
         console_viz.update_events(tick=0)
         # Verify errors were logged
         assert mock_logger.error.called
-
     metric = SimulationMetrics(
         tick=0,
         timestamp=0.0,
@@ -169,9 +174,6 @@ def test_live_console_error_handling() -> None:
 
     console_viz._update_layout(layout, 0, metric, "DijkstraRouter", engine)
     assert layout["header"] is not None
-
-
-
 
 def test_live_console_status_transitions() -> None:
     """Verify that the console tracking status transitions through Initializing, Running, and Completed states."""
@@ -298,4 +300,3 @@ def test_live_console_normal_completion_preserved() -> None:
         mock_run.assert_called_once()
         assert result == expected_result
         assert console_viz.status == "Completed"
-

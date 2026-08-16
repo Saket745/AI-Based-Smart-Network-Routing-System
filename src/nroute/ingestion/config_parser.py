@@ -18,9 +18,8 @@ from typing import TYPE_CHECKING, Any
 import yaml
 
 from nroute.core.openconfig import ConfigChange, DeviceConfig
-from nroute.exceptions import IngestionError, ValidationError
+from nroute.exceptions import IngestionError
 from nroute.utils.logging import get_logger
-from nroute.utils.validators import validate_file_path
 
 if TYPE_CHECKING:
     from nroute.core.topology import Topology
@@ -45,15 +44,9 @@ class ConfigParser:
         Returns:
             List of validated ``DeviceConfig`` instances.
         """
-        try:
-            p = validate_file_path(path, must_exist=True)
-            if not p.is_file():
-                raise IngestionError(f"Config path is not a file: {path}")
-        except ValidationError as exc:
-            msg = str(exc)
-            if "does not exist" in msg:
-                raise IngestionError(f"Config file not found: {path}") from exc
-            raise IngestionError(msg) from exc
+        p = Path(path)
+        if not p.is_file():
+            raise IngestionError(f"Config file not found: {path}")
 
         try:
             with open(p, encoding="utf-8") as f:
@@ -77,15 +70,9 @@ class ConfigParser:
 
         The file must conform to the ``ConfigChange`` Pydantic schema.
         """
-        try:
-            p = validate_file_path(path, must_exist=True)
-            if not p.is_file():
-                raise IngestionError(f"Change path is not a file: {path}")
-        except ValidationError as exc:
-            msg = str(exc)
-            if "does not exist" in msg:
-                raise IngestionError(f"Change file not found: {path}") from exc
-            raise IngestionError(msg) from exc
+        p = Path(path)
+        if not p.is_file():
+            raise IngestionError(f"Change file not found: {path}")
 
         try:
             with open(p, encoding="utf-8") as f:

@@ -50,17 +50,8 @@ class TrafficMatrix(BaseModel):
                     "timestamp",
                 ]
             )
-        return pd.DataFrame(
-            {
-                "source": [f.source for f in self.flows],
-                "destination": [f.destination for f in self.flows],
-                "bytes": [f.bytes for f in self.flows],
-                "packets": [f.packets for f in self.flows],
-                "duration": [f.duration for f in self.flows],
-                "protocol": [f.protocol for f in self.flows],
-                "timestamp": [f.timestamp for f in self.flows],
-            }
-        )
+        data = [flow.model_dump() for flow in self.flows]
+        return pd.DataFrame(data)
 
     @classmethod
     def from_dataframe(cls, df: pd.DataFrame) -> TrafficMatrix:

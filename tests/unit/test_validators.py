@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from pathlib import Path
@@ -126,6 +128,12 @@ def test_validate_probability_nan_raises() -> None:
     with pytest.raises(ValidationError, match=r"between 0\.0 and 1\.0"):
         validate_probability(float("nan"))
 
+
+# ---------------------------------------------------------------------------
+# validate_file_path
+# ---------------------------------------------------------------------------
+
+
 def test_validate_file_path_existing_file(tmp_path: Path) -> None:
     tmp_file = tmp_path / "test.txt"
     tmp_file.write_text("hello")
@@ -151,9 +159,9 @@ def test_validate_file_path_empty_raises() -> None:
 def test_validate_file_path_invalid_type_raises() -> None:
     with pytest.raises(ValidationError, match="Invalid path format"):
         validate_file_path(["invalid", "type"], must_exist=False)
-
-
+=======
 def test_validate_file_path_invalid_format_raises() -> None:
     # On some systems, null bytes in path raise OSError when resolving
     with pytest.raises(ValidationError, match="Invalid path format"):
         validate_file_path("\0", must_exist=False)
+=======

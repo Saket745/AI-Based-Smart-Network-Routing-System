@@ -14,6 +14,8 @@ to isolate root failures.
 
 from __future__ import annotations
 
+=======
+import contextlib
 import copy
 import functools
 import json
@@ -24,9 +26,8 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
-from nroute.exceptions import SimulationError, ValidationError
+from nroute.exceptions import SimulationError
 from nroute.utils.logging import get_logger
-from nroute.utils.validators import validate_file_path
 
 if TYPE_CHECKING:
     from nroute.core.topology import Topology
@@ -197,15 +198,9 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
     ``event_id``, ``timestamp``, ``node_id``, ``interface``,
     ``peer_node``, ``event_type``, ``category``, ``severity``, ``message``.
     """
-    try:
-        p = validate_file_path(path, must_exist=True)
-        if not p.is_file():
-            raise SimulationError(f"Events path is not a file: {path}")
-    except ValidationError as exc:
-        msg = str(exc)
-        if "does not exist" in msg:
-            raise SimulationError(f"Events file not found: {path}") from exc
-        raise SimulationError(msg) from exc
+    p = Path(path)
+    if not p.is_file():
+        raise SimulationError(f"Events file not found: {path}")
 
     try:
         stat = p.stat()
