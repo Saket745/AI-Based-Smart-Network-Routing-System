@@ -298,6 +298,7 @@ def test_live_console_normal_completion_preserved() -> None:
         assert result == expected_result
         assert console_viz.status == "Completed"
 
+
 def test_live_console_progress_bar_rendering() -> None:
     """Verify that the compact progress bar renders correctly in the console header."""
     topo = Topology()

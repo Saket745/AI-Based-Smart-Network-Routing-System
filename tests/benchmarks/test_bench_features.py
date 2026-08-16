@@ -5,7 +5,6 @@ from typing import Any
 import pytest
 
 from nroute.core.generators import TopologyGenerator
-=======
 from nroute.core.topology import Topology
 from nroute.ml.features.extractor import DefaultGraphFeatureExtractor
 
@@ -34,7 +33,9 @@ def test_bench_extract_features_pytorch(scale: int, benchmark: Any) -> None:
         extractor.extract_features(topo)
 
     benchmark(run_extractor)
-=======
+
+
+@pytest.mark.benchmark
 @pytest.mark.parametrize("num_nodes", [100, 1000])
 def test_bench_default_graph_feature_extraction(num_nodes: int, benchmark: Any) -> None:
     """Benchmark graph feature extraction for representative topology sizes."""

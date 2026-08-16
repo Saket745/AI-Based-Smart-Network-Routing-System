@@ -11,12 +11,12 @@ from pathlib import Path
 # Conventional commit types
 VALID_TYPES = {
     "feat",
-    "feature",  # New feature
+    "feature",
     "fix",
-    "bugfix",  # Bug fix
-    "docs",  # Documentation changes
-    "style",  # Formatting, missing semi-colons, etc (no code changes)
-    "refactor",  # Refactoring production code (e.g. renaming a variable)
+    "bugfix",
+    "docs",
+    "style",
+    "refactor",
     "perf",
     "performance",  # Code changes that improve performance
     "test",  # Adding missing tests or correcting existing tests
@@ -24,28 +24,21 @@ VALID_TYPES = {
     "ci",  # CI configurations and scripts
     "chore",  # Maintenance tasks
     "revert",  # Revert a previous commit
-=======
-    "feat", "feature",  # New feature
-    "fix", "bugfix",    # Bug fix
-    "docs",             # Documentation changes
-    "style",            # Formatting, missing semi-colons, etc (no code changes)
-    "refactor",         # Refactoring production code (e.g. renaming a variable)
-    "perf", "performance", # Code changes that improve performance
-    "test",             # Adding missing tests or correcting existing tests
-    "build",            # Build system/dependency changes
-    "ci",               # CI configurations and scripts
-    "chore",            # Maintenance tasks
-    "revert",           # Revert a previous commit
-    "security",         # Security fixes
-    "daily",            # Daily repository health audits / governance work
     "security",  # Security fixes
+    "daily",  # Daily repository health audits / governance work
     "resolve",  # Security fixes
+=======
+    "performance",
+    "test",
+    "build",
+    "ci",
+    "chore",
+    "revert",
+    "security",
+    "daily",
+    "resolve",
 }
 
-# Regex to match conventional commits header
-# Pattern: type(scope)!: Description
-# Updated to allow optional emojis and case-insensitivity for types
-# Pattern: [Emoji] type(scope)!: Description
 CONVENTIONAL_REGEX = re.compile(
     r"^(?:\W+\s*)?(?P<type>[a-zA-Z]+)(?:\((?P<scope>[a-zA-Z0-9_\-\/]+)\))?(?P<breaking>!)?:?\s+(?P<desc>.+)$"
 )
@@ -54,16 +47,12 @@ CONVENTIONAL_REGEX = re.compile(
 def validate_message(msg: str) -> list[str]:
     """Validate a commit message. Returns a list of error messages, empty if valid."""
     errors = []
-
-    # Strip whitespace
     msg = msg.strip()
     if not msg:
         return ["Commit message cannot be empty."]
 
-    # Get the first line (header) of the commit message
     first_line = msg.splitlines()[0].strip() if msg.splitlines() else ""
 
-    # Ignore standard git merge or auto-generated commits
     if (
         first_line.startswith("Merge branch")
         or first_line.startswith("Merge pull request")
@@ -88,7 +77,6 @@ def validate_message(msg: str) -> list[str]:
         )
         return errors
 
-    # Check commit type
     commit_type = match.group("type").lower()
     if commit_type not in VALID_TYPES:
         errors.append(
@@ -96,7 +84,6 @@ def validate_message(msg: str) -> list[str]:
             f"  Allowed types: {', '.join(sorted(list(VALID_TYPES)))}"
         )
 
-    # Check description format (minimum length, lowercase recommendation, etc.)
     desc = match.group("desc")
     if len(desc) < 5:
         errors.append("Commit description is too short (minimum 5 characters).")
@@ -110,17 +97,10 @@ def main() -> int:
         return 1
 
     target = sys.argv[1]
-
-    # Check if the target is a file path
     target_path = Path(target)
     try:
         is_file = target_path.is_file()
     except OSError:
-        # Multi-line / very long commit messages (e.g. bodies with a
-        # "Co-authored-by:" trailer) have no path separators, so the whole
-        # string is treated as a single path component. Once it exceeds the
-        # filesystem's NAME_MAX, os.stat() raises ENAMETOOLONG instead of
-        # returning False. Treat that the same as "not a file".
         is_file = False
 
     if is_file:
@@ -130,7 +110,6 @@ def main() -> int:
             print(f"Error reading commit message file: {e}")
             return 1
     else:
-        # Otherwise treat as literal commit message text
         commit_msg = target
 
     errors = validate_message(commit_msg)

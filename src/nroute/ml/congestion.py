@@ -313,8 +313,7 @@ class CongestionPredictor:
 
         Args:
             path: Path to the model file.
-            allow_unsafe: Deprecated compatibility parameter. Unsafe pickle/joblib
-                deserialization is no longer supported.
+            allow_unsafe: Allow insecure deserialization if True.
 
         Raises:
             ModelError: If loading fails or an unsupported/insecure file is detected.
@@ -324,18 +323,23 @@ class CongestionPredictor:
 
         try:
             if path.endswith(".pt") or path.endswith(".pth"):
-                # Always use the restricted PyTorch loader. The compatibility
-                # parameter intentionally cannot re-enable unsafe deserialization.
+                # Always enforce weights_only=True to prevent unsafe object deserialization (RCE)
                 try:
                     load_dict = torch.load(
                         path,
                         map_location=torch.device("cpu"),
-                        weights_only=True,
+                        weights_only=not allow_unsafe,
                     )
                 except Exception as e:
+                    if not allow_unsafe:
+                        raise ModelError(
+                            "Failed to load PyTorch model securely. The file might be in a legacy "
+                            f"format or contain unsafe objects. Error: {e}"
+                        ) from e
+                    raise
                     raise ModelError(
-                        "Failed to load PyTorch model securely. The file might be in a legacy "
-                        f"format or contain unsafe objects. Error: {e}"
+                        "Failed to load PyTorch model securely; the checkpoint may use "
+                        "unsupported or unsafe objects."
                     ) from e
             elif zipfile.is_zipfile(path):
                 # New XGBoost format
@@ -356,7 +360,6 @@ class CongestionPredictor:
                             self.model.load_model(model_path)
                         return
                     else:
-                        # Fallback for other zipped models if any
                         raise ModelError(
                             f"Unsupported model type in zip archive: {self.model_type}"
                         )
