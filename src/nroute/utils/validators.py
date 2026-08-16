@@ -106,7 +106,7 @@ def validate_probability(value: Any) -> float:
         value: The value to validate.
 
     Returns:
-        The validated probability as a float.
+        The validated value as a float.
 
     Raises:
         ValidationError: If the value is not a valid probability.
@@ -124,19 +124,22 @@ def validate_probability(value: Any) -> float:
     return val
 
 
-def validate_file_path(path: Any, must_exist: bool = True) -> Path:
+def validate_file_path(
+    path: Any, must_exist: bool = True, allowed_root: str | Path | None = None
+) -> Path:
     """
-    Validate that a file path is valid and optionally exists.
+    Validate that a file path is valid and optionally exists within a trusted root.
 
     Args:
         path: The path to validate (str or Path).
         must_exist: Whether the file must exist.
+        allowed_root: Optional trusted directory that the resolved path must stay within.
 
     Returns:
         The validated path as a Path object.
 
     Raises:
-        ValidationError: If the path is invalid or does not exist.
+        ValidationError: If the path is invalid, missing, or outside allowed_root.
     """
     if not isinstance(path, (str, Path)):
         raise ValidationError("Invalid path format: path must be a string or Path object.")
@@ -149,17 +152,26 @@ def validate_file_path(path: Any, must_exist: bool = True) -> Path:
 
     try:
         p = Path(path)
-        # Force conversion/evaluation to see if it is a valid path string/format
-        str_path = str(p)
+        if allowed_root is not None:
+            root = Path(allowed_root).resolve()
+            p_resolved = p.resolve()
+            try:
+                p_resolved.relative_to(root)
+            except ValueError as e:
+                raise ValidationError(
+                    f"Path '{p_resolved}' is outside the allowed root '{root}'."
+                ) from e
+        else:
+            p_resolved = p
     except (TypeError, ValueError, OSError) as e:
         raise ValidationError(f"Invalid path format: {e}") from e
 
     if must_exist:
         try:
-            if not p.exists():
-                raise ValidationError(f"File '{p}' does not exist.")
+            if not p_resolved.exists():
+                raise ValidationError(f"File '{p_resolved}' does not exist.")
         except (OSError, ValueError) as e:
             raise ValidationError(f"Invalid path format: {e}") from e
-        return p.resolve()
-    else:
-        return p
+        return p_resolved.resolve()
+
+    return p_resolved
