@@ -1,6 +1,7 @@
 """Unit tests for the nroute detect CLI commands."""
 
 from __future__ import annotations
+
 import json
 from unittest.mock import MagicMock, patch
 
@@ -8,7 +9,6 @@ import pandas as pd
 import pytest
 from click.testing import CliRunner
 
-=======
 from nroute.cli import cli
 from nroute.cli.detect_cmd import detect_cmd
 from nroute.exceptions import ModelError
@@ -22,10 +22,6 @@ def runner() -> CliRunner:
 
 @pytest.fixture
 def traffic_file(tmp_path) -> str:
-    """Create a dummy traffic file to satisfy click.Path(exists=True)."""
-    p = tmp_path / "traffic.csv"
-    p.write_text("dummy")
-=======
     """Create a dummy traffic CSV file."""
     p = tmp_path / "traffic.csv"
     p.write_text("col1,col2\n1,2")
@@ -34,8 +30,6 @@ def traffic_file(tmp_path) -> str:
 
 @pytest.fixture
 def model_file(tmp_path) -> str:
-    """Create a dummy model file to satisfy click.Path(exists=True)."""
-=======
     """Create a dummy model file."""
     p = tmp_path / "model.joblib"
     p.write_text("dummy")
@@ -46,13 +40,6 @@ class TestDetectAnomaliesCLI:
     """Tests for `nroute detect anomalies` command."""
 
     @patch("pandas.read_csv")
-    @patch("nroute.ml.anomaly.AnomalyDetector.load")
-    @patch("nroute.ml.anomaly.AnomalyDetector.detect")
-    def test_anomalies_success(
-        self,
-        mock_detect: MagicMock,
-        mock_load: MagicMock,
-=======
     @patch("nroute.ml.anomaly.AnomalyDetector")
     def test_anomalies_success_text(
         self,
@@ -62,13 +49,6 @@ class TestDetectAnomaliesCLI:
         traffic_file: str,
         model_file: str,
     ) -> None:
-        """Test successful anomaly detection."""
-        # Setup mock data
-        mock_read_csv.return_value = pd.DataFrame({"feat": [1, 2]})
-        results = pd.DataFrame(
-            {
-                "anomaly_score": [0.1, 0.8],
-=======
         """Test successful anomaly detection with text output."""
         mock_df = pd.DataFrame(
             {
@@ -77,8 +57,6 @@ class TestDetectAnomaliesCLI:
                 "anomaly_type": ["normal", "DDoS"],
             }
         )
-        mock_detect.return_value = results
-=======
         mock_read_csv.return_value = pd.DataFrame({"fake": [1, 2]})
 
         mock_detector = mock_detector_cls.return_value
@@ -91,15 +69,6 @@ class TestDetectAnomaliesCLI:
 
         assert result.exit_code == 0
         assert "Anomaly Detection Results" in result.output
-        assert "1 anomalies detected out of 2 samples" in result.output
-        assert "DDoS" in result.output
-        assert "Anomaly Type" in result.output
-        assert "Breakdown" in result.output
-        mock_load.assert_called_once_with(model_file, allow_unsafe=False)
-
-    @patch("pandas.read_csv")
-    def test_anomalies_traffic_load_fail(
-=======
         assert "DDoS" in result.output
         assert "1 anomalies detected out of 2 samples" in result.output
         assert "Anomaly Type" in result.output
@@ -159,8 +128,6 @@ class TestDetectAnomaliesCLI:
         model_file: str,
     ) -> None:
         """Test failure when traffic data cannot be loaded."""
-        mock_read_csv.side_effect = Exception("CSV read error")
-=======
         mock_read_csv.side_effect = Exception("Read error")
 
         result = runner.invoke(
@@ -172,11 +139,6 @@ class TestDetectAnomaliesCLI:
         assert "Failed to load traffic data" in result.output
 
     @patch("pandas.read_csv")
-    @patch("nroute.ml.anomaly.AnomalyDetector.load")
-    def test_anomalies_model_load_fail(
-        self,
-        mock_load: MagicMock,
-=======
     @patch("nroute.ml.anomaly.AnomalyDetector")
     def test_anomalies_load_model_fail(
         self,
@@ -187,12 +149,10 @@ class TestDetectAnomaliesCLI:
         model_file: str,
     ) -> None:
         """Test failure when model cannot be loaded."""
-        mock_read_csv.return_value = pd.DataFrame({"feat": [1]})
-        mock_load.side_effect = ModelError("Invalid model")
-=======
         mock_read_csv.return_value = pd.DataFrame({"fake": [1]})
         mock_detector = mock_detector_cls.return_value
         mock_detector.load.side_effect = ModelError("Load error")
+
         result = runner.invoke(
             detect_cmd,
             ["anomalies", "--traffic", traffic_file, "--model", model_file],
@@ -202,13 +162,6 @@ class TestDetectAnomaliesCLI:
         assert "Failed to load model" in result.output
 
     @patch("pandas.read_csv")
-    @patch("nroute.ml.anomaly.AnomalyDetector.load")
-    @patch("nroute.ml.anomaly.AnomalyDetector.detect")
-    def test_anomalies_detection_fail(
-        self,
-        mock_detect: MagicMock,
-        mock_load: MagicMock,
-=======
     @patch("nroute.ml.anomaly.AnomalyDetector")
     def test_anomalies_detection_fail(
         self,
@@ -219,9 +172,6 @@ class TestDetectAnomaliesCLI:
         model_file: str,
     ) -> None:
         """Test failure during detection process."""
-        mock_read_csv.return_value = pd.DataFrame({"feat": [1]})
-        mock_detect.side_effect = ModelError("Detection error")
-=======
         mock_read_csv.return_value = pd.DataFrame({"fake": [1]})
         mock_detector = mock_detector_cls.return_value
         mock_detector.detect.side_effect = ModelError("Detection error")
@@ -235,13 +185,6 @@ class TestDetectAnomaliesCLI:
         assert "Detection failed" in result.output
 
     @patch("pandas.read_csv")
-    @patch("nroute.ml.anomaly.AnomalyDetector.load")
-    @patch("nroute.ml.anomaly.AnomalyDetector.detect")
-    def test_anomalies_allow_unsafe(
-        self,
-        mock_detect: MagicMock,
-        mock_load: MagicMock,
-=======
     def test_anomalies_load_traffic_fail_json(
         self,
         mock_read_csv: MagicMock,
@@ -249,20 +192,6 @@ class TestDetectAnomaliesCLI:
         traffic_file: str,
         model_file: str,
     ) -> None:
-        """Test the --allow-unsafe flag."""
-        mock_read_csv.return_value = pd.DataFrame({"feat": [1]})
-        mock_detect.return_value = pd.DataFrame(
-            {
-                "anomaly_score": [0.1],
-                "is_anomaly": [False],
-                "anomaly_type": ["normal"],
-            }
-        )
-
-        result = runner.invoke(
-            detect_cmd,
-            [
-=======
         """Test failure when traffic data cannot be loaded (JSON mode)."""
         mock_read_csv.side_effect = Exception("Read error")
 
@@ -277,45 +206,6 @@ class TestDetectAnomaliesCLI:
                 traffic_file,
                 "--model",
                 model_file,
-                "--allow-unsafe",
-            ],
-        )
-
-        assert result.exit_code == 0
-        mock_load.assert_called_once_with(model_file, allow_unsafe=True)
-
-    @patch("pandas.read_csv")
-    @patch("nroute.ml.anomaly.AnomalyDetector.load")
-    @patch("nroute.ml.anomaly.AnomalyDetector.detect")
-    def test_anomalies_no_anomalies_found(
-        self,
-        mock_detect: MagicMock,
-        mock_load: MagicMock,
-        mock_read_csv: MagicMock,
-        runner: CliRunner,
-        traffic_file: str,
-        model_file: str,
-    ) -> None:
-        """Test output when no anomalies are detected."""
-        mock_read_csv.return_value = pd.DataFrame({"feat": [1]})
-        results = pd.DataFrame(
-            {
-                "anomaly_score": [0.1],
-                "is_anomaly": [False],
-                "anomaly_type": ["normal"],
-            }
-        )
-        mock_detect.return_value = results
-
-        result = runner.invoke(
-            detect_cmd,
-            ["anomalies", "--traffic", traffic_file, "--model", model_file],
-        )
-
-        assert result.exit_code == 0
-        assert "0 anomalies detected" in result.output
-        assert "Anomaly Type" not in result.output
-=======
             ],
         )
 

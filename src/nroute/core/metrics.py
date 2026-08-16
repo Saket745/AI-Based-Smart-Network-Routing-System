@@ -42,6 +42,14 @@ class RouteMetrics(BaseModel):
         bottleneck_bw = float("inf")
         bottleneck_util = 0.0
 
+        graph = topology._graph
+        adj = graph._adj
+        for i in range(total_hops):
+            u, v = path[i], path[i + 1]
+            u_edges = adj.get(u)
+            if u_edges is not None and v in u_edges:
+                edge = u_edges[v]
+=======
         graph = topology.graph
         for i in range(total_hops):
             u, v = path[i], path[i + 1]

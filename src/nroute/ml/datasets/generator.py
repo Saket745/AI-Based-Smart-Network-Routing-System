@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 
 from nroute.ml.features.builder import FeatureBuilder
+from nroute.routing import get_router
 from nroute.simulation.engine import SimulationEngine
 from nroute.simulation.traffic_gen import TrafficGenerator
 
@@ -54,8 +55,6 @@ class DatasetGenerator:
         Returns:
             List of raw snapshot dictionaries.
         """
-        from nroute.routing import get_router
-
         snapshots: list[dict[str, Any]] = []
 
         router = get_router(self.router_alg, self.topology)

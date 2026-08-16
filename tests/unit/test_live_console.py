@@ -10,7 +10,6 @@ from rich.layout import Layout
 from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
 from nroute.core.metrics import SimulationMetrics
 from nroute.core.topology import Topology
-from nroute.exceptions import TopologyError
 from nroute.routing.dijkstra import DijkstraRouter
 from nroute.simulation.engine import SimulationEngine
 from nroute.simulation.traffic_gen import TrafficGenerator
@@ -66,10 +65,6 @@ def test_live_console_basic_logging() -> None:
     assert any("Node A recovered (UP)" in event for event in console_viz.event_log)
 
 
-def test_live_console_event_handling() -> None:
-    """Verify LiveSimulationConsole handles various simulation events."""
-
-
 def test_live_console_helpers() -> None:
     """Test individual helper methods of LiveSimulationConsole."""
     topo = Topology()
@@ -83,6 +78,7 @@ def test_live_console_helpers() -> None:
 
     console_viz = LiveSimulationConsole(engine, duration_ticks=5, delay=0.0)
 
+=======
     # Test flow completion logging
     mock_flow = MagicMock()
     mock_flow.source = "A"
@@ -174,6 +170,7 @@ def test_live_console_error_handling() -> None:
 
     console_viz._update_layout(layout, 0, metric, "DijkstraRouter", engine)
     assert layout["header"] is not None
+=======
 
 def test_live_console_status_transitions() -> None:
     """Verify that the console tracking status transitions through Initializing, Running, and Completed states."""
