@@ -91,7 +91,7 @@ def test_congestion_predictor_pytorch_secure_loading_failure() -> None:
 
             with pytest.raises(ModelError) as excinfo:
                 predictor.load(path, allow_unsafe=True)
-            assert f"Failed to load model from {path}" in str(excinfo.value)
+            assert "Failed to load PyTorch model securely" in str(excinfo.value)
             assert "Security breach!" in str(excinfo.value)
 
 
@@ -134,8 +134,8 @@ def test_congestion_predictor_pytorch_load_failure() -> None:
             with pytest.raises(ModelError, match="Failed to load PyTorch model securely"):
                 predictor.load(path, allow_unsafe=False)
 
-            # Case 2: allow_unsafe=True -> should re-raise (wrapped in ModelError by outer block)
-            with pytest.raises(ModelError, match="Failed to load model from"):
+            # Case 2: allow_unsafe=True -> should still raise secure load failure because allow_unsafe is ignored
+            with pytest.raises(ModelError, match="Failed to load PyTorch model securely"):
                 predictor.load(path, allow_unsafe=True)
 
 
