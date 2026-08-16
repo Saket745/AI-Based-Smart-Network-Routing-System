@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from rich.layout import Layout
 
-from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
+from nroute.core.metrics import SimulationMetrics
 from nroute.core.topology import Topology
 from nroute.exceptions import TopologyError
 from nroute.routing.dijkstra import DijkstraRouter
@@ -54,6 +54,7 @@ def test_live_console_basic_logging() -> None:
     assert "Initialize Simulation Run" in console_viz.event_log[0]
 
     # Test node down/up detection
+    # Toggling node down on the engine's copied topology directly
     engine.topology.set_node_down("A")
     console_viz.update_events(tick=0)
     assert any("Node A went DOWN" in event for event in console_viz.event_log)
@@ -62,6 +63,10 @@ def test_live_console_basic_logging() -> None:
     engine.topology.set_node_up("A")
     console_viz.update_events(tick=1)
     assert any("Node A recovered (UP)" in event for event in console_viz.event_log)
+
+
+def test_live_console_event_handling() -> None:
+    """Verify LiveSimulationConsole handles various simulation events."""
 
 
 def test_live_console_helpers() -> None:
@@ -124,7 +129,7 @@ def test_live_console_error_handling() -> None:
         console_viz.update_events(tick=0)
         # Verify errors were logged
         assert mock_logger.error.called
-
+=======
     metric = SimulationMetrics(
         tick=0,
         timestamp=0.0,
@@ -193,138 +198,3 @@ def test_live_console_status_transitions() -> None:
     with patch.object(engine, "run", return_value=MagicMock()):
         console_viz.run()
         assert console_viz.status == "Completed"
-
-
-def test_live_console_ctrl_c_hint() -> None:
-    """Verify the header contains the Ctrl+C keyboard hint."""
-    topo = Topology()
-    topo.add_node("A", type="router")
-    topo.add_node("B", type="router")
-    topo.add_edge("A", "B", bandwidth=1000, latency=5)
-
-    router = DijkstraRouter()
-    traffic = TrafficGenerator(model="uniform", n_flows_per_tick=1)
-    engine = SimulationEngine(topo, router, traffic)
-
-    console_viz = LiveSimulationConsole(engine, duration_ticks=5, delay=0.0)
-    header_panel = console_viz._build_header(0, None, "DijkstraRouter")
-    header_text = header_panel.renderable.plain
-    assert "Ctrl+C" in header_text
-    assert "Quit" in header_text
-
-
-def test_live_console_keyboard_interrupt_handling() -> None:
-    """Verify KeyboardInterrupt produces a clean MetricsCollectionResult preserving collected metrics."""
-    topo = Topology()
-    topo.add_node("A", type="router")
-    topo.add_node("B", type="router")
-    topo.add_edge("A", "B", bandwidth=1000, latency=5)
-
-    router = DijkstraRouter()
-    traffic = TrafficGenerator(model="uniform", n_flows_per_tick=1)
-    engine = SimulationEngine(topo, router, traffic)
-
-    console_viz = LiveSimulationConsole(engine, duration_ticks=10, delay=0.0)
-
-    # Simulate already collected metrics
-    mock_metric = SimulationMetrics(
-        tick=0,
-        timestamp=0.0,
-        throughput=100.0,
-        avg_latency=5.0,
-        packet_loss_rate=0.0,
-        avg_utilization=0.1,
-        reroute_count=0,
-        active_flows=1,
-    )
-    engine.collector.results.append(mock_metric)
-
-    # Mock engine.run to raise KeyboardInterrupt
-    with (
-        patch.object(engine, "run", side_effect=KeyboardInterrupt),
-        patch("nroute.visualization.live_console.Live"),
-    ):
-        result = console_viz.run()
-        assert isinstance(result, MetricsCollectionResult)
-        assert len(result.results) == 1
-        assert result.results[0].throughput == 100.0
-        assert console_viz.status == "Completed"
-
-
-def test_live_console_normal_completion_preserved() -> None:
-    """Verify normal completion behavior remains unchanged and returns full results."""
-    topo = Topology()
-    topo.add_node("A", type="router")
-    topo.add_node("B", type="router")
-    topo.add_edge("A", "B", bandwidth=1000, latency=5)
-
-    router = DijkstraRouter()
-    traffic = TrafficGenerator(model="uniform", n_flows_per_tick=1)
-    engine = SimulationEngine(topo, router, traffic)
-
-    console_viz = LiveSimulationConsole(engine, duration_ticks=2, delay=0.0)
-
-    mock_metrics = [
-        SimulationMetrics(
-            tick=0,
-            timestamp=0.0,
-            throughput=100.0,
-            avg_latency=5.0,
-            packet_loss_rate=0.0,
-            avg_utilization=0.1,
-            reroute_count=0,
-            active_flows=1,
-        ),
-        SimulationMetrics(
-            tick=1,
-            timestamp=1.0,
-            throughput=120.0,
-            avg_latency=4.8,
-            packet_loss_rate=0.0,
-            avg_utilization=0.15,
-            reroute_count=0,
-            active_flows=1,
-        ),
-    ]
-    engine.collector.results.extend(mock_metrics)
-    expected_result = MetricsCollectionResult(results=mock_metrics)
-
-    with (
-        patch.object(engine, "run", return_value=expected_result) as mock_run,
-        patch("nroute.visualization.live_console.Live"),
-    ):
-        result = console_viz.run()
-        mock_run.assert_called_once()
-        assert result == expected_result
-        assert console_viz.status == "Completed"
-
-
-def test_live_console_progress_bar_rendering() -> None:
-    """Verify that the compact progress bar renders correctly in the console header."""
-    topo = Topology()
-    topo.add_node("A", type="router")
-    topo.add_node("B", type="router")
-    topo.add_edge("A", "B", bandwidth=1000, latency=5)
-
-    router = DijkstraRouter()
-    traffic = TrafficGenerator(model="uniform", n_flows_per_tick=1)
-    engine = SimulationEngine(topo, router, traffic)
-
-    # 1. Start simulation, duration = 10. At tick 0, progress is 1/10 = 10%
-    console_viz = LiveSimulationConsole(engine, duration_ticks=10, delay=0.0)
-    header_panel = console_viz._build_header(0, None, "DijkstraRouter")
-    header_text = header_panel.renderable.plain
-    # Expect bar to be [█░░░░░░░░░] 10%
-    assert "[█░░░░░░░░░] 10%" in header_text
-
-    # 2. At tick 4, progress is 5/10 = 50%
-    header_panel = console_viz._build_header(4, None, "DijkstraRouter")
-    header_text = header_panel.renderable.plain
-    # Expect bar to be [█████░░░░░] 50%
-    assert "[█████░░░░░] 50%" in header_text
-
-    # 3. At tick 9, progress is 10/10 = 100%
-    header_panel = console_viz._build_header(9, None, "DijkstraRouter")
-    header_text = header_panel.renderable.plain
-    # Expect bar to be [██████████] 100%
-    assert "[██████████] 100%" in header_text

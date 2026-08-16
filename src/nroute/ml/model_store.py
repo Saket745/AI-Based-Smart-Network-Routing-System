@@ -152,6 +152,7 @@ class ModelStore:
 
             import inspect
             # Check if load() accepts allow_unsafe
+            import inspect
 
             sig = inspect.signature(model.load)
             if "allow_unsafe" in sig.parameters:

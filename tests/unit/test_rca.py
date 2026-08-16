@@ -21,6 +21,9 @@ from nroute.simulation.rca import (
     load_events,
 )
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 
 @pytest.fixture
 def sample_events() -> list[dict[str, Any]]:
@@ -118,6 +121,7 @@ def test_load_events_invalid_structure(tmp_path: Path) -> None:
 
 def test_load_events_skip_unparseable(tmp_path: Path) -> None:
     path = tmp_path / "events.json"
+    # One good, one bad (not a dict), one with invalid timestamp (to trigger exception in constructor)
     with open(path, "w", encoding="utf-8") as f:
         json.dump([{"event_id": "good"}, "bad", {"timestamp": "invalid"}], f)
 
@@ -158,6 +162,7 @@ def test_classify_event_heuristics() -> None:
 
 
 def test_rca_correlator_basic(small_graph_data: dict[str, Any]) -> None:
+    # Helper to convert small_graph_data to Topology
     edges = []
     for edge in small_graph_data.get("edges", []):
         edges.append(
@@ -183,18 +188,26 @@ def test_rca_correlator_basic(small_graph_data: dict[str, Any]) -> None:
         ),
         NetworkEvent(event_id="e3", timestamp=12.0, node_id="C", event_type="syslog_error"),
     ]
+    # Pre-classify
     for e in events:
         classify_event(e)
 
     result = correlator.diagnose(events)
 
     assert result.root_cause is not None
+    # Verify that the correlator selects the highest-priority event (lowest number)
+    # as the root cause, even if it occurs slightly later than lower-priority events.
+    # e1: (10.0, 2 - INTERFACE)
+    # e2: (11.0, 1 - ROUTING)
+    # e3: (12.0, 3 - SYSLOG)
+    # e2 has the highest priority (1).
     assert result.root_cause.event_id == "e2"
     assert result.total_events == 3
     assert "A" in result.affected_nodes
     assert "B" in result.affected_nodes
     assert "C" in result.affected_nodes
 
+    # Test line 306: priority equal but timestamp earlier
     events2 = [
         NetworkEvent(event_id="e1", timestamp=10.0, node_id="A", event_type="link_down"),
         NetworkEvent(event_id="e2", timestamp=9.0, node_id="B", event_type="link_down"),
@@ -252,8 +265,7 @@ def test_rca_correlator_summary_with_message(small_graph_data: dict[str, Any]) -
     result = correlator.diagnose([evt])
     assert "Detail: Critical link failure" in result.root_cause_summary
     assert "(peer: 'B')" in result.root_cause_summary
-
-
+=======
 # ── classify_event Tests ─────────────────────────────────────
 
 
@@ -272,6 +284,7 @@ def test_classify_event_already_set() -> None:
 @pytest.mark.parametrize(
     ("event_type", "expected_cat", "expected_sev"),
     [
+        # Routing (Priority 1)
         ("bgp_session_down", EventCategory.ROUTING, EventSeverity.CRITICAL),
         ("BGP_WITHDRAWAL", EventCategory.ROUTING, EventSeverity.CRITICAL),
         ("  bgp_down  ", EventCategory.ROUTING, EventSeverity.CRITICAL),
@@ -285,6 +298,7 @@ def test_classify_event_already_set() -> None:
         ("ecmp_change", EventCategory.ROUTING, EventSeverity.WARNING),
         ("route_change", EventCategory.ROUTING, EventSeverity.WARNING),
         ("routing_table_change", EventCategory.ROUTING, EventSeverity.WARNING),
+        # Interface (Priority 2)
         ("link_down", EventCategory.INTERFACE, EventSeverity.CRITICAL),
         ("interface_down", EventCategory.INTERFACE, EventSeverity.CRITICAL),
         ("port_down", EventCategory.INTERFACE, EventSeverity.CRITICAL),
@@ -297,9 +311,11 @@ def test_classify_event_already_set() -> None:
         ("crc_errors", EventCategory.INTERFACE, EventSeverity.WARNING),
         ("frame_errors", EventCategory.INTERFACE, EventSeverity.WARNING),
         ("port_disabled", EventCategory.INTERFACE, EventSeverity.WARNING),
+        # Syslog (Priority 3)
         ("syslog_critical", EventCategory.SYSLOG, EventSeverity.CRITICAL),
         ("syslog_error", EventCategory.SYSLOG, EventSeverity.ERROR),
         ("syslog_warning", EventCategory.SYSLOG, EventSeverity.WARNING),
+        # Default / No match
         ("unknown_weird_event", EventCategory.UNKNOWN, EventSeverity.INFO),
     ],
 )
@@ -365,6 +381,7 @@ def test_rca_result_to_dict_with_cause() -> None:
     assert d["root_cause"]["severity"] == "critical"
     assert d["root_cause_summary"] == "Some Summary"
     assert d["affected_nodes"] == ["NodeA", "NodeB"]
+    # affected_edges are sorted tuples converted to list
     assert d["affected_edges"] == [["NodeA", "NodeB"], ["NodeB", "NodeA"]]
     assert d["total_events"] == 1
 
@@ -424,14 +441,17 @@ def test_load_events_dict_wrappers(tmp_path: Path) -> None:
     """Check 'events', 'alarms', 'records' top-level keys."""
     evt_data = [{"event_id": "e1", "event_type": "link_down"}]
 
+    # Test "events" key
     f1 = tmp_path / "f1.json"
     f1.write_text(json.dumps({"events": evt_data}))
     assert len(load_events(f1)) == 1
 
+    # Test "alarms" key
     f2 = tmp_path / "f2.json"
     f2.write_text(json.dumps({"alarms": evt_data}))
     assert len(load_events(f2)) == 1
 
+    # Test "records" key
     f3 = tmp_path / "f3.json"
     f3.write_text(json.dumps({"records": evt_data}))
     assert len(load_events(f3)) == 1
@@ -448,9 +468,11 @@ def test_load_events_skips_non_dict_elements(tmp_path: Path) -> None:
 
 def test_load_events_malformed_fields_resilience(tmp_path: Path) -> None:
     """Verify loading is resilient to malformed/invalid field types or formats."""
+    # Test fallback to EventCategory.UNKNOWN / EventSeverity.INFO and default parsing
     f = tmp_path / "events.yaml"
     data = [
         {
+            # timestamp not a float -> triggers Exception block in parsing
             "timestamp": "invalid_timestamp_string",
         },
         {
@@ -461,6 +483,7 @@ def test_load_events_malformed_fields_resilience(tmp_path: Path) -> None:
     ]
     f.write_text(yaml.safe_dump(data))
     evts = load_events(f)
+    # The first one should have been skipped, the second one parsed with defaults
     assert len(evts) == 1
     assert evts[0].event_id == "ok_event"
     assert evts[0].category == EventCategory.UNKNOWN
@@ -504,8 +527,10 @@ def test_rca_correlator_neighbor_exception(monkeypatch: pytest.MonkeyPatch) -> N
     ]
     correlator = RCACorrelator(topo)
     res = correlator.diagnose(events)
+    # We should still diagnose without crashing
     assert res.root_cause is not None
     assert res.root_cause.event_id == "e1"
+    # Neighbors failure means downstream_nodes is just {"R1", "R2"}
     assert len(res.correlation_chain) == 1
 
 
@@ -516,6 +541,10 @@ def test_rca_correlator_priority_and_timestamp_sorting() -> None:
     topo.add_node("R2")
     topo.add_edge("R1", "R2")
 
+    # Order of events:
+    # 1. Interface event @ t=5.0
+    # 2. Routing event @ t=6.0 (higher priority than interface, so should win over 1 even though later)
+    # 3. Routing event @ t=7.0 (same priority as 2, but later, so 2 wins over 3)
     events = [
         NetworkEvent(
             event_id="e1",
@@ -574,10 +603,8 @@ def test_rca_correlator_same_priority_earlier_wins() -> None:
     assert res.root_cause.event_id == "e1"
 
 
-def test_rca_correlator_same_priority_earlier_wins_dynamic(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Test same priority earlier wins with dynamic timestamps."""
+def test_rca_correlator_same_priority_earlier_wins_dynamic() -> None:
+    """Test same priority earlier wins with dynamic timestamps to cover line 306."""
 
     class DynamicEvent(NetworkEvent):
         def __init__(self, *args, **kwargs):

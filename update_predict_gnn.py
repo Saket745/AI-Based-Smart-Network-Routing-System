@@ -1,4 +1,4 @@
-with open('src/nroute/cli/predict_cmd.py') as f:
+with open('src/nroute/cli/predict_cmd.py', 'r') as f:
     lines = f.readlines()
 
 new_lines = []
