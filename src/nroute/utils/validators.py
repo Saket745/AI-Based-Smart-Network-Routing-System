@@ -15,6 +15,15 @@ def validate_node_id(node_id: Any) -> str:
 
     Accepts strings, integers, and finite floats (coerced to string).
     Rejects booleans, NaN, and Infinity.
+
+    Args:
+        node_id: The node ID to validate.
+
+    Returns:
+        The validated node ID as a string.
+
+    Raises:
+        ValidationError: If the node ID is invalid.
     """
     if isinstance(node_id, bool):
         raise ValidationError("Node ID cannot be a boolean.")
@@ -35,7 +44,19 @@ def validate_node_id(node_id: Any) -> str:
 
 
 def validate_positive_float(value: Any, name: str) -> float:
-    """Validate that a value is a non-negative finite float."""
+    """
+    Validate that a value is a non-negative float.
+
+    Args:
+        value: The value to validate.
+        name: The name of the parameter (for error messages).
+
+    Returns:
+        The validated value as a float.
+
+    Raises:
+        ValidationError: If the value is negative or not a number.
+    """
     try:
         val = float(value)
     except (TypeError, ValueError) as e:
@@ -53,45 +74,68 @@ def validate_file_path(
     path: Any, must_exist: bool = True, allowed_root: str | Path | None = None
 ) -> Path:
     """
-    Validate a path and optionally constrain it to an allowed directory.
+    Validate that a file path is valid and optionally constrained to an allowed root.
 
-    The optional ``allowed_root`` containment check prevents path traversal
-    when untrusted input is used to select files.
+    Args:
+        path: The path to validate (str or Path).
+        must_exist: If True, check if the file exists on the filesystem.
+        allowed_root: Optional trusted directory that the resolved path must stay within.
+
+    Returns:
+        The validated Path object.
+
+    Raises:
+        ValidationError: If the path is invalid, missing, or outside allowed_root.
     """
     if not isinstance(path, (str, Path)):
         raise ValidationError("Invalid path format: path must be a string or Path object.")
+
     if isinstance(path, str) and not path.strip():
         raise ValidationError("File path cannot be empty.")
+
     if isinstance(path, str) and "\0" in path:
         raise ValidationError("Invalid path format: null bytes are not allowed in path.")
 
     try:
-        validated_path = Path(path).resolve()
+        p = Path(path)
         if allowed_root is not None:
             root = Path(allowed_root).resolve()
+            resolved = p.resolve()
             try:
-                validated_path.relative_to(root)
+                resolved.relative_to(root)
             except ValueError as e:
                 raise ValidationError(
-                    f"Path '{validated_path}' is outside the allowed root '{root}'."
+                    f"Path '{resolved}' is outside the allowed root '{root}'."
                 ) from e
+        else:
+            resolved = p
     except (TypeError, ValueError, OSError) as e:
-        if isinstance(e, ValidationError):
-            raise
         raise ValidationError(f"Invalid path format: {e}") from e
 
     if must_exist:
         try:
-            if not validated_path.exists():
-                raise ValidationError(f"File '{validated_path}' does not exist.")
+            if not resolved.exists():
+                raise ValidationError(f"File '{resolved}' does not exist.")
         except (OSError, ValueError) as e:
             raise ValidationError(f"Invalid path format: {e}") from e
+        return resolved.resolve()
 
-    return validated_path
+    return resolved
 
 
 def validate_probability(value: Any) -> float:
-    """Validate that a value is a valid probability between 0.0 and 1.0."""
+    """
+    Validate that a value is a valid probability (between 0.0 and 1.0 inclusive).
+
+    Args:
+        value: The value to validate.
+
+    Returns:
+        The validated probability as a float.
+
+    Raises:
+        ValidationError: If the value is not a valid probability.
+    """
     try:
         val = float(value)
     except (TypeError, ValueError) as e:
