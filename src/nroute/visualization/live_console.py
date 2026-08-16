@@ -327,6 +327,9 @@ class LiveSimulationConsole:
     def run(self) -> MetricsCollectionResult:
         """Run the simulation while displaying the live console interface."""
 
+    def run(self) -> MetricsCollectionResult:
+        """Run the simulation while displaying the live console interface."""
+
         layout = self._create_layout()
         algo_name = self.engine.router.__class__.__name__
 
@@ -384,6 +387,9 @@ class LiveSimulationConsole:
                     callback=tick_callback,
                     show_progress=False,  # Turn off standard progress bar
                 )
+            time.sleep(1.0)
+
+        return result
                 # Finish simulation, mark status completed and show final render
                 self.status = "Completed"
                 self.log_event("[bold green]Simulation completed[/bold green]")

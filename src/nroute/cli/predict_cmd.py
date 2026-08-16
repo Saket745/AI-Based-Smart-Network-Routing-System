@@ -286,6 +286,9 @@ def predict_gnn(ctx: click.Context, /, **kwargs: Any) -> None:
     is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
 
     topo = _load_topology(args.topo_path, is_json)
+
+    # 1. Instantiate the GNN model structure
+
     model = _init_gnn_model(args.model_type)
     _load_gnn_model_state(model, args, is_json)
     bundle = _build_gnn_features(topo, is_json)
