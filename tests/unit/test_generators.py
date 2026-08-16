@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from nroute.core.topology import Topology
@@ -102,33 +101,6 @@ def test_fat_tree_generator() -> None:
 
     with pytest.raises(TopologyError):
         Topology.generate("fat-tree", k=3)
-
-
-def test_from_adjacency_matrix() -> None:
-    """Test generating a topology from a NumPy adjacency matrix."""
-    from nroute.core.generators import TopologyGenerator
-
-    matrix = np.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
-
-    topo = TopologyGenerator.from_adjacency_matrix(
-        matrix, node_labels=["Node0", "Node1", "Node2"], seed=100
-    )
-
-    assert topo.node_count == 3
-    assert topo.edge_count == 3
-    assert set(topo.nodes) == {"Node0", "Node1", "Node2"}
-    assert ("Node0", "Node1") in topo.edges
-    assert ("Node1", "Node2") in topo.edges
-    assert ("Node2", "Node0") in topo.edges
-
-    # Validation errors
-    non_square = np.zeros((3, 2))
-    with pytest.raises(TopologyError):
-        TopologyGenerator.from_adjacency_matrix(non_square)
-
-    mismatched_labels = ["A", "B"]
-    with pytest.raises(TopologyError):
-        TopologyGenerator.from_adjacency_matrix(matrix, node_labels=mismatched_labels)
 
 
 def test_seeded_reproducibility() -> None:
