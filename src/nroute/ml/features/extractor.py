@@ -91,29 +91,6 @@ class DefaultGraphFeatureExtractor(BaseFeatureExtractor):
                 st = attrs.get("status", "up")
                 status = 1.0 if st == "up" or (isinstance(st, str) and st.lower() == "up") else 0.0
                 edge_features_arr[i] = (bw, lat, util, loss, status)
-=======
-            status = 1.0 if attrs.get("status", "up").lower() == "up" else 0.0
-            degree = float(len(list(graph.successors(node))))
-            node_features.append([cap, status, degree])
-        node_features_arr = np.array(node_features, dtype=np.float32)
-
-        # Build edge index and edge features: [bandwidth, latency, utilization, packet_loss, status]
-        edge_index = []
-        edge_features = []
-        for src, dst in edges:
-            edge_index.append([node_to_idx[src], node_to_idx[dst]])
-            attrs = graph.edges[src, dst]
-            get = attrs.get
-            bw = float(get("bandwidth", 1000.0)) / 1000.0
-            lat = float(get("latency", 5.0)) / 100.0
-            util = float(get("utilization", 0.0))
-            loss = float(get("packet_loss", 0.0))
-            status = 1.0 if get("status", "up").lower() == "up" else 0.0
-            edge_features.append([bw, lat, util, loss, status])
-
-        if len(edges) > 0:
-            edge_index_arr = np.array(edge_index, dtype=np.int64).T  # Shape: (2, E)
-            edge_features_arr = np.array(edge_features, dtype=np.float32)
         else:
             edge_index_arr = np.empty((2, 0), dtype=np.int64)
             edge_features_arr = np.empty((0, 5), dtype=np.float32)
