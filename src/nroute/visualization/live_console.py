@@ -326,6 +326,7 @@ class LiveSimulationConsole:
 
     def run(self) -> MetricsCollectionResult:
         """Run the simulation while displaying the live console interface."""
+
         layout = self._create_layout()
         algo_name = self.engine.router.__class__.__name__
 

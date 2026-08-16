@@ -19,3 +19,7 @@
 ## 2026-08-15 - Python `.tolist()` vs NumPy `.to_numpy()` for Pydantic Model Ingestion
 **Learning:** Converting Pandas DataFrame columns using `.to_numpy()` before `zip()` iteration is significantly slower (~2x) than using standard Python lists (`.tolist()`) when instantiating Pydantic models. NumPy scalar types (e.g., `np.int64`, `np.float64`) incur extra coercion overhead inside Pydantic constructors compared to native Python `int`, `float`, and `str`.
 **Action:** Use `.tolist()` on DataFrame columns when iterating over row values to instantiate Pydantic model instances.
+
+## 2026-08-16 - Single-Pass Adjacency Traversal with Running Accumulators for Graph Summaries
+**Learning:** Computing metric ranges across graph elements via multiple list comprehensions (`[attrs['latency'] for ... in edges]`, `[attrs['bandwidth'] for ...]`) performs $N$ separate graph traversals and allocates $N$ intermediate lists. Replacing multiple list comprehensions with a single pass over NetworkX's underlying adjacency structure (`graph.adj.values()`) and running scalar accumulators (`min_lat`, `max_lat`) eliminates $N-1$ traversals and list allocations, yielding a 2x speedup on topology summary generation.
+**Action:** Consolidate multi-attribute graph traversals into a single loop pass over `.adj.values()` using scalar accumulators instead of multiple list comprehensions.

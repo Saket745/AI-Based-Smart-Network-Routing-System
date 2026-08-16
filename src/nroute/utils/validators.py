@@ -10,8 +10,7 @@ from nroute.exceptions import ValidationError
 
 
 def validate_node_id(node_id: Any) -> str:
-    """
-    Validate that a node ID is a non-empty string.
+    """Validate that a node ID is a non-empty string.
 
     Accepts strings, integers, and finite floats (coerced to string).
     Rejects booleans, NaN, and Infinity.
@@ -44,8 +43,9 @@ def validate_node_id(node_id: Any) -> str:
 
 
 def validate_positive_float(value: Any, name: str) -> float:
-    """
     Validate that a value is a non-negative float.
+
+    """Validate that a value is a non-negative float.
 
     Args:
         value: The value to validate.
@@ -73,6 +73,7 @@ def validate_positive_float(value: Any, name: str) -> float:
 def validate_probability(value: Any) -> float:
     """
     Validate that a value is a valid probability (between 0.0 and 1.0 inclusive).
+    """Validate that a value is a valid probability (between 0.0 and 1.0 inclusive).
 
     Args:
         value: The value to validate.
@@ -103,17 +104,19 @@ def validate_file_path(
 ) -> Path:
     """
     Validate that a path is valid and optionally within allowed root directories to prevent path traversal.
+    """Validate that a path is valid and optionally within allowed root directories to prevent path traversal.
 
     Args:
         path: The file path to validate.
         must_exist: Whether the path must exist on the file system.
         allowed_roots: Optional list of root directories that path must reside within.
+        allowed_roots: Optional list of root directories that path must be contained within.
 
     Returns:
         The validated, resolved Path object.
 
     Raises:
-        ValidationError: If the path is invalid, empty, contains null bytes, or does not exist.
+        ValidationError: If the path is invalid, empty, contains null bytes, or fails existence/root checks.
     """
     if not isinstance(path, (str, Path)):
         raise ValidationError("Invalid path format.")
@@ -121,6 +124,9 @@ def validate_file_path(
     path_str = str(path).strip()
     if not path_str:
         raise ValidationError("File path cannot be empty.")
+    path_str = str(path)
+    if not path_str.strip():
+        raise ValidationError("Path cannot be empty.")
 
     if "\0" in path_str:
         raise ValidationError("Invalid path format.")
@@ -135,7 +141,7 @@ def validate_file_path(
         raise ValidationError(f"Path '{path}' does not exist.")
 
     if allowed_roots is not None:
-        resolved_roots = []
+        resolved_roots: list[Path] = []
         for r in allowed_roots:
             try:
                 resolved_roots.append(Path(r).resolve())

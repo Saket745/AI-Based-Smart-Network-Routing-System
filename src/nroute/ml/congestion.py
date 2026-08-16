@@ -323,6 +323,7 @@ class CongestionPredictor:
 
         try:
             if path.endswith(".pt") or path.endswith(".pth"):
+                # Always enforce weights_only=True to prevent unsafe object deserialization (RCE)
                 try:
                     load_dict = torch.load(
                         path,
@@ -336,6 +337,10 @@ class CongestionPredictor:
                             f"format or contain unsafe objects. Error: {e}"
                         ) from e
                     raise
+                    raise ModelError(
+                        "Failed to load PyTorch model securely; the checkpoint may use "
+                        "unsupported or unsafe objects."
+                    ) from e
             elif zipfile.is_zipfile(path):
                 # New XGBoost format
                 with zipfile.ZipFile(path, "r") as zf:
@@ -355,7 +360,6 @@ class CongestionPredictor:
                             self.model.load_model(model_path)
                         return
                     else:
-                        # Fallback for other zipped models if any
                         raise ModelError(
                             f"Unsupported model type in zip archive: {self.model_type}"
                         )
