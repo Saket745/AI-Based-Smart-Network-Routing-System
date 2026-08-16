@@ -2,36 +2,9 @@
 
 from __future__ import annotations
 
-import importlib
 from typing import Any
 
 import pytest
-
-import nroute.cli
-
-# Copy module attributes to Click Command/Group objects to support mock.patch targets on Python 3.10 and 3.11
-cli_modules_and_commands = [
-    ("nroute.cli.topology_cmd", nroute.cli.topology_cmd),
-    ("nroute.cli.route_cmd", nroute.cli.route_cmd),
-    ("nroute.cli.simulate_cmd", nroute.cli.simulate_cmd),
-    ("nroute.cli.predict_cmd", nroute.cli.predict_cmd),
-    ("nroute.cli.detect_cmd", nroute.cli.detect_cmd),
-    ("nroute.cli.twin_cmd", nroute.cli.twin_cmd),
-    ("nroute.cli.export_cmd", nroute.cli.export_cmd),
-    ("nroute.cli.api_cmd", nroute.cli.api_cmd),
-    ("nroute.cli.configs_cmd", nroute.cli.configs_cmd.config_cmd),
-    ("nroute.cli.configs_cmd", nroute.cli.configs_cmd),
-    ("nroute.cli.train_cmd", nroute.cli.train_cmd),
-]
-
-for mod_name, cmd_obj in cli_modules_and_commands:
-    try:
-        mod = importlib.import_module(mod_name)
-        for attr in dir(mod):
-            if not attr.startswith("__") and not hasattr(cmd_obj, attr):
-                setattr(cmd_obj, attr, getattr(mod, attr))
-    except Exception:
-        pass
 
 
 @pytest.fixture

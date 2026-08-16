@@ -9,6 +9,7 @@ import tempfile
 import zipfile
 from typing import Any, cast
 
+import joblib
 import numpy as np
 import pandas as pd
 import torch
@@ -122,7 +123,7 @@ class CongestionPredictor:
         Args:
             features: Features DataFrame.
             labels: Binary labels array matching the features.
-            epochs: Number of epochs (applicable to LSTM).
+            epochs: Number of training epochs (applicable to LSTM).
             batch_size: Batch size (applicable to LSTM).
 
         Returns:
@@ -313,17 +314,19 @@ class CongestionPredictor:
 
         Args:
             path: Path to the model file.
-            allow_unsafe: Allow insecure deserialization if True.
+            allow_unsafe: If True, allows insecure deserialization (pickle/joblib) for legacy models.
+                         Defaults to False.
 
         Raises:
-            ModelError: If loading fails or an unsupported/insecure file is detected.
+            ModelError: If loading fails or insecure file is detected with allow_unsafe=False.
         """
         if not os.path.exists(path):
             raise ModelError(f"Model file not found: {path}")
 
+        # Attempt to detect if it's a new format (zip for xgboost/legacy-compatible, or pt)
         try:
             if path.endswith(".pt") or path.endswith(".pth"):
-                # Always enforce weights_only=True to prevent unsafe object deserialization (RCE)
+                # Use weights_only=True for PyTorch to prevent arbitrary code execution
                 try:
                     load_dict = torch.load(
                         path,
@@ -334,13 +337,10 @@ class CongestionPredictor:
                     if not allow_unsafe:
                         raise ModelError(
                             "Failed to load PyTorch model securely. The file might be in a legacy "
-                            f"format or contain unsafe objects. Error: {e}"
+                            "format or contain unsafe objects. Set allow_unsafe=True if you trust "
+                            f"the source. Error: {e}"
                         ) from e
                     raise
-                    raise ModelError(
-                        "Failed to load PyTorch model securely; the checkpoint may use "
-                        "unsupported or unsafe objects."
-                    ) from e
             elif zipfile.is_zipfile(path):
                 # New XGBoost format
                 with zipfile.ZipFile(path, "r") as zf:
@@ -360,17 +360,22 @@ class CongestionPredictor:
                             self.model.load_model(model_path)
                         return
                     else:
+                        # Fallback for other zipped models if any
                         raise ModelError(
                             f"Unsupported model type in zip archive: {self.model_type}"
                         )
             else:
-                raise ModelError(
-                    "Insecure model file detected (joblib/pickle). Legacy pickle/joblib "
-                    "model loading is no longer supported."
-                )
+                # Legacy or other format
+                if not allow_unsafe:
+                    raise ModelError(
+                        "Insecure model file detected (joblib/pickle). Loading is blocked for "
+                        "security. Set allow_unsafe=True if you trust the source."
+                    )
+                load_dict = joblib.load(path)
 
-            # Process load_dict for the supported PyTorch format.
+            # Process load_dict (for PyTorch or Legacy)
             if "metadata" in load_dict:
+                # New PyTorch format
                 metadata = load_dict["metadata"]
                 self.model_type = metadata["model_type"]
                 self.is_trained = metadata["is_trained"]
@@ -379,7 +384,21 @@ class CongestionPredictor:
                     self.model.load_state_dict(load_dict["state_dict"])
                     self.model.eval()
             else:
-                raise ModelError("Unsupported model serialization format.")
+                # Legacy format
+                self.model_type = load_dict["model_type"]
+                self.is_trained = load_dict["is_trained"]
+
+                if self.model_type == "xgboost":
+                    self.model = load_dict["model"]
+                elif self.model_type == "lstm":
+                    self.model = PyTorchLSTM(input_dim=1, hidden_dim=32, num_layers=2)
+                    self.model.load_state_dict(load_dict["state_dict"])
+                    self.model.eval()
+                elif self.model_type == "custom":
+                    if "model" in load_dict:
+                        self.model = load_dict["model"]
+                    elif hasattr(self.model, "load"):
+                        self.model.load(path)
 
         except ModelError:
             raise

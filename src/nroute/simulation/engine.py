@@ -65,9 +65,6 @@ class SimulationEngine:
         # - "accumulated_latency": float
         self.active_flows: list[dict[str, Any]] = []
 
-        # Set of edge tuples (u, v) currently having non-zero utilization (for O(U) reset performance)
-        self._utilized_edges: set[tuple[str, str]] = set()
-
     def run(
         self,
         duration_ticks: int,
@@ -90,13 +87,9 @@ class SimulationEngine:
         self.rng = get_rng(seed)
         self.traffic_generator.set_seed(seed)
 
-        # Reset collector, active flows, and link utilization tracking
+        # Reset collector and active flows
         self.collector = MetricsCollector()
         self.active_flows = []
-        for u, v in self._utilized_edges:
-            if self.topology.graph.has_edge(u, v):
-                self.topology.graph.edges[u, v]["utilization"] = 0.0
-        self._utilized_edges = set()
 
         logger.info(
             "Starting network simulation",
@@ -287,15 +280,11 @@ class SimulationEngine:
     def _update_link_utilizations(self) -> None:
         """
         Recalculate link utilization metrics based on current active flows.
-        Optimized to track previously utilized edges O(U) instead of resetting all edges O(E),
-        and directly update NetworkX graph attributes.
         """
+        # 1. Reset all edges to 0 utilization directly in networkx graph for performance
         g = self.topology.graph
-
-        # 1. Reset previously utilized edges to 0.0 utilization (O(U) performance optimization)
-        for u, v in self._utilized_edges:
-            if g.has_edge(u, v):
-                g.edges[u, v]["utilization"] = 0.0
+        for u, v in g.edges:
+            g.edges[u, v]["utilization"] = 0.0
 
         # 2. Accumulate bandwidth demands of in-flight flows on their active link
         # Flow bandwidth demand = (bytes * 8) / (duration * 1e6) in Mbps.
@@ -325,20 +314,3 @@ class SimulationEngine:
                 util = demand / bandwidth if bandwidth > 0.0 else 0.0
                 # Clamp to [0.0, 1.0] to satisfy schema constraints
                 edge_data["utilization"] = min(1.0, max(0.0, util))
-        # 3. Directly update edge utilization ratios on networkx graph and track utilized edges
-        new_utilized_edges: set[tuple[str, str]] = set()
-        for (u, v), demand in link_demands.items():
-            try:
-                if g.has_edge(u, v):
-                    edge_data = g.edges[u, v]
-                    bandwidth = float(edge_data.get("bandwidth", 1000.0))
-                    util = demand / bandwidth if bandwidth > 0.0 else 0.0
-                    # Clamp to [0.0, 1.0] for topology validation rules
-                    clamped_util = min(1.0, max(0.0, util))
-                    edge_data["utilization"] = clamped_util
-                    if clamped_util > 0.0:
-                        new_utilized_edges.add((u, v))
-            except Exception:
-                pass
-
-        self._utilized_edges = new_utilized_edges

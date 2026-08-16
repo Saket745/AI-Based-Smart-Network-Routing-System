@@ -50,17 +50,8 @@ class TrafficMatrix(BaseModel):
                     "timestamp",
                 ]
             )
-        return pd.DataFrame(
-            {
-                "source": [f.source for f in self.flows],
-                "destination": [f.destination for f in self.flows],
-                "bytes": [f.bytes for f in self.flows],
-                "packets": [f.packets for f in self.flows],
-                "duration": [f.duration for f in self.flows],
-                "protocol": [f.protocol for f in self.flows],
-                "timestamp": [f.timestamp for f in self.flows],
-            }
-        )
+        data = [flow.model_dump() for flow in self.flows]
+        return pd.DataFrame(data)
 
     @classmethod
     def from_dataframe(cls, df: pd.DataFrame) -> TrafficMatrix:
@@ -89,6 +80,7 @@ class TrafficMatrix(BaseModel):
         if missing_cols:
             raise IngestionError(f"DataFrame is missing required flow columns: {missing_cols}.")
 
+        indices = df.index.tolist()
         sources = df["source"].tolist()
         destinations = df["destination"].tolist()
         bytes_col = df["bytes"].tolist()
@@ -97,60 +89,32 @@ class TrafficMatrix(BaseModel):
         protocols = df["protocol"].tolist()
         timestamps = df["timestamp"].tolist()
 
-        # Performance optimization: Execute list comprehension directly for the fast path
-        # (avoiding per-iteration try-except block overhead and unnecessary index listing).
-        # Yields a ~3x speedup when ingesting large traffic matrices.
-        try:
-            flows = [
-                FlowRecord(
-                    source=str(src),
-                    destination=str(dst),
-                    bytes=int(b),
-                    packets=int(p),
-                    duration=float(dur),
-                    protocol=str(proto),
-                    timestamp=float(ts),
-                )
-                for src, dst, b, p, dur, proto, ts in zip(
-                    sources,
-                    destinations,
-                    bytes_col,
-                    packets_col,
-                    durations,
-                    protocols,
-                    timestamps,
-                    strict=True,
-                )
-            ]
-        except Exception:
-            # Fallback path: Identify precise failing row index for error reporting
-            indices = df.index.tolist()
-            flows = []
-            for idx, src, dst, b, p, dur, proto, ts in zip(
-                indices,
-                sources,
-                destinations,
-                bytes_col,
-                packets_col,
-                durations,
-                protocols,
-                timestamps,
-                strict=True,
-            ):
-                try:
-                    flows.append(
-                        FlowRecord(
-                            source=str(src),
-                            destination=str(dst),
-                            bytes=int(b),
-                            packets=int(p),
-                            duration=float(dur),
-                            protocol=str(proto),
-                            timestamp=float(ts),
-                        )
+        flows = []
+        for idx, src, dst, b, p, dur, proto, ts in zip(
+            indices,
+            sources,
+            destinations,
+            bytes_col,
+            packets_col,
+            durations,
+            protocols,
+            timestamps,
+            strict=True,
+        ):
+            try:
+                flows.append(
+                    FlowRecord(
+                        source=str(src),
+                        destination=str(dst),
+                        bytes=int(b),
+                        packets=int(p),
+                        duration=float(dur),
+                        protocol=str(proto),
+                        timestamp=float(ts),
                     )
-                except Exception as e:
-                    raise IngestionError(f"Failed to parse flow record at row {idx}: {e}") from e
+                )
+            except Exception as e:
+                raise IngestionError(f"Failed to parse flow record at row {idx}: {e}") from e
 
         return cls(flows=flows)
 

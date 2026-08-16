@@ -85,13 +85,3 @@ def test_bench_update_edge(benchmark: Any) -> None:
             )
 
     benchmark(run_update_edges)
-
-
-@pytest.mark.benchmark
-@pytest.mark.parametrize("scale", [100, 1000])
-def test_bench_topology_summary(scale: int, benchmark: Any) -> None:
-    """Benchmark computing topology summary across scales."""
-    from nroute.core.generators import TopologyGenerator
-
-    topo = TopologyGenerator.random(n_nodes=scale, edge_prob=0.05, seed=42)
-    benchmark(topo.summary)
