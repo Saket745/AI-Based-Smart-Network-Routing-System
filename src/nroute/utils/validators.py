@@ -70,19 +70,73 @@ def validate_positive_float(value: Any, name: str) -> float:
     return val
 
 
-def validate_file_path(
-    path: Any, must_exist: bool = True, allowed_root: str | Path | None = None
-) -> Path:
+def validate_file_path(path: Any, must_exist: bool = True) -> Path:
     """
-    Validate that a file path is valid and optionally constrained to an allowed root.
+    Validate that a file path is valid and optionally exists.
 
     Args:
         path: The path to validate (str or Path).
         must_exist: If True, check if the file exists on the filesystem.
-        allowed_root: Optional trusted directory that the resolved path must stay within.
 
     Returns:
         The validated Path object.
+
+    Raises:
+        ValidationError: If the path is invalid or does not exist.
+    """
+    if not path:
+        raise ValidationError("Path cannot be empty.")
+
+    try:
+        validated_path = Path(path).resolve()
+    except Exception as e:
+        raise ValidationError(f"Invalid path format: {path}.") from e
+
+    if must_exist and not validated_path.exists():
+        raise ValidationError(f"Path does not exist: {validated_path}.")
+
+    return validated_path
+
+
+def validate_probability(value: Any) -> float:
+    """
+    Validate that a value is a valid probability (between 0.0 and 1.0 inclusive).
+
+    Args:
+        value: The value to validate.
+
+    Returns:
+        The validated value as a float.
+
+    Raises:
+        ValidationError: If the value is not a valid probability.
+    """
+    try:
+        val = float(value)
+    except (TypeError, ValueError) as e:
+        raise ValidationError(
+            f"Probability must be a number, got type {type(value).__name__}."
+        ) from e
+
+    if not (0.0 <= val <= 1.0):
+        raise ValidationError(f"Probability must be between 0.0 and 1.0, got {val}.")
+
+    return val
+
+
+def validate_file_path(
+    path: Any, must_exist: bool = True, allowed_root: str | Path | None = None
+) -> Path:
+    """
+    Validate that a file path is valid and optionally exists within a trusted root.
+
+    Args:
+        path: The path to validate (str or Path).
+        must_exist: Whether the file must exist.
+        allowed_root: Optional trusted directory that the resolved path must stay within.
+
+    Returns:
+        The validated path as a Path object.
 
     Raises:
         ValidationError: If the path is invalid, missing, or outside allowed_root.
@@ -100,50 +154,24 @@ def validate_file_path(
         p = Path(path)
         if allowed_root is not None:
             root = Path(allowed_root).resolve()
-            resolved = p.resolve()
+            p_resolved = p.resolve()
             try:
-                resolved.relative_to(root)
+                p_resolved.relative_to(root)
             except ValueError as e:
                 raise ValidationError(
-                    f"Path '{resolved}' is outside the allowed root '{root}'."
+                    f"Path '{p_resolved}' is outside the allowed root '{root}'."
                 ) from e
         else:
-            resolved = p
+            p_resolved = p
     except (TypeError, ValueError, OSError) as e:
         raise ValidationError(f"Invalid path format: {e}") from e
 
     if must_exist:
         try:
-            if not resolved.exists():
-                raise ValidationError(f"File '{resolved}' does not exist.")
+            if not p_resolved.exists():
+                raise ValidationError(f"File '{p_resolved}' does not exist.")
         except (OSError, ValueError) as e:
             raise ValidationError(f"Invalid path format: {e}") from e
-        return resolved.resolve()
+        return p_resolved.resolve()
 
-    return resolved
-
-
-def validate_probability(value: Any) -> float:
-    """
-    Validate that a value is a valid probability (between 0.0 and 1.0 inclusive).
-
-    Args:
-        value: The value to validate.
-
-    Returns:
-        The validated probability as a float.
-
-    Raises:
-        ValidationError: If the value is not a valid probability.
-    """
-    try:
-        val = float(value)
-    except (TypeError, ValueError) as e:
-        raise ValidationError(
-            f"Probability must be a number, got type {type(value).__name__}."
-        ) from e
-
-    if not (0.0 <= val <= 1.0):
-        raise ValidationError(f"Probability must be between 0.0 and 1.0, got {val}.")
-
-    return val
+    return p_resolved
