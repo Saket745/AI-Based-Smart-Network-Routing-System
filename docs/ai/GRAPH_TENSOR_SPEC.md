@@ -11,10 +11,10 @@ Every GNN-compatible topology snapshot must be packed into a `GraphTensorBundle`
 ```python
 class GraphTensorBundle:
     node_features: torch.Tensor  # Shape: [N, F_N]
-    edge_index: torch.Tensor     # Shape: [2, E] (COO layout)
-    edge_features: torch.Tensor    # Shape: [E, F_E]
+    edge_index: torch.Tensor  # Shape: [2, E] (COO layout)
+    edge_features: torch.Tensor  # Shape: [E, F_E]
     node_to_idx: dict[str, int]  # Mapping from node string ID to index
-    idx_to_node: list[str]       # Mapping from index to node string ID
+    idx_to_node: list[str]  # Mapping from index to node string ID
 ```
 
 ### COO Edge Index Layout

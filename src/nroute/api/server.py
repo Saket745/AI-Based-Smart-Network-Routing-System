@@ -94,18 +94,15 @@ try:
             "Please specify explicit origins."
         )
 except Exception as e:
-    if isinstance(e, ValueError) and "CORS origins due to security risks" in str(e):
+    # If the exception is the ValueError we raised above, propagate it
+    if isinstance(e, ValueError) and "due to security risks" in str(e):
         raise
+
     import os
 
     _cors_origins_raw = os.environ.get("NROUTE_CORS_ORIGINS", "")
     if not _cors_origins_raw:
-        _cors_origins = [
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-        ]
+        _cors_origins = DEFAULT_CORS_ORIGINS
     else:
         _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
         if "*" in _cors_origins:
@@ -114,8 +111,8 @@ except Exception as e:
                 "Please specify explicit origins."
             ) from e
 
-# Filter out '*' and empty strings, ensure secure local development defaults as fallback
-_cors_origins = [o for o in _cors_origins if o and o != "*"]
+# Filter out empty strings, ensure secure local development defaults as fallback
+_cors_origins = [o for o in _cors_origins if o]
 if not _cors_origins:
     _cors_origins = DEFAULT_CORS_ORIGINS
 
@@ -240,10 +237,37 @@ async def get_topology() -> dict[str, Any]:
 
 
 @app.post("/api/config/ingest")
-async def ingest_config(file: UploadFile = File(...)) -> dict[str, Any]:  # noqa: B008
+async def ingest_config(request: Request, file: UploadFile = File(...)) -> dict[str, Any]:  # noqa: B008
     """Upload and ingest a device config file."""
     engine = get_engine()
-    content = await file.read()
+
+    # 5MB file limit check (5 * 1024 * 1024)
+    MAX_SIZE = 5 * 1024 * 1024
+
+    # 1. Early top-level request content-length header check
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            if int(content_length) > MAX_SIZE:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File size exceeds maximum limit of {MAX_SIZE} bytes.",
+                )
+        except ValueError:
+            pass
+
+    # 2. Strict read-size limit on the actually read bytes (defense-in-depth stream reader)
+    content = bytearray()
+    while True:
+        chunk = await file.read(1024 * 1024)  # read 1MB chunk
+        if not chunk:
+            break
+        content.extend(chunk)
+        if len(content) > MAX_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File size exceeds maximum limit of {MAX_SIZE} bytes.",
+            )
 
     # Write to a temp file for the parser
     suffix = Path(file.filename or "config.yaml").suffix
@@ -289,6 +313,9 @@ async def run_rca(req: RCARequest) -> dict[str, Any]:
 
     engine = get_engine()
     events: list[NetworkEvent] = []
+    valid_categories = {e.value for e in EventCategory}
+    valid_severities = {e.value for e in EventSeverity}
+
     for idx, item in enumerate(req.events):
         cat = item.category
         sev = item.severity
@@ -299,12 +326,8 @@ async def run_rca(req: RCARequest) -> dict[str, Any]:
             interface=item.interface,
             peer_node=item.peer_node,
             event_type=item.event_type,
-            category=EventCategory(cat)
-            if cat in [e.value for e in EventCategory]
-            else EventCategory.UNKNOWN,
-            severity=EventSeverity(sev)
-            if sev in [e.value for e in EventSeverity]
-            else EventSeverity.INFO,
+            category=EventCategory(cat) if cat in valid_categories else EventCategory.UNKNOWN,
+            severity=EventSeverity(sev) if sev in valid_severities else EventSeverity.INFO,
             message=item.message,
             raw=item.model_dump(),
         )

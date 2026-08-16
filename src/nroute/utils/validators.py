@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,9 @@ def validate_node_id(node_id: Any) -> str:
     """
     Validate that a node ID is a non-empty string.
 
+    Accepts strings, integers, and finite floats (coerced to string).
+    Rejects booleans, NaN, and Infinity.
+
     Args:
         node_id: The node ID to validate.
 
@@ -21,7 +25,12 @@ def validate_node_id(node_id: Any) -> str:
     Raises:
         ValidationError: If the node ID is invalid.
     """
+    if isinstance(node_id, bool):
+        raise ValidationError("Node ID cannot be a boolean.")
+
     if isinstance(node_id, int | float):
+        if isinstance(node_id, float) and (math.isnan(node_id) or math.isinf(node_id)):
+            raise ValidationError(f"Node ID cannot be {node_id}.")
         node_id = str(node_id)
 
     if not isinstance(node_id, str):
@@ -55,8 +64,8 @@ def validate_positive_float(value: Any, name: str) -> float:
             f"Parameter '{name}' must be a number, got type {type(value).__name__}."
         ) from e
 
-    if val < 0.0:
-        raise ValidationError(f"Parameter '{name}' must be non-negative, got {val}.")
+    if val < 0.0 or math.isnan(val):
+        raise ValidationError(f"Parameter '{name}' must be a non-negative number, got {val}.")
 
     return val
 
@@ -113,3 +122,44 @@ def validate_probability(value: Any) -> float:
         raise ValidationError(f"Probability must be between 0.0 and 1.0, got {val}.")
 
     return val
+
+
+def validate_file_path(path: Any, must_exist: bool = True) -> Path:
+    """
+    Validate that a file path is valid and optionally exists.
+
+    Args:
+        path: The path to validate (str or Path).
+        must_exist: Whether the file must exist.
+
+    Returns:
+        The validated path as a Path object.
+
+    Raises:
+        ValidationError: If the path is invalid or does not exist.
+    """
+    if not isinstance(path, (str, Path)):
+        raise ValidationError("Invalid path format: path must be a string or Path object.")
+
+    if isinstance(path, str) and not path.strip():
+        raise ValidationError("File path cannot be empty.")
+
+    if isinstance(path, str) and "\0" in path:
+        raise ValidationError("Invalid path format: null bytes are not allowed in path.")
+
+    try:
+        p = Path(path)
+        # Force conversion/evaluation to see if it is a valid path string/format
+        str_path = str(p)
+    except (TypeError, ValueError, OSError) as e:
+        raise ValidationError(f"Invalid path format: {e}") from e
+
+    if must_exist:
+        try:
+            if not p.exists():
+                raise ValidationError(f"File '{p}' does not exist.")
+        except (OSError, ValueError) as e:
+            raise ValidationError(f"Invalid path format: {e}") from e
+        return p.resolve()
+    else:
+        return p

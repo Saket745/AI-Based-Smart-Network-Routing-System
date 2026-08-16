@@ -90,22 +90,18 @@ class TrafficGenerator:
 
     def _generate_uniform(self, topology: Topology, tick: int) -> list[FlowRecord]:
         """Generate flows where endpoints are chosen uniformly at random."""
+        flows = []
         nodes = topology.nodes
-        if len(nodes) < 2:
-            return []
 
-        flows: list[FlowRecord] = []
-        while len(flows) < self.n_flows_per_tick:
-            remaining = self.n_flows_per_tick - len(flows)
-            batch_size = max(remaining, 5)
-            srcs = self.rng.choices(nodes, k=batch_size)
-            dsts = self.rng.choices(nodes, k=batch_size)
+        for _ in range(self.n_flows_per_tick):
+            src = self.rng.choice(nodes)
+            # Ensure destination is different from source
+            possible_dsts = [n for n in nodes if n != src]
+            if not possible_dsts:
+                continue
+            dst = self.rng.choice(possible_dsts)
+            flows.append(self._create_flow(src, dst, tick))
 
-            for src, dst in zip(srcs, dsts, strict=True):
-                if src != dst:
-                    flows.append(self._create_flow(src, dst, tick))
-                    if len(flows) == self.n_flows_per_tick:
-                        break
         return flows
 
     def _generate_gravity(self, topology: Topology, tick: int) -> list[FlowRecord]:
@@ -113,59 +109,48 @@ class TrafficGenerator:
         Generate flows where traffic demand between u and v is proportional
         to Capacity(u) * Capacity(v).
         """
-        node_data = topology.graph.nodes(data=True)
-        nodes = []
-        capacities = []
-        for node_id, attrs in node_data:
-            nodes.append(node_id)
+        nodes = topology.nodes
+        capacities = {}
+        for node in nodes:
             try:
-                cap = attrs.get("capacity", 1000.0)
-                capacities.append(max(1.0, float(cap)))
-            except (ValueError, TypeError):
-                capacities.append(1000.0)
+                cap = topology.get_node(node).get("capacity", 1000.0)
+            except Exception:
+                cap = 1000.0
+            capacities[node] = max(1.0, float(cap))
 
-        if len(nodes) < 2:
+        pairs = []
+        weights = []
+        for src in nodes:
+            for dst in nodes:
+                if src == dst:
+                    continue
+                pairs.append((src, dst))
+                weights.append(capacities[src] * capacities[dst])
+
+        if not pairs:
             return []
 
-        flows: list[FlowRecord] = []
-        while len(flows) < self.n_flows_per_tick:
-            # Sample sources and destinations independently using capacities as weights.
-            # This is mathematically equivalent to the gravity model after rejecting src == dst.
-            remaining = self.n_flows_per_tick - len(flows)
-            batch_size = max(remaining, 5)
-            srcs = self.rng.choices(nodes, weights=capacities, k=batch_size)
-            dsts = self.rng.choices(nodes, weights=capacities, k=batch_size)
-
-            for src, dst in zip(srcs, dsts, strict=True):
-                if src != dst:
-                    flows.append(self._create_flow(src, dst, tick))
-                    if len(flows) == self.n_flows_per_tick:
-                        break
-        return flows
+        chosen_pairs = self.rng.choices(pairs, weights=weights, k=self.n_flows_per_tick)
+        return [self._create_flow(src, dst, tick) for src, dst in chosen_pairs]
 
     def _generate_hotspot(self, topology: Topology, tick: int) -> list[FlowRecord]:
         """
         Generate flows where 80% of traffic targets a set of hotspot nodes.
         """
         nodes = topology.nodes
-        if len(nodes) < 2:
-            return []
-
         hotspots: list[str] = self.kwargs.get("hotspot_nodes", [])
 
         # If no hotspots specified, select top 20% capacity nodes as hotspots
         if not hotspots:
-            node_data = list(topology.graph.nodes(data=True))
             sorted_nodes = sorted(
-                node_data,
-                key=lambda x: float(x[1].get("capacity", 1000.0)),
+                nodes,
+                key=lambda n: float(topology.get_node(n).get("capacity", 1000.0)),
                 reverse=True,
             )
             k = max(1, len(nodes) // 5)
-            hotspots = [n for n, _ in sorted_nodes[:k]]
+            hotspots = sorted_nodes[:k]
 
-        hotspot_set = set(hotspots)
-        non_hotspots = [n for n in nodes if n not in hotspot_set]
+        non_hotspots = [n for n in nodes if n not in hotspots]
         if not non_hotspots:
             # Fallback to uniform if all are hotspots
             return self._generate_uniform(topology, tick)
@@ -178,11 +163,11 @@ class TrafficGenerator:
             else:
                 dst = self.rng.choice(non_hotspots)
 
-            # Choose source from all nodes, ensuring it's different from destination
-            src = self.rng.choice(nodes)
-            while src == dst:
-                src = self.rng.choice(nodes)
-
+            # Choose source from remaining nodes
+            possible_srcs = [n for n in nodes if n != dst]
+            if not possible_srcs:
+                continue
+            src = self.rng.choice(possible_srcs)
             flows.append(self._create_flow(src, dst, tick))
 
         return flows
@@ -198,20 +183,14 @@ class TrafficGenerator:
         count = int(self.n_flows_per_tick * (burst_multiplier if is_burst else 1.0))
         bytes_mult = self.rng.uniform(2.0, 8.0) if is_burst else 1.0
 
+        flows = []
         nodes = topology.nodes
-        if len(nodes) < 2:
-            return []
+        for _ in range(count):
+            src = self.rng.choice(nodes)
+            possible_dsts = [n for n in nodes if n != src]
+            if not possible_dsts:
+                continue
+            dst = self.rng.choice(possible_dsts)
+            flows.append(self._create_flow(src, dst, tick, bytes_multiplier=bytes_mult))
 
-        flows: list[FlowRecord] = []
-        while len(flows) < count:
-            remaining = count - len(flows)
-            batch_size = max(remaining, 5)
-            srcs = self.rng.choices(nodes, k=batch_size)
-            dsts = self.rng.choices(nodes, k=batch_size)
-
-            for src, dst in zip(srcs, dsts, strict=True):
-                if src != dst:
-                    flows.append(self._create_flow(src, dst, tick, bytes_multiplier=bytes_mult))
-                    if len(flows) == count:
-                        break
         return flows

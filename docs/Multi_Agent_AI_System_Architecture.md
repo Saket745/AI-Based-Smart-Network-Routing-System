@@ -651,14 +651,14 @@ All inter-agent communication uses a standardized message envelope:
 ```python
 @dataclass
 class AgentMessage:
-    task_id: str              # Unique task identifier (UUID)
-    source_agent: str         # Sender agent name
-    target_agent: str         # Receiver agent name
-    task_type: str            # e.g., "compute_route", "predict_congestion"
-    priority: int             # 0 (low) to 10 (critical)
-    payload: dict             # Task-specific data
-    metadata: dict            # Timestamps, retry count, parent task ID
-    status: str               # "pending" | "in_progress" | "completed" | "failed"
+    task_id: str  # Unique task identifier (UUID)
+    source_agent: str  # Sender agent name
+    target_agent: str  # Receiver agent name
+    task_type: str  # e.g., "compute_route", "predict_congestion"
+    priority: int  # 0 (low) to 10 (critical)
+    payload: dict  # Task-specific data
+    metadata: dict  # Timestamps, retry count, parent task ID
+    status: str  # "pending" | "in_progress" | "completed" | "failed"
 ```
 
 ### 8.2 Communication Flow
