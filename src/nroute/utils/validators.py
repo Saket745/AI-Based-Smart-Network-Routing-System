@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from pathlib import Path
 from typing import Any
 
 from nroute.exceptions import ValidationError
@@ -93,3 +94,44 @@ def validate_probability(value: Any) -> float:
         raise ValidationError(f"Probability must be between 0.0 and 1.0, got {val}.")
 
     return val
+
+
+def validate_file_path(path: Any, must_exist: bool = True) -> Path:
+    """
+    Validate that a file path is valid and optionally exists.
+
+    Args:
+        path: The path to validate (str or Path).
+        must_exist: Whether the file must exist.
+
+    Returns:
+        The validated path as a Path object.
+
+    Raises:
+        ValidationError: If the path is invalid or does not exist.
+    """
+    if not isinstance(path, (str, Path)):
+        raise ValidationError("Invalid path format: path must be a string or Path object.")
+
+    if isinstance(path, str) and not path.strip():
+        raise ValidationError("File path cannot be empty.")
+
+    if isinstance(path, str) and "\0" in path:
+        raise ValidationError("Invalid path format: null bytes are not allowed in path.")
+
+    try:
+        p = Path(path)
+        # Force conversion/evaluation to see if it is a valid path string/format
+        str_path = str(p)
+    except (TypeError, ValueError, OSError) as e:
+        raise ValidationError(f"Invalid path format: {e}") from e
+
+    if must_exist:
+        try:
+            if not p.exists():
+                raise ValidationError(f"File '{p}' does not exist.")
+        except (OSError, ValueError) as e:
+            raise ValidationError(f"Invalid path format: {e}") from e
+        return p.resolve()
+    else:
+        return p

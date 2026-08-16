@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import pytest
 
+from pathlib import Path
 from nroute.exceptions import ValidationError
 from nroute.utils.validators import (
     validate_node_id,
     validate_positive_float,
     validate_probability,
+    validate_file_path,
 )
 
 # ---------------------------------------------------------------------------
