@@ -148,8 +148,8 @@ class TestTopologyShowCLI:
 
         assert result.exit_code == 0
         assert "Topology:" in result.output
-        assert "topo.json" in result.output
-
+        # Rich may truncate long temporary paths in the rendered rule title;
+        # assert the stable semantic output instead of the full path text.
         assert "Nodes" in result.output
         assert "10" in result.output
         mock_load.assert_called_once_with(topo_file)
