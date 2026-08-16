@@ -143,18 +143,28 @@ class TopologyGenerator:
                 )
 
                 # Connect Host <--> Edge Switch (bidirectional)
-                for u, v in [(host_id, edge_id), (edge_id, host_id)]:
-                    graph.add_edge(
-                        u,
-                        v,
-                        bandwidth=host_bw,
-                        latency=host_lat,
-                        jitter=0.01,
-                        packet_loss=0.0,
-                        utilization=0.0,
-                        status="up",
-                        weight=host_lat,
-                    )
+                graph.add_edge(
+                    host_id,
+                    edge_id,
+                    bandwidth=host_bw,
+                    latency=host_lat,
+                    jitter=0.01,
+                    packet_loss=0.0,
+                    utilization=0.0,
+                    status="up",
+                    weight=host_lat,
+                )
+                graph.add_edge(
+                    edge_id,
+                    host_id,
+                    bandwidth=host_bw,
+                    latency=host_lat,
+                    jitter=0.01,
+                    packet_loss=0.0,
+                    utilization=0.0,
+                    status="up",
+                    weight=host_lat,
+                )
         return edge_nodes
 
     @staticmethod
