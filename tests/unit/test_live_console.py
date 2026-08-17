@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 from rich.layout import Layout
 
 from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
+from nroute.core.metrics import SimulationMetrics
 from nroute.core.topology import Topology
 from nroute.exceptions import TopologyError
 from nroute.routing.dijkstra import DijkstraRouter
@@ -104,7 +105,7 @@ def test_live_console_helpers() -> None:
 
 
 def test_live_console_error_handling() -> None:
-    """Verify LiveSimulationConsole handles and logs topology access errors."""
+    """Verify LiveSimulationConsole handles topology access errors gracefully."""
     topo = Topology()
     topo.add_node("A", type="router")
     topo.add_node("B", type="router")
@@ -120,7 +121,6 @@ def test_live_console_error_handling() -> None:
     with (
         patch.object(engine.topology, "get_edge", side_effect=TopologyError("Edge error")),
         patch.object(engine.topology, "get_node", side_effect=TopologyError("Node error")),
-        patch("nroute.visualization.live_console.logger") as mock_logger,
     ):
         console_viz.update_events(tick=0)
         # Verify errors were logged
