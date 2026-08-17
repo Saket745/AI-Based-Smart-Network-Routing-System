@@ -5,7 +5,7 @@ Minimal REST API exposing:
   * ``GET  /api/topology``      — Current topology as JSON
   * ``POST /api/config/ingest`` — Upload device configs
   * ``POST /api/impact``        — Simulate change and get blast-radius
-  * ``POST /api/rca``           — Root-cause analysis
+  * ``POST /api/rca``            — Root-cause analysis
   * ``GET  /api/reachability``  — Pairwise reachability
   * ``GET  /api/audit``         — Audit trail
   * ``POST /api/topology/load`` — Load topology from file
@@ -60,7 +60,9 @@ async def verify_token(
     if not configured_token:
         configured_token = _FALLBACK_TOKEN
 
-    if credentials is None or credentials.credentials != configured_token:
+    # Constant-time comparison prevents token validation from leaking
+    # prefix information through response timing (CWE-208).
+    if credentials is None or not secrets.compare_digest(credentials.credentials, configured_token):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -242,16 +244,16 @@ async def ingest_config(request: Request, file: UploadFile = File(...)) -> dict[
     engine = get_engine()
 
     # 5MB file limit check (5 * 1024 * 1024)
-    MAX_SIZE = 5 * 1024 * 1024
+    max_size = 5 * 1024 * 1024
 
     # 1. Early top-level request content-length header check
     content_length = request.headers.get("content-length")
     if content_length is not None:
         try:
-            if int(content_length) > MAX_SIZE:
+            if int(content_length) > max_size:
                 raise HTTPException(
                     status_code=413,
-                    detail=f"File size exceeds maximum limit of {MAX_SIZE} bytes.",
+                    detail=f"File size exceeds maximum limit of {max_size} bytes.",
                 )
         except ValueError:
             pass
@@ -263,10 +265,10 @@ async def ingest_config(request: Request, file: UploadFile = File(...)) -> dict[
         if not chunk:
             break
         content.extend(chunk)
-        if len(content) > MAX_SIZE:
+        if len(content) > max_size:
             raise HTTPException(
                 status_code=413,
-                detail=f"File size exceeds maximum limit of {MAX_SIZE} bytes.",
+                detail=f"File size exceeds maximum limit of {max_size} bytes.",
             )
 
     # Write to a temp file for the parser
