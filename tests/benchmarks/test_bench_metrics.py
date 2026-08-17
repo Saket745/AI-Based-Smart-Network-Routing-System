@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from typing import Any
-import pytest
+
 import networkx as nx
-from nroute.core.topology import Topology
+import pytest
+
 from nroute.core.metrics import RouteMetrics
+from nroute.core.topology import Topology
+
 
 @pytest.mark.benchmark
 def test_bench_route_metrics_from_path(benchmark: Any) -> None:
@@ -21,9 +24,9 @@ def test_bench_route_metrics_from_path(benchmark: Any) -> None:
         for i in range(len(path) - 1):
             if path[i] not in topo.nodes:
                 topo.add_node(path[i])
-            if path[i+1] not in topo.nodes:
-                topo.add_node(path[i+1])
-            topo.add_edge(path[i], path[i+1], latency=1.5, bandwidth=100.0, utilization=0.2)
+            if path[i + 1] not in topo.nodes:
+                topo.add_node(path[i + 1])
+            topo.add_edge(path[i], path[i + 1], latency=1.5, bandwidth=100.0, utilization=0.2)
 
     def run_metrics() -> None:
         for _ in range(1000):

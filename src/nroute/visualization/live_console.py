@@ -166,6 +166,8 @@ class LiveSimulationConsole:
             (f"{tick + 1}/{self.duration_ticks}", "bold yellow"),
             ("  |  Active Flows: ", "white"),
             (str(last_metric.active_flows), "bold magenta"),
+            ("  |  ", "white"),
+            ("[Press Ctrl+C to Quit]", "dim white"),
         )
         return Panel(header_text, style="cyan")
 
@@ -250,8 +252,8 @@ class LiveSimulationConsole:
         footer_text = Text("\n").join(formatted_events)
         layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
 
-    def run(self) -> MetricsCollectionResult:
-        """Run the simulation while displaying the live console interface."""
+    def _create_layout(self) -> Layout:
+        """Create and structure the console layout panels."""
         layout = Layout()
         layout.split_column(
             Layout(name="header", size=3),
@@ -266,6 +268,7 @@ class LiveSimulationConsole:
             Layout(name="throughput_plot", ratio=1),
             Layout(name="latency_plot", ratio=1),
         )
+        return layout
 
     def run(self) -> MetricsCollectionResult:
         """Run the simulation while displaying the live console interface."""
