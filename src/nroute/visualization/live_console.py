@@ -166,6 +166,8 @@ class LiveSimulationConsole:
             (f"{tick + 1}/{self.duration_ticks}", "bold yellow"),
             ("  |  Active Flows: ", "white"),
             (str(last_metric.active_flows), "bold magenta"),
+            ("  |  ", "white"),
+            ("[Press Ctrl+C to Quit]", "dim white"),
         )
         return Panel(header_text, style="cyan")
 
