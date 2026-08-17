@@ -9,3 +9,8 @@
 **Vulnerability:** The path validator normalized and resolved user-supplied paths but did not provide a containment check for callers that require files to stay inside a trusted directory.
 **Learning:** `Path.resolve()` canonicalizes traversal such as `../secret.txt`; canonicalization alone does not make the path safe. Security-sensitive file selection needs an explicit relationship check against an allowed root.
 **Prevention:** When validating untrusted filesystem paths, resolve both the candidate and trusted root, then require the candidate to remain relative to that root before use.
+
+## 2026-08-18 - [Bearer token comparison must be constant-time]
+**Vulnerability:** `verify_token` compared a supplied bearer token with the configured secret using normal string equality, exposing a potential timing side channel during authentication.
+**Learning:** Token validation should use the standard library's constant-time comparison primitive so the comparison does not reveal matching-prefix information through ordinary string-comparison timing.
+**Prevention:** Use `secrets.compare_digest` for bearer-token comparisons and keep regression coverage for valid, invalid, and missing credentials.
