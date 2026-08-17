@@ -39,28 +39,22 @@ class RouteMetrics(BaseModel):
         """
         total_latency = 0.0
         total_hops = len(path) - 1
-        bottleneck_bw = float("inf")
+        bottleneck_bw = inf_val = float("inf")
         bottleneck_util = 0.0
 
-        graph = topology._graph
-        adj = graph._adj
+        adj = topology._graph._adj
         for i in range(total_hops):
             u, v = path[i], path[i + 1]
             u_edges = adj.get(u)
             if u_edges is not None and v in u_edges:
                 edge = u_edges[v]
-=======
-        graph = topology.graph
-        for i in range(total_hops):
-            u, v = path[i], path[i + 1]
-            if graph.has_edge(u, v):
-                edge = graph.edges[u, v]
-                total_latency += float(edge.get("latency", 0.0))
-                bw = float(edge.get("bandwidth", float("inf")))
-                util = float(edge.get("utilization", 0.0))
+                # Direct dictionary lookup without redundant float cast overhead
+                total_latency += edge.get("latency", 0.0)
+                bw = edge.get("bandwidth", inf_val)
+                # Defer utilization lookup to only when bottleneck bandwidth is updated
                 if bw < bottleneck_bw:
                     bottleneck_bw = bw
-                    bottleneck_util = util
+                    bottleneck_util = edge.get("utilization", 0.0)
 
         return cls(
             path=path,
