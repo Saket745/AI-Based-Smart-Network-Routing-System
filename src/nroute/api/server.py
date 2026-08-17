@@ -5,7 +5,7 @@ Minimal REST API exposing:
   * ``GET  /api/topology``      — Current topology as JSON
   * ``POST /api/config/ingest`` — Upload device configs
   * ``POST /api/impact``        — Simulate change and get blast-radius
-  * ``POST /api/rca``           — Root-cause analysis
+  * ``POST /api/rca``            — Root-cause analysis
   * ``GET  /api/reachability``  — Pairwise reachability
   * ``GET  /api/audit``         — Audit trail
   * ``POST /api/topology/load`` — Load topology from file
@@ -60,7 +60,9 @@ async def verify_token(
     if not configured_token:
         configured_token = _FALLBACK_TOKEN
 
-    if credentials is None or credentials.credentials != configured_token:
+    # Constant-time comparison prevents token validation from leaking
+    # prefix information through response timing (CWE-208).
+    if credentials is None or not secrets.compare_digest(credentials.credentials, configured_token):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
