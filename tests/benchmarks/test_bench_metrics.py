@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from typing import Any
-import pytest
+
 import networkx as nx
-from nroute.core.topology import Topology
+import pytest
+
 from nroute.core.metrics import RouteMetrics
+from nroute.core.topology import Topology
+
 
 @pytest.mark.benchmark
 def test_bench_route_metrics_from_path(benchmark: Any) -> None:
