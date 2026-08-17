@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 from rich.layout import Layout
 
 from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
-from nroute.core.metrics import SimulationMetrics
 from nroute.core.topology import Topology
+from nroute.exceptions import TopologyError
 from nroute.routing.dijkstra import DijkstraRouter
 from nroute.simulation.engine import SimulationEngine
 from nroute.simulation.traffic_gen import TrafficGenerator
@@ -78,7 +78,6 @@ def test_live_console_helpers() -> None:
 
     console_viz = LiveSimulationConsole(engine, duration_ticks=5, delay=0.0)
 
-=======
     # Test flow completion logging
     mock_flow = MagicMock()
     mock_flow.source = "A"
@@ -126,6 +125,7 @@ def test_live_console_error_handling() -> None:
         console_viz.update_events(tick=0)
         # Verify errors were logged
         assert mock_logger.error.called
+
     metric = SimulationMetrics(
         tick=0,
         timestamp=0.0,
@@ -170,7 +170,7 @@ def test_live_console_error_handling() -> None:
 
     console_viz._update_layout(layout, 0, metric, "DijkstraRouter", engine)
     assert layout["header"] is not None
-=======
+
 
 def test_live_console_status_transitions() -> None:
     """Verify that the console tracking status transitions through Initializing, Running, and Completed states."""
@@ -194,6 +194,7 @@ def test_live_console_status_transitions() -> None:
     with patch.object(engine, "run", return_value=MagicMock()):
         console_viz.run()
         assert console_viz.status == "Completed"
+
 
 def test_live_console_ctrl_c_hint() -> None:
     """Verify the header contains the Ctrl+C keyboard hint."""
