@@ -167,7 +167,7 @@ def _init_router(
             router_cls(topology=topo) if "topology" in sig.parameters else router_cls(),
         )
 
-    return cast("BaseRouter", get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe))
+    return get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
 
 
 def _print_json_metrics(
