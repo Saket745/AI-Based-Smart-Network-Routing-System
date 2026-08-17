@@ -252,8 +252,8 @@ class LiveSimulationConsole:
         footer_text = Text("\n").join(formatted_events)
         layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
 
-    def run(self) -> MetricsCollectionResult:
-        """Run the simulation while displaying the live console interface."""
+    def _create_layout(self) -> Layout:
+        """Create and structure the console layout panels."""
         layout = Layout()
         layout.split_column(
             Layout(name="header", size=3),
@@ -268,6 +268,7 @@ class LiveSimulationConsole:
             Layout(name="throughput_plot", ratio=1),
             Layout(name="latency_plot", ratio=1),
         )
+        return layout
 
     def run(self) -> MetricsCollectionResult:
         """Run the simulation while displaying the live console interface."""

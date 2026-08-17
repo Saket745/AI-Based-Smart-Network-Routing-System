@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 from unittest.mock import MagicMock
 
 from rich.layout import Layout
@@ -93,7 +92,7 @@ def test_plotext_renderable() -> None:
     options.max_width = 80
     options.height = 20
 
-    res = list(renderable.__rich_console__(console, options))
+    list(renderable.__rich_console__(console, options))
     assert mock_plot.called
 
 
