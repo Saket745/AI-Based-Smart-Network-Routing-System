@@ -74,7 +74,7 @@ class TopologyGenerateArgs(BaseModel):
     help="Output path for the topology JSON. Defaults to stdout summary.",
 )
 @click.pass_context
-def generate(ctx: click.Context, **kwargs: Any) -> None:
+def generate(ctx: click.Context, /, **kwargs: Any) -> None:
     """Generate a synthetic network topology."""
     args = TopologyGenerateArgs.model_validate(kwargs)
     # Inherit global seed if not overridden
@@ -147,7 +147,7 @@ def generate(ctx: click.Context, **kwargs: Any) -> None:
     help="Path to a topology JSON file.",
 )
 @click.pass_context
-def show(ctx: click.Context, filepath: str) -> None:
+def show(ctx: click.Context, /, filepath: str) -> None:
     """Display a summary of an existing topology."""
     is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
     try:
