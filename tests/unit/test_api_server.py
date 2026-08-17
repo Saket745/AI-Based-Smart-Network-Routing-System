@@ -1,4 +1,3 @@
-=======
 """Unit tests for the FastAPI API server endpoints, focusing on security (authentication and path traversal)."""
 
 from __future__ import annotations
@@ -10,9 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import nroute.api.server
-from nroute.api.server import app
-=======
-from nroute.api.server import _FALLBACK_TOKEN, app
+from nroute.api.server import app, _FALLBACK_TOKEN
 from nroute.core.topology import Topology
 
 
