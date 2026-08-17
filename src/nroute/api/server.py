@@ -242,16 +242,16 @@ async def ingest_config(request: Request, file: UploadFile = File(...)) -> dict[
     engine = get_engine()
 
     # 5MB file limit check (5 * 1024 * 1024)
-    MAX_SIZE = 5 * 1024 * 1024
+    max_size = 5 * 1024 * 1024
 
     # 1. Early top-level request content-length header check
     content_length = request.headers.get("content-length")
     if content_length is not None:
         try:
-            if int(content_length) > MAX_SIZE:
+            if int(content_length) > max_size:
                 raise HTTPException(
                     status_code=413,
-                    detail=f"File size exceeds maximum limit of {MAX_SIZE} bytes.",
+                    detail=f"File size exceeds maximum limit of {max_size} bytes.",
                 )
         except ValueError:
             pass
@@ -263,10 +263,10 @@ async def ingest_config(request: Request, file: UploadFile = File(...)) -> dict[
         if not chunk:
             break
         content.extend(chunk)
-        if len(content) > MAX_SIZE:
+        if len(content) > max_size:
             raise HTTPException(
                 status_code=413,
-                detail=f"File size exceeds maximum limit of {MAX_SIZE} bytes.",
+                detail=f"File size exceeds maximum limit of {max_size} bytes.",
             )
 
     # Write to a temp file for the parser
