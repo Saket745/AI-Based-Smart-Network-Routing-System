@@ -42,7 +42,7 @@ class RouteMetrics(BaseModel):
         bottleneck_bw = float("inf")
         bottleneck_util = 0.0
 
-        graph = topology._graph
+        graph = topology.graph
         adj = graph._adj
         for i in range(total_hops):
             u, v = path[i], path[i + 1]

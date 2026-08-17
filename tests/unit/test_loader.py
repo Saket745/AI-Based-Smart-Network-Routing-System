@@ -72,9 +72,7 @@ def test_load_custom_class_local_file_disallowed() -> None:
         temp_path = f.name
 
     try:
-        with pytest.raises(
-            PermissionError, match="restricted for security reasons"
-        ):
+        with pytest.raises(PermissionError, match="restricted for security reasons"):
             load_custom_class(f"{temp_path}:LocalClass", allow_unsafe=False)
     finally:
         if os.path.exists(temp_path):

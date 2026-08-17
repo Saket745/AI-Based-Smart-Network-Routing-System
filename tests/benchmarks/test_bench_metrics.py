@@ -24,9 +24,9 @@ def test_bench_route_metrics_from_path(benchmark: Any) -> None:
         for i in range(len(path) - 1):
             if path[i] not in topo.nodes:
                 topo.add_node(path[i])
-            if path[i+1] not in topo.nodes:
-                topo.add_node(path[i+1])
-            topo.add_edge(path[i], path[i+1], latency=1.5, bandwidth=100.0, utilization=0.2)
+            if path[i + 1] not in topo.nodes:
+                topo.add_node(path[i + 1])
+            topo.add_edge(path[i], path[i + 1], latency=1.5, bandwidth=100.0, utilization=0.2)
 
     def run_metrics() -> None:
         for _ in range(1000):

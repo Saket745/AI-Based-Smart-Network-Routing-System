@@ -49,6 +49,7 @@ def test_congestion_predictor_secure_loading_enforcement() -> None:
 def test_anomaly_detector_pytorch_secure_loading_failure() -> None:
     """Verify that AnomalyDetector handles PyTorch secure loading failures."""
     from unittest.mock import patch
+
     detector = AnomalyDetector(model_type="autoencoder")
     with tempfile.TemporaryDirectory() as tmpdir:
         path = os.path.join(tmpdir, "model.pt")
@@ -70,6 +71,7 @@ def test_anomaly_detector_pytorch_secure_loading_failure() -> None:
 def test_congestion_predictor_pytorch_secure_loading_failure() -> None:
     """Verify that CongestionPredictor handles PyTorch secure loading failures."""
     from unittest.mock import patch
+
     predictor = CongestionPredictor(model_type="lstm")
     with tempfile.TemporaryDirectory() as tmpdir:
         path = os.path.join(tmpdir, "model.pt")
