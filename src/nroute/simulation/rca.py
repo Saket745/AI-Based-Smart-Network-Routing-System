@@ -55,6 +55,10 @@ class EventCategory(str, Enum):
     UNKNOWN = "unknown"
 
 
+_VALID_CATEGORIES: set[str] = {c.value for c in EventCategory}
+_VALID_SEVERITIES: set[str] = {s.value for s in EventSeverity}
+
+
 # Priority mapping  (lower = higher priority)
 _CATEGORY_PRIORITY: dict[EventCategory, int] = {
     EventCategory.ROUTING: 1,
@@ -236,12 +240,8 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
                 interface=str(item.get("interface", "")),
                 peer_node=str(item.get("peer_node", "")),
                 event_type=str(item.get("event_type", "")),
-                category=EventCategory(cat)
-                if cat in EventCategory.__members__.values()
-                else EventCategory.UNKNOWN,
-                severity=EventSeverity(sev)
-                if sev in EventSeverity.__members__.values()
-                else EventSeverity.INFO,
+                category=EventCategory(cat) if cat in _VALID_CATEGORIES else EventCategory.UNKNOWN,
+                severity=EventSeverity(sev) if sev in _VALID_SEVERITIES else EventSeverity.INFO,
                 message=str(item.get("message", "")),
                 raw=item,
             )
