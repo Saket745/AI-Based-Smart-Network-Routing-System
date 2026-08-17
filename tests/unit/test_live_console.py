@@ -7,7 +7,6 @@ from unittest.mock import MagicMock, patch
 
 from rich.layout import Layout
 
-from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
 from nroute.core.metrics import SimulationMetrics
 from nroute.core.topology import Topology
 from nroute.exceptions import TopologyError
