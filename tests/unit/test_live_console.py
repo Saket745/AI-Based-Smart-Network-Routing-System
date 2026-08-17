@@ -78,7 +78,6 @@ def test_live_console_helpers() -> None:
 
     console_viz = LiveSimulationConsole(engine, duration_ticks=5, delay=0.0)
 
-=======
     # Test flow completion logging
     mock_flow = MagicMock()
     mock_flow.source = "A"

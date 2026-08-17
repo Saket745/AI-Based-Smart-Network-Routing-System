@@ -49,12 +49,6 @@ class RouteMetrics(BaseModel):
             u_edges = adj.get(u)
             if u_edges is not None and v in u_edges:
                 edge = u_edges[v]
-=======
-        graph = topology.graph
-        for i in range(total_hops):
-            u, v = path[i], path[i + 1]
-            if graph.has_edge(u, v):
-                edge = graph.edges[u, v]
                 total_latency += float(edge.get("latency", 0.0))
                 bw = float(edge.get("bandwidth", float("inf")))
                 util = float(edge.get("utilization", 0.0))
