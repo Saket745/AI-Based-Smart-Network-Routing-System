@@ -12,7 +12,6 @@ are planned for Phase 2.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import yaml
@@ -23,6 +22,8 @@ from nroute.utils.logging import get_logger
 from nroute.utils.validators import validate_file_path
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from nroute.core.topology import Topology
 
 logger = get_logger(__name__)
