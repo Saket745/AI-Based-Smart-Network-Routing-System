@@ -85,9 +85,64 @@ class TestRouteComputeCLI:
         assert "Path: A -> B" in result.output
         assert "10.50 ms" in result.output
         assert "1000 Mbps" in result.output
+        assert "🟢" in result.output
         mock_get_router.assert_called_once_with(
             "dijkstra", topology=mock_topology, allow_unsafe=False
         )
+
+    @patch("nroute.cli.route_cmd.Topology.load")
+    @patch("nroute.cli.route_cmd.get_router")
+    @patch("nroute.cli.route_cmd.RouteMetrics.from_path")
+    def test_compute_utilization_visual_indicators(
+        self,
+        mock_metrics_cls: MagicMock,
+        mock_get_router: MagicMock,
+        mock_topo_load: MagicMock,
+        runner: CliRunner,
+        topo_file: str,
+    ) -> None:
+        """Test that hop breakdown renders expected color indicators for high/medium/down links."""
+        topo = MagicMock()
+        topo.nodes = ["A", "B", "C", "D"]
+
+        def get_edge_side_effect(u, v):
+            if u == "A" and v == "B":
+                return {"latency": 5, "bandwidth": 1000, "utilization": 0.90, "status": "up"}
+            if u == "B" and v == "C":
+                return {"latency": 5, "bandwidth": 1000, "utilization": 0.70, "status": "up"}
+            return {"latency": 5, "bandwidth": 1000, "utilization": 0.0, "status": "down"}
+
+        topo.get_edge.side_effect = get_edge_side_effect
+        mock_topo_load.return_value = topo
+
+        mock_router = MagicMock()
+        mock_router.compute_path.return_value = ["A", "B", "C", "D"]
+        mock_get_router.return_value = mock_router
+
+        mock_metrics = MagicMock()
+        mock_metrics.total_hops = 3
+        mock_metrics.total_latency = 15.0
+        mock_metrics.bottleneck_bandwidth = 1000.0
+        mock_metrics.bottleneck_utilization = 0.90
+        mock_metrics_cls.return_value = mock_metrics
+
+        result = runner.invoke(
+            route_cmd,
+            [
+                "compute",
+                "--topology",
+                topo_file,
+                "--source",
+                "A",
+                "--destination",
+                "D",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "🔴" in result.output  # for 90% utilization
+        assert "🟡" in result.output  # for 70% utilization
+        assert "--" in result.output  # for down link
 
     @patch("nroute.cli.route_cmd.Topology.load")
     def test_compute_topology_load_fail(
