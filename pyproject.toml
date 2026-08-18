@@ -68,6 +68,7 @@ dev = [
     "ruff>=0.2",
     "pre-commit>=3.6",
     "pip-audit>=2.7",
+    "httpx>=0.24.0",
 ]
 
 [project.scripts]

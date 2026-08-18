@@ -120,6 +120,7 @@ def test_live_console_error_handling() -> None:
     with (
         patch.object(engine.topology, "get_edge", side_effect=TopologyError("Edge error")),
         patch.object(engine.topology, "get_node", side_effect=TopologyError("Node error")),
+        patch("nroute.visualization.live_console.logger") as mock_logger,
     ):
         console_viz.update_events(tick=0)
         # Verify errors were logged
@@ -239,6 +240,8 @@ def test_live_console_keyboard_interrupt_handling() -> None:
     )
     engine.collector.results.append(mock_metric)
 
+    from nroute.core.metrics import MetricsCollectionResult
+
     # Mock engine.run to raise KeyboardInterrupt
     with (
         patch.object(engine, "run", side_effect=KeyboardInterrupt),
@@ -248,7 +251,7 @@ def test_live_console_keyboard_interrupt_handling() -> None:
         assert isinstance(result, MetricsCollectionResult)
         assert len(result.results) == 1
         assert result.results[0].throughput == 100.0
-        assert console_viz.status == "Completed"
+        assert console_viz.status == "Aborted"
 
 
 def test_live_console_normal_completion_preserved() -> None:
@@ -286,6 +289,8 @@ def test_live_console_normal_completion_preserved() -> None:
             active_flows=1,
         ),
     ]
+    from nroute.core.metrics import MetricsCollectionResult
+
     engine.collector.results.extend(mock_metrics)
     expected_result = MetricsCollectionResult(results=mock_metrics)
 
