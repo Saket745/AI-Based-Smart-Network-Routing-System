@@ -34,17 +34,41 @@ class FeatureBuilder:
         edges = sorted(topology.edges)
         node_to_idx = {node: idx for idx, node in enumerate(nodes)}
 
-        # 1. Compute Topological Centrality metrics using NetworkX on topology.graph
-        # Convert to undirected for centralities if needed, but since topology is directed, we use DiGraph.
         graph = topology.graph
+        betweenness, closeness = self._compute_centralities(graph)
+        node_features_arr = self._build_node_features(
+            graph, nodes, topology, betweenness, closeness
+        )
+        edge_index_arr, edge_features_arr = self._build_edge_features(graph, edges, node_to_idx)
+
+        return GraphTensorBundle(
+            node_features=node_features_arr,
+            edge_index=edge_index_arr,
+            edge_features=edge_features_arr,
+            node_to_idx=node_to_idx,
+            idx_to_node=nodes,
+        )
+
+    @staticmethod
+    def _compute_centralities(graph: Any) -> tuple[dict[Any, float], dict[Any, float]]:
+        """Compute topological centrality metrics using NetworkX on topology.graph."""
         betweenness: dict[Any, float] = nx.betweenness_centrality(graph, weight="latency")
         closeness: dict[Any, float] = nx.closeness_centrality(graph, distance="latency")
+        return betweenness, closeness
 
+    @staticmethod
+    def _build_node_features(
+        graph: Any,
+        nodes: list[Any],
+        topology: Topology,
+        betweenness: dict[Any, float],
+        closeness: dict[Any, float],
+    ) -> np.ndarray:
+        """Construct normalized node feature array."""
         max_degree = max(len(list(topology.neighbors(n))) for n in nodes) if nodes else 1
         if max_degree == 0:
             max_degree = 1
 
-        # 2. Build Node Features
         node_features = []
         for node in nodes:
             attrs = graph.nodes[node]
@@ -83,9 +107,15 @@ class FeatureBuilder:
                 ]
             )
 
-        node_features_arr = np.array(node_features, dtype=np.float32)
+        return np.array(node_features, dtype=np.float32)
 
-        # 3. Build Edge Features
+    @staticmethod
+    def _build_edge_features(
+        graph: Any,
+        edges: list[tuple[Any, Any]],
+        node_to_idx: dict[Any, int],
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Construct edge index and edge feature matrices."""
         edge_index = []
         edge_features = []
         for src, dst in edges:
@@ -119,10 +149,4 @@ class FeatureBuilder:
             edge_index_arr = np.empty((2, 0), dtype=np.int64)
             edge_features_arr = np.empty((0, 6), dtype=np.float32)
 
-        return GraphTensorBundle(
-            node_features=node_features_arr,
-            edge_index=edge_index_arr,
-            edge_features=edge_features_arr,
-            node_to_idx=node_to_idx,
-            idx_to_node=nodes,
-        )
+        return edge_index_arr, edge_features_arr
