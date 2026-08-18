@@ -314,10 +314,9 @@ class LiveSimulationConsole:
                         layout, self.duration_ticks - 1, last_metric, algo_name, self.engine
                     )
                 time.sleep(1.0)
-            self.status = "Completed"
             return result
         except KeyboardInterrupt:
-            self.status = "Completed"
+            self.console.print("\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n")
             self.console.print(
                 "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
             )
