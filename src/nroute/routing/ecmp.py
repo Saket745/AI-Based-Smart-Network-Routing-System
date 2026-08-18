@@ -132,6 +132,7 @@ class ECMPRouter(BaseRouter):
     def compute_k_shortest_paths(
         self,
         topology: Topology,
+        query: RoutingQuery,
         query: RoutingQuery | None = None,
         source: str | None = None,
         destination: str | None = None,

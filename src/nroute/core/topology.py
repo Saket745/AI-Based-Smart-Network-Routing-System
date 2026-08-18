@@ -307,6 +307,21 @@ class Topology:
                 )
             updated_data["status"] = status
 
+        # Merge other attributes
+        for k, v in attrs.items():
+            if k not in {
+                "bandwidth",
+                "latency",
+                "jitter",
+                "packet_loss",
+                "utilization",
+                "weight",
+                "status",
+            }:
+                updated_data[k] = v
+
+        # Apply update
+        edge_data.update(updated_data)
         # Merge other attributes and apply update
         edge_data.update({**attrs, **updated_data})
         if "status" in updated_data:
