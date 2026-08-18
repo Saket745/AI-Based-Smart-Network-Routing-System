@@ -53,10 +53,6 @@ class RouteMetrics(BaseModel):
                 # Direct dictionary lookup without redundant float cast overhead
                 total_latency += edge.get("latency", 0.0)
                 bw = edge.get("bandwidth", inf_val)
-                # Defer utilization lookup to only when bottleneck bandwidth is updated
-                total_latency += float(edge.get("latency", 0.0))
-                bw = float(edge.get("bandwidth", float("inf")))
-                util = float(edge.get("utilization", 0.0))
                 if bw < bottleneck_bw:
                     bottleneck_bw = bw
                     bottleneck_util = edge.get("utilization", 0.0)
