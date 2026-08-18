@@ -56,9 +56,10 @@ class RouteMetrics(BaseModel):
                 # Defer utilization lookup to only when bottleneck bandwidth is updated
                 total_latency += float(edge.get("latency", 0.0))
                 bw = float(edge.get("bandwidth", float("inf")))
+                util = float(edge.get("utilization", 0.0))
                 if bw < bottleneck_bw:
                     bottleneck_bw = bw
-                    bottleneck_util = float(edge.get("utilization", 0.0))
+                    bottleneck_util = edge.get("utilization", 0.0)
 
         return cls(
             path=path,
