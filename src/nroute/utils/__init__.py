@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from nroute.utils.logging import configure_logging, get_logger
+from nroute.utils.logging import get_logger
 from nroute.utils.random import SeededRandom, get_rng
 from nroute.utils.validators import (
     validate_file_path,
@@ -13,7 +13,6 @@ from nroute.utils.validators import (
 
 __all__ = [
     "SeededRandom",
-    "configure_logging",
     "get_logger",
     "get_rng",
     "validate_file_path",

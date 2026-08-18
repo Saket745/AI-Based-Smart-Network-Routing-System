@@ -14,6 +14,10 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from nroute.utils.logging import get_logger
+
+logger = get_logger(__name__)
+
 if TYPE_CHECKING:
     from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
     from nroute.simulation.engine import SimulationEngine
@@ -55,6 +59,7 @@ class LiveSimulationConsole:
         self.duration_ticks = duration_ticks
         self.seed = seed
         self.delay = delay
+        self.status = "Initializing"
 
         self.console = Console()
         self.event_log: list[str] = []
@@ -82,8 +87,8 @@ class LiveSimulationConsole:
                 edge_data = self.engine.topology.get_edge(u, v)
                 if edge_data.get("status") == "down":
                     current_down_links.add((u, v))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error("Error accessing edge %s-%s: %s", u, v, e)
 
         current_down_nodes = set()
         for node in self.engine.topology.nodes:
@@ -91,8 +96,8 @@ class LiveSimulationConsole:
                 node_data = self.engine.topology.get_node(node)
                 if node_data.get("status") == "down":
                     current_down_nodes.add(node)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error("Error accessing node %s: %s", node, e)
 
         # Links going down
         for u, v in current_down_links - self.prev_down_links:
@@ -156,16 +161,25 @@ class LiveSimulationConsole:
         self.throughput_history.append(last_metric.throughput)
         self.latency_history.append(last_metric.avg_latency)
 
-    def _build_header(self, tick: int, last_metric: SimulationMetrics, algo_name: str) -> Panel:
+    def _build_header(
+        self, tick: int | None, last_metric: SimulationMetrics | None, algo_name: str
+    ) -> Panel:
         """Build the header panel displaying key simulation stats."""
+        tick_str = (
+            f"{tick + 1}/{self.duration_ticks}" if tick is not None else f"0/{self.duration_ticks}"
+        )
+        flows_str = str(last_metric.active_flows) if last_metric is not None else "0"
         header_text = Text.assemble(
             ("nroute LIVE SIMULATION CONSOLE", "bold cyan"),
             ("  |  Algorithm: ", "white"),
             (algo_name, "bold green"),
             ("  |  Tick: ", "white"),
-            (f"{tick + 1}/{self.duration_ticks}", "bold yellow"),
+            (tick_str, "bold yellow"),
             ("  |  Active Flows: ", "white"),
-            (str(last_metric.active_flows), "bold magenta"),
+            (flows_str, "bold magenta"),
+            ("  |  Status: ", "white"),
+            (self.status, "bold cyan"),
+            ("  (Press Ctrl+C to Quit)", "dim white"),
         )
         return Panel(header_text, style="cyan")
 
@@ -237,11 +251,22 @@ class LiveSimulationConsole:
 
         # Footer: Event Log
         events_to_show = self.event_log[-5:] if self.event_log else ["No events yet."]
-        footer_text = Text("\n".join(events_to_show))
+        formatted_events = []
+        for event in events_to_show:
+            if event.startswith("[") and "]" in event:
+                # Split at the first ']' to isolate the timestamp
+                timestamp_part, text_part = event.split("]", 1)
+                timestamp_val = timestamp_part[1:]  # strip the leading '['
+                escaped_event = f"\\[{timestamp_val}\\]{text_part}"
+                formatted_events.append(Text.from_markup(escaped_event))
+            else:
+                formatted_events.append(Text.from_markup(event))
+        footer_text = Text("\n").join(formatted_events)
         layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
 
-    def run(self) -> MetricsCollectionResult:
-        """Run the simulation while displaying the live console interface."""
+    def _create_layout(self) -> Layout:
+        """Create the main console layout structure."""
+        """Create and return the initial panel layout."""
         layout = Layout()
         layout.split_column(
             Layout(name="header", size=3),
@@ -256,7 +281,14 @@ class LiveSimulationConsole:
             Layout(name="throughput_plot", ratio=1),
             Layout(name="latency_plot", ratio=1),
         )
+        return layout
 
+    def run(self) -> MetricsCollectionResult:
+        """Run the simulation while displaying the live console interface."""
+        from nroute.core.metrics import MetricsCollectionResult
+
+        self.status = "Running"
+        layout = self._create_layout()
         algo_name = self.engine.router.__class__.__name__
 
         def tick_callback(tick: int, engine: SimulationEngine) -> None:
@@ -266,17 +298,26 @@ class LiveSimulationConsole:
             self._update_layout(layout, tick, last_metric, algo_name, engine)
             time.sleep(self.delay)
 
-        # Start live context
-        with Live(layout, refresh_per_second=10, screen=True):
-            self.log_event("[bold cyan]Simulation started[/bold cyan]")
-            result = self.engine.run(
-                duration_ticks=self.duration_ticks,
-                seed=self.seed,
-                callback=tick_callback,
-                show_progress=False,  # Turn off standard progress bar
+        try:
+            with Live(layout, refresh_per_second=10, screen=True):
+                self.log_event("[bold cyan]Simulation started[/bold cyan]")
+                result = self.engine.run(
+                    duration_ticks=self.duration_ticks,
+                    seed=self.seed,
+                    callback=tick_callback,
+                    show_progress=False,  # Turn off standard progress bar
+                )
+                self.log_event("[bold green]Simulation completed[/bold green]")
+                if self.engine.collector.results:
+                    last_metric = self.engine.collector.results[-1]
+                    self._update_layout(
+                        layout, self.duration_ticks - 1, last_metric, algo_name, self.engine
+                    )
+                time.sleep(1.0)
+            return result
+        except KeyboardInterrupt:
+            self.console.print("\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n")
+            self.console.print(
+                "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
             )
-            self.log_event("[bold green]Simulation completed[/bold green]")
-            # Sleep a tiny bit at the end so the user can see the final state
-            time.sleep(1.0)
-
-        return result
+            return MetricsCollectionResult(results=self.engine.collector.results)

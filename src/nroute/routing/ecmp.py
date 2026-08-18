@@ -95,15 +95,17 @@ class ECMPRouter(BaseRouter):
     def compute_all_equal_cost_paths(
         self,
         topology: Topology,
-        query: RoutingQuery,
+        query: RoutingQuery | None = None,
+        source: str | None = None,
+        destination: str | None = None,
+        weight: str | Callable[[dict[str, Any]], float] | None = None,
     ) -> list[list[str]]:
         """
         Find all shortest paths of equal minimum cost between source and destination.
         """
-        source_val = query.source
-        dest_val = query.destination
-        weight_val = query.weight
-
+        source_val, dest_val, weight_val, _ = self._resolve_query_params(
+            query, source, destination, weight
+        )
         subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
         weight_func = self._resolve_weight_function(weight_val)
 
@@ -131,15 +133,18 @@ class ECMPRouter(BaseRouter):
         self,
         topology: Topology,
         query: RoutingQuery,
+        query: RoutingQuery | None = None,
+        source: str | None = None,
+        destination: str | None = None,
+        k: int | None = None,
+        weight: str | Callable[[dict[str, Any]], float] | None = None,
     ) -> list[list[str]]:
         """
         Find the top K shortest simple paths using Yen's algorithm.
         """
-        source_val = query.source
-        dest_val = query.destination
-        weight_val = query.weight
-        k_val = query.k if query.k is not None else self.k
-
+        source_val, dest_val, weight_val, k_val = self._resolve_query_params(
+            query, source, destination, weight, k
+        )
         subgraph = self._get_validated_active_subgraph(topology, source_val, dest_val)
         weight_func = self._resolve_weight_function(weight_val)
 

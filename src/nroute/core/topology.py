@@ -139,9 +139,7 @@ class Topology:
         }
 
         # Preserve any extra custom attributes the user passes
-        for k, v in attrs.items():
-            if k not in validated_attrs:
-                validated_attrs[k] = v
+        validated_attrs = {**attrs, **validated_attrs}
 
         self._graph.add_node(validated_id, **validated_attrs)
         if status == "down":
@@ -226,9 +224,7 @@ class Topology:
         }
 
         # Preserve any extra custom attributes
-        for k, v in attrs.items():
-            if k not in validated_attrs:
-                validated_attrs[k] = v
+        validated_attrs = {**attrs, **validated_attrs}
 
         self._graph.add_edge(src, dst, **validated_attrs)
         if status == "down":
@@ -326,6 +322,8 @@ class Topology:
 
         # Apply update
         edge_data.update(updated_data)
+        # Merge other attributes and apply update
+        edge_data.update({**attrs, **updated_data})
         if "status" in updated_data:
             if updated_data["status"] == "down":
                 self._down_edges.add((src, dst))
@@ -383,17 +381,11 @@ class Topology:
             "edges": [{"source": "src", "target": "dst", "bandwidth": ..., ...}, ...]
         }
         """
-        nodes = []
-        for node_id, attrs in self._graph.nodes(data=True):
-            node_dict = {"id": node_id}
-            node_dict.update(attrs)
-            nodes.append(node_dict)
-
-        edges = []
-        for src, dst, attrs in self._graph.edges(data=True):
-            edge_dict = {"source": src, "target": dst}
-            edge_dict.update(attrs)
-            edges.append(edge_dict)
+        nodes = [{"id": node_id, **attrs} for node_id, attrs in self._graph.nodes(data=True)]
+        edges = [
+            {"source": src, "target": dst, **attrs}
+            for src, dst, attrs in self._graph.edges(data=True)
+        ]
 
         return {"nodes": nodes, "edges": edges}
 
@@ -411,19 +403,19 @@ class Topology:
         topo = cls()
         nodes = data.get("nodes", [])
         for node in nodes:
-            node_id = node.get("id")
+            attrs = node.copy()
+            node_id = attrs.pop("id", None)
             if not node_id:
                 raise TopologyError("Node data is missing 'id' attribute.")
-            attrs = {k: v for k, v in node.items() if k != "id"}
             topo.add_node(node_id, **attrs)
 
         edges = data.get("edges", [])
         for edge in edges:
-            src = edge.get("source")
-            dst = edge.get("target")
+            attrs = edge.copy()
+            src = attrs.pop("source", None)
+            dst = attrs.pop("target", None)
             if not src or not dst:
                 raise TopologyError("Edge data is missing 'source' or 'target' attribute.")
-            attrs = {k: v for k, v in edge.items() if k not in {"source", "target"}}
             topo.add_edge(src, dst, **attrs)
 
         return topo

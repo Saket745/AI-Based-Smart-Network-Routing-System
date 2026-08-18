@@ -147,6 +147,8 @@ class BaseRouter(ABC):
                 d.get("status") == "down" for u, v, d in topology.graph.edges(data=True)
             )
 
+        has_down_nodes = getattr(topology, "has_down_nodes", False)
+        has_down_edges = getattr(topology, "has_down_edges", False)
         if not has_down_nodes and not has_down_edges:
             return topology.graph
 
