@@ -10,7 +10,6 @@ from fastapi.testclient import TestClient
 
 import nroute.api.server
 from nroute.api.server import _FALLBACK_TOKEN, app
-from nroute.api.server import app
 from nroute.core.topology import Topology
 
 
@@ -99,8 +98,6 @@ def test_api_load_topology_success_cwd(client: TestClient) -> None:
 
     headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
     try:
-    try:
-        headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
         response = client.post("/api/topology/load", json={"path": str(temp_file)}, headers=headers)
         assert response.status_code == 200
         data = response.json()
@@ -123,9 +120,6 @@ def test_api_load_topology_success_temp(client: TestClient) -> None:
     headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
     try:
         topo.save(temp_path)
-    try:
-        topo.save(temp_path)
-        headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
         response = client.post("/api/topology/load", json={"path": str(temp_path)}, headers=headers)
         assert response.status_code == 200
         data = response.json()
@@ -148,7 +142,6 @@ def test_api_load_topology_not_found(client: TestClient) -> None:
 
 def test_api_load_topology_outside_cwd_relative(client: TestClient) -> None:
     """Test relative path traversal outside the allowed directories returns 403."""
-    headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
     response = client.post("/api/topology/load", json={"path": "../../etc/passwd"}, headers=headers)
     assert response.status_code == 403
@@ -157,7 +150,6 @@ def test_api_load_topology_outside_cwd_relative(client: TestClient) -> None:
 
 def test_api_load_topology_outside_cwd_absolute(client: TestClient) -> None:
     """Test absolute path traversal outside the allowed directories returns 403."""
-    headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
     response = client.post("/api/topology/load", json={"path": "/etc/passwd"}, headers=headers)
     assert response.status_code == 403
