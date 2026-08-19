@@ -11,7 +11,7 @@ COPY pyproject.toml README.md LICENSE ./
 COPY src/ ./src/
 
 # Install build dependencies and build package distributions
-RUN pip install --no-cache-dir build && python -m build
+RUN pip install --no-cache-dir --upgrade pip "setuptools>=75.8.0" "wheel>=0.46.2" build && python -m build
 
 # Stage 2: Minimal runtime image
 FROM python:3.10-slim
@@ -34,7 +34,8 @@ COPY --from=builder --chown=nroute:nroute /app/dist/*.whl ./
 USER nroute
 
 # Install the wheel package locally
-RUN pip install --user --no-cache-dir *.whl \
+RUN pip install --user --no-cache-dir --upgrade pip "setuptools>=75.8.0" "wheel>=0.46.2" \
+    && pip install --user --no-cache-dir *.whl \
     && rm *.whl
 
 # Ensure local user bin is on path (where the wheel installs the entry points)
