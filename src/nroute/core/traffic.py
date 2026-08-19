@@ -50,8 +50,19 @@ class TrafficMatrix(BaseModel):
                     "timestamp",
                 ]
             )
-        data = [flow.model_dump() for flow in self.flows]
-        return pd.DataFrame(data)
+        flows = self.flows
+        # Optimization: Avoid model_dump() overhead by constructing a column-wise dict directly
+        return pd.DataFrame(
+            {
+                "source": [f.source for f in flows],
+                "destination": [f.destination for f in flows],
+                "bytes": [f.bytes for f in flows],
+                "packets": [f.packets for f in flows],
+                "duration": [f.duration for f in flows],
+                "protocol": [f.protocol for f in flows],
+                "timestamp": [f.timestamp for f in flows],
+            }
+        )
 
     @classmethod
     def from_dataframe(cls, df: pd.DataFrame) -> TrafficMatrix:
