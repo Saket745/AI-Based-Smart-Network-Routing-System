@@ -133,7 +133,7 @@ def anomalies(
         atype = str(row["anomaly_type"])
 
         score_style = "red" if score > 0.5 else "green"
-        anom_icon = "[bold red]YES[/bold red]" if is_anom else "[green]NO[/green]"
+        anom_icon = "🔴 [bold red]YES[/bold red]" if is_anom else "🟢 [green]NO[/green]"
         type_style = anomaly_type_colors.get(atype, "white")
 
         table.add_row(
