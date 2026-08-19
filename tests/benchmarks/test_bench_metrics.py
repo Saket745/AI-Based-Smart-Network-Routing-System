@@ -33,3 +33,28 @@ def test_bench_route_metrics_from_path(benchmark: Any) -> None:
             RouteMetrics.from_path(topo, path)
 
     benchmark(run_metrics)
+
+
+@pytest.mark.benchmark
+def test_bench_metrics_to_dataframe(benchmark: Any) -> None:
+    from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
+
+    results = [
+        SimulationMetrics(
+            tick=i,
+            timestamp=float(i),
+            throughput=100.0,
+            avg_latency=5.0,
+            packet_loss_rate=0.01,
+            avg_utilization=0.5,
+            reroute_count=0,
+            active_flows=10,
+        )
+        for i in range(10000)
+    ]
+    mc = MetricsCollectionResult(results=results)
+
+    def run_to_dataframe() -> None:
+        mc.to_dataframe()
+
+    benchmark(run_to_dataframe)
