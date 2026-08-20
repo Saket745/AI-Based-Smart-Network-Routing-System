@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from nroute.exceptions import IngestionError, ValidationError
@@ -11,6 +10,8 @@ from nroute.ingestion.normalizer import Normalizer
 from nroute.utils.validators import validate_file_path
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from nroute.core.traffic import TrafficMatrix
 
 
