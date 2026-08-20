@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import pytest
+
+# Ensure Click / Rich CLI output is not truncated by terminal width in tests
+os.environ["TERMINAL_WIDTH"] = "200"
+os.environ["COLUMNS"] = "200"
 
 
 @pytest.fixture
