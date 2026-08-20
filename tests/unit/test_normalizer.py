@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
@@ -211,7 +212,6 @@ def test_normalize_topology_happy_path() -> None:
 
 def test_normalize_topology_missing_node_id() -> None:
     """Test that node missing ID/name raises IngestionError."""
-    raw_nodes = [{"type": "router"}]
     raw_nodes = [{"capacity": 1000}]
     with pytest.raises(IngestionError, match=r"Node at index 0 is missing 'id' or 'name'"):
         Normalizer.normalize_topology(raw_nodes, [])
