@@ -25,6 +25,7 @@ VALID_TYPES = {
     "chore",  # Maintenance tasks
     "revert",  # Revert a previous commit
     "security",  # Security fixes
+    "palette",  # Palette agent UX enhancements
 }
 
 # Regex to match conventional commits header
