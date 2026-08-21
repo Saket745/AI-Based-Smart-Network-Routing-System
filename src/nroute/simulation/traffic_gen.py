@@ -116,9 +116,7 @@ class TrafficGenerator:
 
         # Access topology.graph.nodes directly to avoid O(V) dict copying overhead per node.
         g_nodes = topology.graph.nodes
-        node_weights = [
-            max(1.0, float(g_nodes[node].get("capacity", 1000.0))) for node in nodes
-        ]
+        node_weights = [max(1.0, float(g_nodes[node].get("capacity", 1000.0))) for node in nodes]
 
         flows = []
         # Joint pair rejection sampling: sample src and dst independently weighted by capacity
