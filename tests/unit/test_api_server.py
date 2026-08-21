@@ -159,7 +159,9 @@ def test_api_load_topology_outside_cwd_absolute(client: TestClient) -> None:
 def test_load_topology_path_traversal_rejected(client: TestClient) -> None:
     """Verify that path traversal attempts with ../ are explicitly rejected with HTTP 403."""
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
-    response = client.post("/api/topology/load", json={"path": "../../../etc/shadow"}, headers=headers)
+    response = client.post(
+        "/api/topology/load", json={"path": "../../../etc/shadow"}, headers=headers
+    )
     assert response.status_code == 403
     assert "Access denied" in response.json()["detail"]
 
@@ -177,6 +179,8 @@ def test_load_topology_nonexistent_path(client: TestClient) -> None:
 def test_load_topology_null_byte_path_rejected(client: TestClient) -> None:
     """Verify that paths containing null bytes or invalid characters return HTTP 400."""
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
-    response = client.post("/api/topology/load", json={"path": "topology.json\0.txt"}, headers=headers)
+    response = client.post(
+        "/api/topology/load", json={"path": "topology.json\0.txt"}, headers=headers
+    )
     assert response.status_code == 400
     assert "null bytes" in response.json()["detail"]
