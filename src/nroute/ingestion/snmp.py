@@ -28,15 +28,20 @@ class SNMPParser:
                 with open(p, encoding="utf-8") as f:
                     loaded = json.load(f)
                     if isinstance(loaded, list):
-                        return loaded
-                    if isinstance(loaded, dict) and "interfaces" in loaded:
-                        return loaded["interfaces"]
+                        return list(loaded)
+                    if (
+                        isinstance(loaded, dict)
+                        and "interfaces" in loaded
+                        and isinstance(loaded["interfaces"], list)
+                    ):
+                        return list(loaded["interfaces"])
                     raise IngestionError(
                         "JSON SNMP data must be a list or contain 'interfaces' key."
                     )
             else:
                 df = pd.read_csv(p)
-                return df.to_dict(orient="records")
+                records: list[dict[str, Any]] = df.to_dict(orient="records")
+                return records
         except Exception as e:
             if isinstance(e, IngestionError):
                 raise
