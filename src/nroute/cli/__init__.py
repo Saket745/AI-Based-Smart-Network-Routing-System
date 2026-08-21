@@ -20,13 +20,6 @@ import nroute.cli.topology_cmd as topology_cmd_mod
 import nroute.cli.train_cmd as train_cmd_mod
 import nroute.cli.twin_cmd as twin_cmd_mod
 
-api_cmd = api_cmd_mod.api_cmd
-config_cmd = configs_cmd_mod.config_cmd
-detect_cmd = detect_cmd_mod.detect_cmd
-export_cmd = export_cmd_mod.export_cmd
-predict_cmd = predict_cmd_mod.predict_cmd
-train_cmd = train_cmd_mod.train_cmd
-twin_cmd = twin_cmd_mod.twin_cmd
 
 
 @click.group(
