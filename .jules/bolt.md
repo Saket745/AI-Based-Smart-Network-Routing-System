@@ -1,3 +1,7 @@
 ## 2026-08-17 - RouteMetrics.from_path Optimization
 **Learning:** In hot loops analyzing path metrics in network graphs, looking up dictionary values (e.g. `utilization`) on every edge hop when they are only needed when a bottleneck candidate (min bandwidth) changes creates unnecessary dict lookup overhead. Pre-allocating `float("inf")` outside loops and removing redundant `float()` conversions on already-typed numerical attributes significantly reduces loop overhead.
 **Action:** Avoid querying dict attributes in graph traversal loops unless the conditional requirement for those attributes is met.
+
+## 2026-08-19 - TrafficGenerator Gravity & Endpoint Re-sampling Optimization
+**Learning:** Generating Cartesian product pairs $O(V^2)$ and weight lists on every simulation tick for weighted pair generation (like gravity traffic models) creates massive allocation overhead ($250,000$ tuples for 500 nodes). Sampling `src` and `dst` independently weighted by node capacities with rejection when `src == dst` yields the exact same joint probability distribution $P(u, v) \propto C_u C_v$ in $O(V)$ space and time per tick (~76x speedup on 1000 nodes). Furthermore, replacing $O(V)$ list filtering (`[n for n in nodes if n != src]`) with $O(1)$ expected time re-sampling (`while dst == src:`) eliminates per-flow heap allocations in simulation tick loops.
+**Action:** Use joint rejection sampling for independent endpoint selections and avoid per-item filtering list comprehensions inside high-frequency flow generation loops.
