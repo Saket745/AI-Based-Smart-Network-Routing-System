@@ -21,7 +21,6 @@ import nroute.cli.train_cmd as train_cmd_mod
 import nroute.cli.twin_cmd as twin_cmd_mod
 
 
-
 @click.group(
     name="nroute",
     invoke_without_command=True,
