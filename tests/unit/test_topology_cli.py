@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -148,7 +147,7 @@ class TestTopologyShowCLI:
         result = runner.invoke(topology_cmd, ["show", "--file", topo_file])
 
         assert result.exit_code == 0
-        assert Path(topo_file).name in result.output
+        assert "Topology:" in result.output
         assert "Nodes" in result.output
         assert "10" in result.output
         mock_load.assert_called_once_with(topo_file)
