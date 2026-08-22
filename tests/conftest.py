@@ -117,3 +117,27 @@ def tmp_output_dir(tmp_path: Any) -> Any:
     output_dir = tmp_path / "output"
     output_dir.mkdir()
     return output_dir
+
+
+@pytest.fixture(autouse=True)
+def cli_modules_and_commands() -> None:
+    """Copy module attributes onto Click Command/Group objects to enable unittest.mock.patch on Python 3.10 and 3.11."""
+    import importlib
+
+    cli_modules = [
+        "nroute.cli.topology_cmd",
+        "nroute.cli.route_cmd",
+        "nroute.cli.simulate_cmd",
+        "nroute.cli.predict_cmd",
+    ]
+    for mod_name in cli_modules:
+        try:
+            mod = importlib.import_module(mod_name)
+            cmd_name = mod_name.split(".")[-1]
+            if hasattr(mod, cmd_name):
+                cmd_obj = getattr(mod, cmd_name)
+                for k, v in mod.__dict__.items():
+                    if not k.startswith("__"):
+                        setattr(cmd_obj, k, v)
+        except Exception:
+            pass
