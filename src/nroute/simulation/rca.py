@@ -161,6 +161,7 @@ _TYPE_RULES: list[tuple[list[str], EventCategory, EventSeverity]] = [
     (["syslog_warning"], EventCategory.SYSLOG, EventSeverity.WARNING),
 ]
 
+
 def classify_event(event: NetworkEvent) -> NetworkEvent:
     """Set category and severity based on event_type if not already set."""
     if event.category != EventCategory.UNKNOWN:
