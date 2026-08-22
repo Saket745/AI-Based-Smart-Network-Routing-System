@@ -539,7 +539,11 @@ class TestNewCLIFeatures:
         )
         assert result.exit_code == 0
         assert "Digital Twin Health Summary" in result.output
-        assert "HEALTHY" in result.output or "DEGRADED" in result.output or "UNHEALTHY" in result.output
+        assert (
+            "HEALTHY" in result.output
+            or "DEGRADED" in result.output
+            or "UNHEALTHY" in result.output
+        )
         assert "Active Nodes" in result.output
 
     def test_twin_health_json_format(self, runner: CliRunner, topo_file: str) -> None:
