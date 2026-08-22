@@ -117,3 +117,32 @@ def tmp_output_dir(tmp_path: Any) -> Any:
     output_dir = tmp_path / "output"
     output_dir.mkdir()
     return output_dir
+
+
+@pytest.fixture(autouse=True)
+def restore_cli_submodules() -> None:
+    """Ensure nroute.cli.<cmd_name> attributes on nroute.cli point to modules rather than Click Group objects for unittest.mock.patch on Python 3.10."""
+    import importlib
+    import sys
+
+    cli_modules = [
+        "nroute.cli.topology_cmd",
+        "nroute.cli.route_cmd",
+        "nroute.cli.simulate_cmd",
+        "nroute.cli.predict_cmd",
+        "nroute.cli.detect_cmd",
+        "nroute.cli.twin_cmd",
+        "nroute.cli.export_cmd",
+        "nroute.cli.api_cmd",
+        "nroute.cli.configs_cmd",
+        "nroute.cli.train_cmd",
+    ]
+    if "nroute.cli" in sys.modules:
+        cli_pkg = sys.modules["nroute.cli"]
+        for mod_name in cli_modules:
+            try:
+                mod = importlib.import_module(mod_name)
+                attr_name = mod_name.split(".")[-1]
+                setattr(cli_pkg, attr_name, mod)
+            except Exception:
+                pass
