@@ -8,7 +8,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from nroute.api.server import _FALLBACK_TOKEN, app
 import nroute.api.server
 from nroute.api.server import _FALLBACK_TOKEN, app
 from nroute.core.topology import Topology
