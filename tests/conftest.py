@@ -2,9 +2,36 @@
 
 from __future__ import annotations
 
+import sys
 from typing import Any
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def cli_modules_and_commands() -> None:
+    """Copy module attributes to Click Command/Group objects for CLI modules on Python < 3.12."""
+    if sys.version_info < (3, 12):
+        from nroute.cli import (
+            detect_cmd,
+            predict_cmd,
+            route_cmd,
+            simulate_cmd,
+            topology_cmd,
+        )
+
+        cli_modules = [
+            (detect_cmd, detect_cmd.detect_cmd),
+            (predict_cmd, predict_cmd.predict_cmd),
+            (route_cmd, route_cmd.route_cmd),
+            (simulate_cmd, simulate_cmd.simulate_cmd),
+            (topology_cmd, topology_cmd.topology_cmd),
+        ]
+
+        for mod, cmd in cli_modules:
+            for attr in dir(mod):
+                if not hasattr(cmd, attr):
+                    setattr(cmd, attr, getattr(mod, attr))
 
 
 @pytest.fixture
