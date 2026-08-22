@@ -120,24 +120,29 @@ def tmp_output_dir(tmp_path: Any) -> Any:
 
 
 @pytest.fixture(autouse=True)
-def cli_modules_and_commands() -> None:
-    """Copy module attributes onto Click Command/Group objects to enable unittest.mock.patch on Python 3.10 and 3.11."""
+def restore_cli_submodules() -> None:
+    """Ensure nroute.cli.<cmd_name> attributes on nroute.cli point to modules rather than Click Group objects for unittest.mock.patch on Python 3.10."""
     import importlib
+    import sys
 
     cli_modules = [
         "nroute.cli.topology_cmd",
         "nroute.cli.route_cmd",
         "nroute.cli.simulate_cmd",
         "nroute.cli.predict_cmd",
+        "nroute.cli.detect_cmd",
+        "nroute.cli.twin_cmd",
+        "nroute.cli.export_cmd",
+        "nroute.cli.api_cmd",
+        "nroute.cli.configs_cmd",
+        "nroute.cli.train_cmd",
     ]
-    for mod_name in cli_modules:
-        try:
-            mod = importlib.import_module(mod_name)
-            cmd_name = mod_name.split(".")[-1]
-            if hasattr(mod, cmd_name):
-                cmd_obj = getattr(mod, cmd_name)
-                for k, v in mod.__dict__.items():
-                    if not k.startswith("__"):
-                        setattr(cmd_obj, k, v)
-        except Exception:
-            pass
+    if "nroute.cli" in sys.modules:
+        cli_pkg = sys.modules["nroute.cli"]
+        for mod_name in cli_modules:
+            try:
+                mod = importlib.import_module(mod_name)
+                attr_name = mod_name.split(".")[-1]
+                setattr(cli_pkg, attr_name, mod)
+            except Exception:
+                pass
