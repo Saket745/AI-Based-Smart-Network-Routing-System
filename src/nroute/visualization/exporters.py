@@ -10,7 +10,8 @@ import networkx as nx
 import pandas as pd
 
 from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
-from nroute.exceptions import SimulationError
+from nroute.exceptions import SimulationError, ValidationError
+from nroute.utils.validators import validate_file_path
 
 if TYPE_CHECKING:
     from nroute.core.topology import Topology
@@ -21,13 +22,13 @@ class TopologyExporter:
 
     @staticmethod
     def to_json(topology: Topology, path: str | Path) -> None:
-        """Export topology graph to JSON file."""
-        p = Path(path)
+        """Export topology graph to JSON file safely."""
         try:
+            p = validate_file_path(path, must_exist=False)
             p.parent.mkdir(parents=True, exist_ok=True)
             with open(p, "w", encoding="utf-8") as f:
                 json.dump(topology.to_dict(), f, indent=2)
-        except Exception as e:
+        except (ValidationError, Exception) as e:
             raise SimulationError(f"Failed to export topology to JSON {path}: {e}") from e
 
     @staticmethod
