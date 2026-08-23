@@ -9,16 +9,27 @@ from typing import Any
 import click
 
 import nroute
-from nroute.cli.api_cmd import api_cmd
-from nroute.cli.configs_cmd import config_cmd
-from nroute.cli.detect_cmd import detect_cmd
-from nroute.cli.export_cmd import export_cmd
-from nroute.cli.predict_cmd import predict_cmd
-from nroute.cli.route_cmd import route_cmd
-from nroute.cli.simulate_cmd import simulate_cmd
-from nroute.cli.topology_cmd import topology_cmd
-from nroute.cli.train_cmd import train_cmd
-from nroute.cli.twin_cmd import twin_cmd
+import nroute.cli.api_cmd as api_cmd_mod
+import nroute.cli.configs_cmd as configs_cmd_mod
+import nroute.cli.detect_cmd as detect_cmd_mod
+import nroute.cli.export_cmd as export_cmd_mod
+import nroute.cli.predict_cmd as predict_cmd_mod
+import nroute.cli.route_cmd as route_cmd_mod
+import nroute.cli.simulate_cmd as simulate_cmd_mod
+import nroute.cli.topology_cmd as topology_cmd_mod
+import nroute.cli.train_cmd as train_cmd_mod
+import nroute.cli.twin_cmd as twin_cmd_mod
+
+api_cmd = api_cmd_mod.api_cmd
+config_cmd = configs_cmd_mod.config_cmd
+detect_cmd = detect_cmd_mod.detect_cmd
+export_cmd = export_cmd_mod.export_cmd
+predict_cmd = predict_cmd_mod.predict_cmd
+route_cmd = route_cmd_mod.route_cmd
+simulate_cmd = simulate_cmd_mod.simulate_cmd
+topology_cmd = topology_cmd_mod.topology_cmd
+train_cmd = train_cmd_mod.train_cmd
+twin_cmd = twin_cmd_mod.twin_cmd
 
 
 @click.group(
