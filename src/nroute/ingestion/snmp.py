@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pandas as pd
 
@@ -26,14 +26,15 @@ class SNMPParser:
                 with open(p, encoding="utf-8") as f:
                     loaded = json.load(f)
                     if isinstance(loaded, list):
-                        return loaded
+                        return cast("list[dict[str, Any]]", loaded)
                     if isinstance(loaded, dict) and "interfaces" in loaded:
-                        return loaded["interfaces"]
+                        return cast("list[dict[str, Any]]", loaded["interfaces"])
                     raise IngestionError(
                         "JSON SNMP data must be a list or contain 'interfaces' key."
                     )
             df = pd.read_csv(p)
-            return df.to_dict(orient="records")
+            records = df.to_dict(orient="records")
+            return cast("list[dict[str, Any]]", records)
         except Exception as e:
             if isinstance(e, IngestionError):
                 raise
