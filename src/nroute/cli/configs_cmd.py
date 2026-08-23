@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import click
+from rich.console import Console
+
+console = Console()
 
 
 @click.group(name="config", help="Manage nroute configurations.")
@@ -22,7 +26,8 @@ def config_cmd() -> None:
     show_default=True,
     help="Target path to write the configuration file.",
 )
-def init_config(output_path: str) -> None:
+@click.pass_context
+def init_config(ctx: click.Context, output_path: str) -> None:
     """Initialize a default nroute.yaml configuration file."""
     # Default template configuration content
     template = """# nroute system configuration
@@ -75,13 +80,23 @@ export:
 custom_routers: {}        # Registry mapping for custom routing plugins
 """
     dest = Path(output_path)
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
+
     if dest.exists():
         click.confirm(f"Configuration file '{dest}' already exists. Overwrite?", abort=True)
 
     try:
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(template, encoding="utf-8")
-        click.echo(f"Initialized default configuration file at: {dest}")
+        if is_json:
+            click.echo(json.dumps({"status": "success", "file": str(dest)}))
+        else:
+            console.print(
+                f"[green]+[/green] Initialized default configuration file at [bold]{dest}[/bold]"
+            )
     except Exception as e:
-        click.echo(f"Error initializing configuration file: {e}", err=True)
+        if is_json:
+            click.echo(json.dumps({"error": str(e)}), err=True)
+            raise SystemExit(1) from e
+        console.print(f"[red]x Error initializing configuration file:[/red] {e}")
         raise SystemExit(1) from e
