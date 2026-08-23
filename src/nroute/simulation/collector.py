@@ -69,19 +69,21 @@ class MetricsCollector:
         packet_loss_rate = dropped_packets / total_packets if total_packets > 0 else 0.0
 
         # 4. Calculate average link utilization (0.0 to 1.0)
-        # Average utilization across all links that are up.
-        link_utilizations = []
-        for _, _, edge_data in topology.graph.edges(data=True):
-            try:
-                if edge_data.get("status", "up") != "down":
-                    link_utilizations.append(float(edge_data.get("utilization", 0.0)))
-            except Exception:
-                pass
+        # Single-pass scalar accumulation over graph adjacency dictionary to avoid creating
+        # intermediate list allocations and edge tuples during hot simulation ticks.
+        total_utilization = 0.0
+        active_link_count = 0
+        down_edges: set[tuple[str, str]] = getattr(topology, "_down_edges", set())
 
-        if link_utilizations:
-            avg_utilization = sum(link_utilizations) / len(link_utilizations)
-        else:
-            avg_utilization = 0.0
+        for u, adj_u in topology.graph.adj.items():
+            for v, edge_data in adj_u.items():
+                if (u, v) not in down_edges and edge_data.get("status") != "down":
+                    total_utilization += float(edge_data.get("utilization", 0.0))
+                    active_link_count += 1
+
+        avg_utilization = (
+            total_utilization / active_link_count if active_link_count > 0 else 0.0
+        )
 
         # Clamp metrics to logical boundaries
         avg_utilization = min(1.0, max(0.0, avg_utilization))
