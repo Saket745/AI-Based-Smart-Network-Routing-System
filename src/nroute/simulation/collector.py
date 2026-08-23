@@ -81,9 +81,7 @@ class MetricsCollector:
                     total_utilization += float(edge_data.get("utilization", 0.0))
                     active_link_count += 1
 
-        avg_utilization = (
-            total_utilization / active_link_count if active_link_count > 0 else 0.0
-        )
+        avg_utilization = total_utilization / active_link_count if active_link_count > 0 else 0.0
 
         # Clamp metrics to logical boundaries
         avg_utilization = min(1.0, max(0.0, avg_utilization))
