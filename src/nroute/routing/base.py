@@ -114,8 +114,8 @@ class BaseRouter(ABC):
             )
 
         graph = topology.graph
-        down_nodes = topology._down_nodes
-        down_edges = topology._down_edges
+        down_nodes = getattr(topology, "_down_nodes", set())
+        down_edges = getattr(topology, "_down_edges", set())
 
         for node in path:
             if node not in graph:
