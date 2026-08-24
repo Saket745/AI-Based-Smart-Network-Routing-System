@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import plotext as plt
 from rich.layout import Layout
 
 from nroute.core.metrics import SimulationMetrics
@@ -27,7 +28,7 @@ def test_plotext_renderable() -> None:
     options.max_width = 80
     options.height = 10
 
-    with patch("plotext.build", return_value="\x1b[31mRedPlot\x1b[0m") as mock_build:
+    with patch.object(plt, "build", return_value="\x1b[31mRedPlot\x1b[0m", create=True) as mock_build:
         segments = list(renderable.__rich_console__(MagicMock(), options))
         mock_build.assert_called_once()
         assert len(segments) > 0
