@@ -8,8 +8,9 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from nroute.exceptions import IngestionError
+from nroute.exceptions import IngestionError, ValidationError
 from nroute.ingestion.normalizer import Normalizer
+from nroute.utils.validators import validate_file_path
 
 if TYPE_CHECKING:
     from nroute.core.topology import Topology
@@ -28,9 +29,10 @@ class CSVTopologyImporter:
         Args:
             path: Path to the CSV file.
         """
-        p = Path(path)
-        if not p.is_file():
-            raise IngestionError(f"Topology CSV file not found: {path}")
+        try:
+            p = validate_file_path(path, must_exist=True)
+        except ValidationError as exc:
+            raise IngestionError(f"Invalid topology CSV file path '{path}': {exc}") from exc
 
         try:
             df = pd.read_csv(p)
@@ -78,9 +80,10 @@ class JSONTopologyImporter:
         Args:
             path: Path to the JSON file.
         """
-        p = Path(path)
-        if not p.is_file():
-            raise IngestionError(f"Topology JSON file not found: {path}")
+        try:
+            p = validate_file_path(path, must_exist=True)
+        except ValidationError as exc:
+            raise IngestionError(f"Invalid topology JSON file path '{path}': {exc}") from exc
 
         try:
             with open(p, encoding="utf-8") as f:
@@ -112,9 +115,10 @@ class CSVTrafficImporter:
         Args:
             path: Path to the CSV file.
         """
-        p = Path(path)
-        if not p.is_file():
-            raise IngestionError(f"Traffic CSV file not found: {path}")
+        try:
+            p = validate_file_path(path, must_exist=True)
+        except ValidationError as exc:
+            raise IngestionError(f"Invalid traffic CSV file path '{path}': {exc}") from exc
 
         try:
             df = pd.read_csv(p)
