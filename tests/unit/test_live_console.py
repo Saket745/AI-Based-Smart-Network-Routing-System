@@ -13,21 +13,23 @@ from nroute.exceptions import TopologyError
 from nroute.routing.dijkstra import DijkstraRouter
 from nroute.simulation.engine import SimulationEngine
 from nroute.simulation.traffic_gen import TrafficGenerator
+import plotext as plt
+
 from nroute.visualization.live_console import LiveSimulationConsole, PlotextRenderable
 
 
 def test_plotext_renderable() -> None:
     """Verify PlotextRenderable wraps plotext plots and decodes ANSI properly."""
 
-    def plot_func(plt: Any) -> None:
-        plt.plot([1, 2], [3, 4])
+    def plot_func(plt_arg: Any) -> None:
+        plt_arg.plot([1, 2], [3, 4])
 
     renderable = PlotextRenderable(plot_func)
     options = MagicMock()
     options.max_width = 80
     options.height = 10
 
-    with patch("plotext.build", return_value="\x1b[31mRedPlot\x1b[0m") as mock_build:
+    with patch.object(plt, "build", return_value="\x1b[31mRedPlot\x1b[0m") as mock_build:
         segments = list(renderable.__rich_console__(MagicMock(), options))
         mock_build.assert_called_once()
         assert len(segments) > 0
