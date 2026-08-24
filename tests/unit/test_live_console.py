@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import plotext as plt
 from rich.layout import Layout
 
 from nroute.core.metrics import SimulationMetrics
@@ -13,8 +14,6 @@ from nroute.exceptions import TopologyError
 from nroute.routing.dijkstra import DijkstraRouter
 from nroute.simulation.engine import SimulationEngine
 from nroute.simulation.traffic_gen import TrafficGenerator
-import plotext as plt
-
 from nroute.visualization.live_console import LiveSimulationConsole, PlotextRenderable
 
 
