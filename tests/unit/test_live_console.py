@@ -29,7 +29,7 @@ def test_plotext_renderable() -> None:
 
     import plotext as plt
 
-    with patch.object(plt, "build", return_value="\x1b[31mRedPlot\x1b[0m") as mock_build:
+    with patch.object(plt, "build", create=True, return_value="\x1b[31mRedPlot\x1b[0m") as mock_build:
         segments = list(renderable.__rich_console__(MagicMock(), options))
         mock_build.assert_called_once()
         assert len(segments) > 0
