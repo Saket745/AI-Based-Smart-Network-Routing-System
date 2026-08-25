@@ -170,9 +170,7 @@ def test_config_init_cli_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     runner = CliRunner()
     out_file = tmp_path / "json_config.yaml"
 
-    result = runner.invoke(
-        config_cmd, ["init", "-o", str(out_file)], obj={"output_format": "json"}
-    )
+    result = runner.invoke(config_cmd, ["init", "-o", str(out_file)], obj={"output_format": "json"})
     assert result.exit_code == 0
     assert out_file.exists()
 

@@ -100,7 +100,9 @@ custom_routers: {}        # Registry mapping for custom routing plugins
             )
     except Exception as e:
         if is_json:
-            click.echo(json.dumps({"error": f"Error initializing configuration file: {e}"}), err=True)
+            click.echo(
+                json.dumps({"error": f"Error initializing configuration file: {e}"}), err=True
+            )
         else:
             console.print(f"[red]x Error initializing configuration file:[/red] {e}")
         raise SystemExit(1) from e
