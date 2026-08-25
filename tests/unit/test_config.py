@@ -143,8 +143,8 @@ def test_load_config_searches_configs_subfolder(
 
 def test_config_init_cli_interactive(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test nroute config init command in interactive mode with Rich formatting."""
-    import json
     from click.testing import CliRunner
+
     from nroute.cli.configs_cmd import config_cmd
 
     monkeypatch.chdir(tmp_path)
@@ -161,7 +161,9 @@ def test_config_init_cli_interactive(tmp_path: Path, monkeypatch: pytest.MonkeyP
 def test_config_init_cli_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test nroute config init command with JSON output format."""
     import json
+
     from click.testing import CliRunner
+
     from nroute.cli.configs_cmd import config_cmd
 
     monkeypatch.chdir(tmp_path)
