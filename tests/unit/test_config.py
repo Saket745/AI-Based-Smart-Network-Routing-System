@@ -134,3 +134,46 @@ def test_load_config_searches_configs_subfolder(
     cfg = load_config()
     assert cfg.general.log_level == "WARNING"
     assert cfg.general.cors_origins == ["http://localhost:3000", "http://localhost:8000"]
+
+
+# ---------------------------------------------------------------------------
+# CLI config init tests
+# ---------------------------------------------------------------------------
+
+
+def test_config_init_cli_interactive(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test nroute config init command in interactive mode with Rich formatting."""
+    import json
+    from click.testing import CliRunner
+    from nroute.cli.configs_cmd import config_cmd
+
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    out_file = tmp_path / "test_config.yaml"
+
+    result = runner.invoke(config_cmd, ["init", "-o", str(out_file)])
+    assert result.exit_code == 0
+    assert out_file.exists()
+    assert "+" in result.output
+    assert "Initialized default configuration file at:" in result.output
+
+
+def test_config_init_cli_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test nroute config init command with JSON output format."""
+    import json
+    from click.testing import CliRunner
+    from nroute.cli.configs_cmd import config_cmd
+
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    out_file = tmp_path / "json_config.yaml"
+
+    result = runner.invoke(
+        config_cmd, ["init", "-o", str(out_file)], obj={"output_format": "json"}
+    )
+    assert result.exit_code == 0
+    assert out_file.exists()
+
+    data = json.loads(result.output)
+    assert data["status"] == "success"
+    assert data["file"] == str(out_file)
