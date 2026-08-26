@@ -113,18 +113,23 @@ class BaseRouter(ABC):
                 f"Path destination '{path[-1]}' does not match expected destination '{destination}'."
             )
 
+        # Performance optimization: access underlying NetworkX graph directly to bypass O(V)/O(E)
+        # list allocation overhead (topology.nodes/topology.edges) and dict copy overhead (get_node/get_edge)
+        graph = topology.graph
+        nodes_dict = graph.nodes
+        edges_dict = graph.edges
+
         for node in path:
-            if node not in topology.nodes:
+            if node not in graph:
                 raise RoutingError(f"Node '{node}' in path does not exist in topology.")
             # If a node is down, the route is invalid
-            if topology.get_node(node).get("status") == "down":
+            if nodes_dict[node].get("status") == "down":
                 raise RoutingError(f"Node '{node}' in path is down.")
 
         for u, v in itertools.pairwise(path):
-            if (u, v) not in topology.edges:
+            if not graph.has_edge(u, v):
                 raise RoutingError(f"Edge '{u}->{v}' in path does not exist in topology.")
-            edge_attr = topology.get_edge(u, v)
-            if edge_attr.get("status") == "down":
+            if edges_dict[u, v].get("status") == "down":
                 raise RoutingError(f"Edge '{u}->{v}' in path is down.")
 
         return True
