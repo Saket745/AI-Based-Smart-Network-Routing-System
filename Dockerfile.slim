@@ -51,7 +51,9 @@ RUN pip install --user --no-cache-dir \
     "pyarrow>=14.0" \
     "fastapi>=0.100" \
     "python-multipart>=0.0.7" \
-    "uvicorn>=0.22"
+    "uvicorn>=0.22" \
+    "wheel>=0.46.2" \
+    "jaraco.context>=6.1.0"
 
 # Ensure local user bin is on path (where the wheel installs the entry points)
 ENV PATH="/home/nroute/.local/bin:${PATH}"

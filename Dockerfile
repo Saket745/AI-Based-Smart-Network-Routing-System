@@ -33,8 +33,8 @@ COPY --from=builder --chown=nroute:nroute /app/dist/*.whl ./
 # Switch to the non-root user
 USER nroute
 
-# Install the wheel package locally
-RUN pip install --user --no-cache-dir *.whl \
+# Install the wheel package locally with updated dependencies to satisfy Trivy security scanner
+RUN pip install --user --no-cache-dir "wheel>=0.46.2" "jaraco.context>=6.1.0" *.whl \
     && rm *.whl
 
 # Ensure local user bin is on path (where the wheel installs the entry points)
