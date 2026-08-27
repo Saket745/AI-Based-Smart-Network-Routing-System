@@ -199,6 +199,7 @@ class FailureInjector:
 
         for event in self.events[current_tick]:
             evt_type = event.get("type")
-            handler = handlers.get(evt_type)
-            if handler:
-                handler(topology, event, current_tick)
+            if isinstance(evt_type, str):
+                handler = handlers.get(evt_type)
+                if handler:
+                    handler(topology, event, current_tick)
