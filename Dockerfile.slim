@@ -40,6 +40,8 @@ RUN pip install --user --no-cache-dir --no-deps *.whl \
 
 # Manually install ONLY the lightweight, basic dependencies (routing, simulation, CLI, FastAPI server)
 RUN pip install --user --no-cache-dir \
+    "wheel>=0.46.2" \
+    "jaraco.context>=6.1.0" \
     "networkx>=3.2" \
     "numpy>=1.26" \
     "pandas>=2.1" \
