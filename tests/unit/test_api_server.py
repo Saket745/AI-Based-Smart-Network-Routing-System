@@ -1,4 +1,3 @@
-"""Unit tests for FastAPI API server authentication and path traversal security."""
 """Unit tests for the FastAPI API server endpoints, focusing on security (authentication and path traversal)."""
 
 from __future__ import annotations
@@ -9,7 +8,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from nroute.api.server import _FALLBACK_TOKEN, app
 import nroute.api.server
 from nroute.api.server import _FALLBACK_TOKEN, app
 from nroute.core.topology import Topology
@@ -85,6 +83,19 @@ def test_fallback_token_usage(client: TestClient) -> None:
     assert response.json()["status"] == "no_topology"
 
 
+# ── Security Headers Tests ──
+
+
+def test_api_responses_include_security_headers(client: TestClient) -> None:
+    """API responses must include defense-in-depth HTTP security headers."""
+    headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
+    response = client.get("/api/health", headers=headers)
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["X-XSS-Protection"] == "1; mode=block"
+    assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+
+
 # ── Path Traversal Tests (with Authentication) ──
 
 
@@ -100,9 +111,6 @@ def test_api_load_topology_success_cwd(client: TestClient) -> None:
 
     headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
     try:
-        headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
-    try:
-        headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
         response = client.post("/api/topology/load", json={"path": str(temp_file)}, headers=headers)
         assert response.status_code == 200
         data = response.json()
@@ -125,10 +133,6 @@ def test_api_load_topology_success_temp(client: TestClient) -> None:
     headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
     try:
         topo.save(temp_path)
-    try:
-        topo.save(temp_path)
-        headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
-        headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
         response = client.post("/api/topology/load", json={"path": str(temp_path)}, headers=headers)
         assert response.status_code == 200
         data = response.json()
@@ -141,7 +145,6 @@ def test_api_load_topology_success_temp(client: TestClient) -> None:
 
 def test_api_load_topology_not_found(client: TestClient) -> None:
     """Test loading a non-existent file inside the allowed directory returns 404."""
-    headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
     response = client.post(
         "/api/topology/load", json={"path": "non_existent_file_xyz.json"}, headers=headers
