@@ -484,9 +484,13 @@ def _render_comparison_table(results: dict[str, Any], algo_list: list[str]) -> N
 
     def _avg_loss(r: Any) -> str:
         if not r.results:
-            return "0.0%"
+            return "🟢 0.00%"
         avg = sum(m.packet_loss_rate for m in r.results) / len(r.results)
-        return f"{avg:.2%}"
+        if avg == 0.0:
+            return f"🟢 {avg:.2%}"
+        elif avg < 0.05:
+            return f"🟡 {avg:.2%}"
+        return f"🔴 {avg:.2%}"
 
     metrics_rows = [
         ("Total Throughput", lambda r: f"{r.total_throughput():.0f}"),
@@ -503,9 +507,9 @@ def _render_comparison_table(results: dict[str, Any], algo_list: list[str]) -> N
                 try:
                     row_values.append(extractor(r))  # type: ignore[no-untyped-call]
                 except Exception:
-                    row_values.append("ERR")
+                    row_values.append("🔴 ERR")
             else:
-                row_values.append("FAILED")
+                row_values.append("🔴 FAILED")
         table.add_row(label, *row_values)
 
     console.print(table)
@@ -526,11 +530,17 @@ def _print_simulation_results(result: Any, algorithm: str) -> None:
         if result.results
         else 0.0
     )
+    if avg_loss == 0.0:
+        loss_str = f"🟢 {avg_loss:.2%}"
+    elif avg_loss < 0.05:
+        loss_str = f"🟡 {avg_loss:.2%}"
+    else:
+        loss_str = f"🔴 {avg_loss:.2%}"
 
     table.add_row("Algorithm", algorithm.upper())
     table.add_row("Total Throughput", f"{result.total_throughput():.0f} Mbps")
     table.add_row("Mean Latency", f"{result.mean_latency():.2f} ms")
-    table.add_row("Avg Packet Loss Rate", f"{avg_loss:.2%}")
+    table.add_row("Avg Packet Loss Rate", loss_str)
     table.add_row("Total Reroutes", str(total_reroutes))
     table.add_row("Ticks Simulated", str(len(result.results)))
 
