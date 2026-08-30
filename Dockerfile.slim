@@ -1,5 +1,5 @@
 # Stage 1: Build & Compile package
-FROM python:3.10-slim@sha256:d842ff3e7ab8997a31ff833b378ebfb18ef66699eb3c19b66b2a4729f27d5320 AS builder
+FROM python:3.10-slim AS builder
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ COPY src/ ./src/
 RUN pip install --no-cache-dir build && python -m build
 
 # Stage 2: Minimal runtime image (Slim variant, no ML/torch)
-FROM python:3.10-slim@sha256:d842ff3e7ab8997a31ff833b378ebfb18ef66699eb3c19b66b2a4729f27d5320
+FROM python:3.10-slim
 
 LABEL org.opencontainers.image.source="https://github.com/Saket745/AI-Based-Smart-Network-Routing-System"
 LABEL org.opencontainers.image.description="AI-Based Smart Network Routing System (nroute-slim)"
