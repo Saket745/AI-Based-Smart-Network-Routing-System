@@ -163,7 +163,6 @@ def _init_router(
         )
         sig = inspect.signature(router_cls)
         res = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
-        return typing.cast("BaseRouter", res)
         return cast(
             "BaseRouter",
             router_cls(topology=topo) if "topology" in sig.parameters else router_cls(),
