@@ -9,6 +9,16 @@ from typing import Any
 import click
 
 import nroute
+import nroute.cli.api_cmd as api_cmd_mod
+import nroute.cli.configs_cmd as configs_cmd_mod
+import nroute.cli.detect_cmd as detect_cmd_mod
+import nroute.cli.export_cmd as export_cmd_mod
+import nroute.cli.predict_cmd as predict_cmd_mod
+import nroute.cli.route_cmd as route_cmd_mod
+import nroute.cli.simulate_cmd as simulate_cmd_mod
+import nroute.cli.topology_cmd as topology_cmd_mod
+import nroute.cli.train_cmd as train_cmd_mod
+import nroute.cli.twin_cmd as twin_cmd_mod
 from nroute.cli.api_cmd import api_cmd
 from nroute.cli.configs_cmd import config_cmd
 from nroute.cli.detect_cmd import detect_cmd
