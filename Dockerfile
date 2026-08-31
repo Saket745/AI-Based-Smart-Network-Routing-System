@@ -41,6 +41,7 @@ COPY --from=builder --chown=nroute:nroute /app/dist/*.whl ./
 # Switch to the non-root user
 USER nroute
 
+# Install the wheel package locally and upgrade vulnerable indirect dependencies
 # Install the wheel package locally with updated dependencies to satisfy Trivy security scanner
 RUN pip install --user --no-cache-dir "wheel>=0.46.2" "jaraco.context>=6.1.0" *.whl \
 # Install the wheel package locally and upgrade vulnerable dependencies to fixed versions
