@@ -7,8 +7,23 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from nroute.cli.route_cmd import route_cmd
+from nroute.cli.route_cmd import _format_utilization, route_cmd
 from nroute.exceptions import RoutingError
+
+
+def test_format_utilization() -> None:
+    """Test _format_utilization color-coded thresholds and visual indicators."""
+    assert "🟢" in _format_utilization(0.25)
+    assert "25.0%" in _format_utilization(0.25)
+
+    assert "🟡" in _format_utilization(0.75)
+    assert "75.0%" in _format_utilization(0.75)
+
+    assert "🔴" in _format_utilization(0.90)
+    assert "90.0%" in _format_utilization(0.90)
+
+    assert "--" in _format_utilization(None)
+    assert "--" in _format_utilization(0.5, is_down=True)
 
 
 @pytest.fixture
