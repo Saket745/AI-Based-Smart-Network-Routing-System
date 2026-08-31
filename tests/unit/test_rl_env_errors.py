@@ -1,4 +1,4 @@
-"""Unit tests for error paths and edge cases in NetworkRoutingEnv."""
+"""Unit tests for error paths, edge cases, transitions, and reward calculation in NetworkRoutingEnv."""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ def test_precompute_distances_inner_exception(small_graph_data: dict[str, Any]) 
     topo = _get_topo(small_graph_data)
 
     with patch("networkx.single_source_shortest_path_length") as mock_bfs:
-        # Fail for node 'A', succeed for others
+
         def side_effect(_graph, source):
             if source == "A":
                 raise ValueError("BFS failure")
@@ -63,20 +63,12 @@ def test_precompute_distances_outer_exception(small_graph_data: dict[str, Any]) 
     """Test the outer exception handling in _precompute_distances."""
     topo = _get_topo(small_graph_data)
 
-    # Use a dummy env to test the method directly
     with patch.object(NetworkRoutingEnv, "_precompute_distances", side_effect=None):
         env = NetworkRoutingEnv(topology=topo)
 
-    # Now manually trigger a failure in the loop itself (e.g. self.nodes is None)
     env.nodes = None  # type: ignore
     env._shortest_distances = {"existing": "data"}
-
-    # This should hit the outer try-except
     env._precompute_distances()
-
-    # If it hit the except block, it shouldn't have raised TypeError
-    # (The current implementation doesn't clear _shortest_distances on outer fail,
-    # it just passes, but that's fine for coverage)
 
 
 def test_init_no_edges() -> None:
@@ -84,7 +76,6 @@ def test_init_no_edges() -> None:
     topo = Topology()
     topo.add_node("A")
     topo.add_node("B")
-    # No edges added
     env = NetworkRoutingEnv(topology=topo)
     assert env.num_edges == 0
     assert env.max_out_degree == 1
@@ -93,7 +84,6 @@ def test_init_no_edges() -> None:
 def test_reset_too_few_up_nodes(small_graph_data: dict[str, Any]) -> None:
     """Test that reset raises TopologyError if fewer than 2 nodes are 'up'."""
     topo = _get_topo(small_graph_data)
-    # Set all but one node to 'down'
     for node in topo.nodes:
         if node != "A":
             topo.set_node_down(node)
@@ -109,14 +99,12 @@ def test_step_link_down(small_graph_data: dict[str, Any]) -> None:
     env = NetworkRoutingEnv(topology=topo, training_mode=False)
 
     env.reset(seed=42)
-    # Force current_node to 'A' and its neighbor 'B' to be 'down'
     env.current_node = "A"
     neighbors = sorted(list(env.topology.neighbors("A")))
     b_idx = neighbors.index("B")
 
     env.topology.set_link_down("A", "B")
 
-    # In step(), neighbors are recalculated from topology
     _obs, reward, terminated, _truncated, info = env.step(b_idx)
     assert terminated
     assert reward == -50.0
@@ -147,10 +135,8 @@ def test_step_max_hops(small_graph_data: dict[str, Any]) -> None:
     env = NetworkRoutingEnv(topology=topo, max_hops=1, training_mode=False)
 
     env.reset(seed=42)
-    # First step will reach max_hops=1
     neighbors = sorted(list(topo.neighbors(env.current_node)))
 
-    # Choose an action that doesn't reach destination immediately
     action = 0
     next_node = neighbors[action]
     if next_node == env.destination:
@@ -158,12 +144,112 @@ def test_step_max_hops(small_graph_data: dict[str, Any]) -> None:
 
     _obs, _reward, _terminated, truncated, _info = env.step(action)
     if not truncated:
-        # If we reached destination, we might have terminated.
-        # For this test we want to ensure truncated happens if hops >= max_hops
         env.hops = 1
-        # Manually trigger another step
         _obs, _reward, _terminated, truncated, _info = env.step(0)
 
     assert truncated
     assert _info["status"] == "truncated_max_hops"
     assert _reward < 0
+
+
+def test_apply_transition(small_graph_data: dict[str, Any]) -> None:
+    """Test the private _apply_transition method."""
+    topo = _get_topo(small_graph_data)
+    env = NetworkRoutingEnv(topology=topo)
+    env.reset(seed=42)
+
+    initial_node = env.current_node
+    next_node = "B" if initial_node != "B" else "A"
+
+    env._apply_transition(next_node)
+
+    assert env.current_node == next_node
+    assert env.path[-1] == next_node
+    assert env.hops == 1
+    assert env._visit_counts[next_node] == 1
+
+
+def test_calculate_reward_basic(small_graph_data: dict[str, Any]) -> None:
+    """Test the private _calculate_reward method for basic step."""
+    topo = _get_topo(small_graph_data)
+    env = NetworkRoutingEnv(
+        topology=topo,
+        reward_params={
+            "alpha": 1.0,
+            "beta": 0.0,
+            "gamma": 0.0,
+            "delta": 0.1,
+            "proximity": 0.0,
+            "fairness": 0.0,
+        },
+    )
+    env.reset(seed=42)
+    env.current_node = "A"
+    env.destination = "C"
+
+    edge_attr = {"latency": 10.0, "bandwidth": 1000.0, "packet_loss": 0.0}
+    info: dict[str, Any] = {}
+
+    reward = env._calculate_reward(
+        prev_node="A", curr_node="B", edge_attr=edge_attr, visit_count_before=0, info=info
+    )
+
+    assert abs(reward) < 1e-6
+
+
+def test_calculate_reward_revisit(small_graph_data: dict[str, Any]) -> None:
+    """Test revisit penalty in _calculate_reward."""
+    topo = _get_topo(small_graph_data)
+    env = NetworkRoutingEnv(
+        topology=topo,
+        reward_params={
+            "alpha": 0.0,
+            "beta": 0.0,
+            "gamma": 0.0,
+            "delta": 0.0,
+            "proximity": 0.0,
+            "fairness": 0.0,
+        },
+    )
+    env.reset(seed=42)
+    env.current_node = "A"
+    env.destination = "C"
+
+    edge_attr = {"latency": 10.0, "bandwidth": 1000.0, "packet_loss": 0.0}
+    info: dict[str, Any] = {}
+
+    reward = env._calculate_reward(
+        prev_node="A", curr_node="B", edge_attr=edge_attr, visit_count_before=1, info=info
+    )
+
+    assert reward == -10.0
+    assert info.get("revisit_penalty") is True
+
+
+def test_calculate_reward_destination(small_graph_data: dict[str, Any]) -> None:
+    """Test destination bonus in _calculate_reward."""
+    topo = _get_topo(small_graph_data)
+    env = NetworkRoutingEnv(
+        topology=topo,
+        reward_params={
+            "alpha": 0.0,
+            "beta": 0.0,
+            "gamma": 0.0,
+            "delta": 0.0,
+            "proximity": 0.0,
+            "fairness": 0.0,
+        },
+    )
+    env.reset(seed=42)
+
+    destination = env.destination
+    env.hops = 5
+
+    edge_attr = {"latency": 10.0, "bandwidth": 1000.0, "packet_loss": 0.0}
+    info: dict[str, Any] = {}
+
+    reward = env._calculate_reward(
+        prev_node="A", curr_node=destination, edge_attr=edge_attr, visit_count_before=0, info=info
+    )
+
+    assert reward == 90.0

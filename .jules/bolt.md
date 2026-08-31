@@ -1,3 +1,0 @@
-## 2026-08-17 - RouteMetrics.from_path Optimization
-**Learning:** In hot loops analyzing path metrics in network graphs, looking up dictionary values (e.g. `utilization`) on every edge hop when they are only needed when a bottleneck candidate (min bandwidth) changes creates unnecessary dict lookup overhead. Pre-allocating `float("inf")` outside loops and removing redundant `float()` conversions on already-typed numerical attributes significantly reduces loop overhead.
-**Action:** Avoid querying dict attributes in graph traversal loops unless the conditional requirement for those attributes is met.

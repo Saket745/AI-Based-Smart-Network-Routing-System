@@ -1,10 +1,11 @@
-"""Unit tests for ModelStore model checkpointing and integrity validation."""
+"""Unit tests for ModelStore model checkpointing, error handling, and integrity validation."""
 
 from __future__ import annotations
 
 import json
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -27,11 +28,10 @@ class DummyModel:
     def save(self, path: str) -> None:
         self.save_called = True
         self.saved_path = path
-        # Write dummy content to simulate weights
         with open(path, "w", encoding="utf-8") as f:
             f.write("dummy_weights_content")
 
-    def load(self, path: str) -> None:
+    def load(self, path: str, allow_unsafe: bool = False) -> None:
         self.load_called = True
         self.loaded_path = path
 
@@ -42,14 +42,12 @@ def test_model_store_save_and_load_default() -> None:
         store = ModelStore(base_dir=tmpdir)
         model = DummyModel(model_type="xgboost")
 
-        # Save model
         saved_path = store.save_model(model, name="test_model", version="1.0.0")
         assert Path(saved_path).exists()
         assert saved_path.endswith(".joblib")
         assert model.save_called
         assert model.saved_path == saved_path
 
-        # Verify metadata exists
         meta_path = Path(tmpdir) / "test_model_1.0.0.metadata.json"
         assert meta_path.exists()
 
@@ -60,7 +58,6 @@ def test_model_store_save_and_load_default() -> None:
         assert metadata["model_type"] == "xgboost"
         assert "sha256" in metadata
 
-        # Load model
         loaded_model = DummyModel(model_type="xgboost")
         loaded_path = store.load_model(loaded_model, name="test_model", version="1.0.0")
         assert loaded_path == saved_path
@@ -91,7 +88,6 @@ def test_model_store_integrity_check_failure() -> None:
 
         saved_path = store.save_model(model, name="tamper_test", version="1.0.0")
 
-        # Tamper with the saved file content to change its checksum
         with open(saved_path, "w", encoding="utf-8") as f:
             f.write("tampered_content")
 
@@ -109,12 +105,49 @@ def test_model_store_missing_model_or_metadata() -> None:
         with pytest.raises(ModelError, match="No models found"):
             store.load_model(model, name="nonexistent")
 
-        # Save one model
         store.save_model(model, name="partial", version="1.0.0")
 
-        # Query different version
         with pytest.raises(ModelError, match=r"version '2\.0\.0' for 'partial' not found"):
             store.load_model(model, name="partial", version="2.0.0")
+
+
+def test_load_model_no_valid_metadata_files() -> None:
+    """Test that load_model raises ModelError when metadata files exist but are invalid."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base_dir = Path(tmpdir)
+        store = ModelStore(base_dir=base_dir)
+
+        meta_file = base_dir / "test_v1.metadata.json"
+        meta_file.write_text("not a json content", encoding="utf-8")
+
+        model = DummyModel()
+        with pytest.raises(ModelError, match="No valid metadata files found for model 'test'"):
+            store.load_model(model, "test")
+
+
+def test_load_model_metadata_open_exception() -> None:
+    """Test that load_model handles generic exceptions during metadata file opening."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base_dir = Path(tmpdir)
+        store = ModelStore(base_dir=base_dir)
+
+        meta_file = base_dir / "test_v1.metadata.json"
+        meta_file.write_text("{}", encoding="utf-8")
+
+        model = DummyModel()
+
+        original_open = open
+
+        def mocked_open(file: str | Path, *args, **kwargs):
+            if str(file).endswith(".metadata.json"):
+                raise OSError("Simulated permission error")
+            return original_open(file, *args, **kwargs)
+
+        with (
+            patch("builtins.open", side_effect=mocked_open),
+            pytest.raises(ModelError, match="No valid metadata files found for model 'test'"),
+        ):
+            store.load_model(model, "test")
 
 
 def test_model_store_list_models() -> None:

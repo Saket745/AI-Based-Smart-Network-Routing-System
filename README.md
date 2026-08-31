@@ -157,11 +157,12 @@ Performance is measured using automated benchmarks under `tests/benchmarks/`.
 
 ## 📄 Documentation
 
-- [Quickstart CLI Guide](docs/quickstart.md)
+- [Quickstart Guide](docs/quickstart.md)
 - [API Reference](docs/api_reference.md)
-- [Product Requirements Document (PRD)](docs/PRD.md)
-- [Technical Requirements Document (TRD)](docs/TRD.md)
-- [Implementation Plan](docs/Implementation_Plan.md)
+- [CLI Reference](docs/cli_reference.md)
+- [Custom Extensions](docs/custom_extensions.md)
+- [Deployment Guide](docs/deployment.md)
+- [Archived Specs](docs/archive/)
 
 ---
 
