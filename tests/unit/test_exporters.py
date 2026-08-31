@@ -9,6 +9,7 @@ import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
+
 from click.testing import CliRunner
 
 from nroute.cli.export_cmd import export_cmd
@@ -16,9 +17,6 @@ from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
 from nroute.core.topology import Topology
 from nroute.exceptions import SimulationError
 from nroute.visualization.exporters import MetricsExporter, TopologyExporter
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @pytest.fixture
@@ -163,6 +161,12 @@ def test_cli_export_topology(sample_topology: Topology, tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert "Successfully exported topology to GraphML" in result.output
+    assert out_path.name in result.output
+    assert "nodes" in result.output
+    assert "edges" in result.output
+    assert "Successfully exported topology" in result.output
+    assert "(2 nodes, 1 edges)" in result.output
+    assert out_path.name in result.output
     assert out_path.exists()
 
 
@@ -190,6 +194,11 @@ def test_cli_export_metrics(sample_metrics: MetricsCollectionResult, tmp_path: P
 
     assert result.exit_code == 0
     assert "Successfully exported metrics to CSV" in result.output
+    assert out_path.name in result.output
+    assert "metric records" in result.output
+    assert "Successfully exported metrics" in result.output
+    assert "(2 records)" in result.output
+    assert out_path.name in result.output
     assert out_path.exists()
 
 
