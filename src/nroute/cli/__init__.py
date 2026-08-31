@@ -9,6 +9,8 @@ from typing import Any
 import click
 
 import nroute
+import nroute.cli.api_cmd as api_cmd_mod
+import nroute.cli.configs_cmd as config_cmd_mod
 import nroute.cli.api_cmd as api_cmd
 import nroute.cli.configs_cmd as configs_cmd
 import nroute.cli.configs_cmd as config_cmd
@@ -155,6 +157,7 @@ cli.add_command(detect_cmd_mod.detect_cmd, "detect")
 cli.add_command(twin_cmd_mod.twin_cmd, "twin")
 cli.add_command(export_cmd_mod.export_cmd, "export")
 cli.add_command(api_cmd_mod.api_cmd, "api")
+cli.add_command(config_cmd_mod.config_cmd, "config")
 cli.add_command(configs_cmd_mod.config_cmd, "config")
 
 
