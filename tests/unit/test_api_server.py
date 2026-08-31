@@ -135,6 +135,9 @@ def test_api_load_topology_success_temp(client: TestClient) -> None:
     try:
         topo.save(temp_path)
         headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
+    try:
+        topo.save(temp_path)
+        headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     try:
         topo.save(temp_path)
