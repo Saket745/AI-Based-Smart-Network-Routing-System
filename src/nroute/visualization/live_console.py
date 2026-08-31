@@ -40,7 +40,8 @@ class PlotextRenderable:
 
         self.plot_func(plt)
 
-        ansi_output = plt.build()
+        build_fn = getattr(plt, "build", getattr(plt, "_build", lambda: ""))
+        ansi_output = build_fn()
         decoder = AnsiDecoder()
         yield from decoder.decode(ansi_output)
 
