@@ -45,13 +45,16 @@ def validate_branch_name(branch_name):
     if branch_name in EXEMPT_BRANCHES:
         return True, ""
 
-    # Check for conventional prefixes
+    # Check for conventional prefixes (supporting both '/' and '-' delimiters)
     for prefix in ALLOWED_PREFIXES:
-        if branch_name.startswith(prefix):
+        clean_prefix = prefix.rstrip("/")
+        if branch_name.startswith(prefix) or branch_name.startswith(f"{clean_prefix}-"):
             return True, ""
 
-    # Check for Jules-style branches (sometimes they are flat)
-    if re.match(r"^jules-", branch_name):
+    # Check for Jules/Sentinel-style agent branches (sometimes they are flat)
+    if re.match(r"^(jules|sentinel)-", branch_name):
+    # Check for Jules/Palette-style agent branches (sometimes they are flat)
+    if re.match(r"^(jules|palette)-", branch_name):
         return True, ""
 
     return False, (

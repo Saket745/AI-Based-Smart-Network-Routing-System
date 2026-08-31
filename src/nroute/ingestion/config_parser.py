@@ -12,16 +12,18 @@ are planned for Phase 2.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import yaml
 
 from nroute.core.openconfig import ConfigChange, DeviceConfig
-from nroute.exceptions import IngestionError
+from nroute.exceptions import IngestionError, ValidationError
 from nroute.utils.logging import get_logger
+from nroute.utils.validators import validate_file_path
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from nroute.core.topology import Topology
 
 logger = get_logger(__name__)
@@ -44,9 +46,10 @@ class ConfigParser:
         Returns:
             List of validated ``DeviceConfig`` instances.
         """
-        p = Path(path)
-        if not p.is_file():
-            raise IngestionError(f"Config file not found: {path}")
+        try:
+            p = validate_file_path(path, must_exist=True)
+        except ValidationError as exc:
+            raise IngestionError(str(exc)) from exc
 
         try:
             with open(p, encoding="utf-8") as f:
@@ -70,9 +73,10 @@ class ConfigParser:
 
         The file must conform to the ``ConfigChange`` Pydantic schema.
         """
-        p = Path(path)
-        if not p.is_file():
-            raise IngestionError(f"Change file not found: {path}")
+        try:
+            p = validate_file_path(path, must_exist=True)
+        except ValidationError as exc:
+            raise IngestionError(str(exc)) from exc
 
         try:
             with open(p, encoding="utf-8") as f:
