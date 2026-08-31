@@ -27,6 +27,10 @@ def test_plotext_renderable() -> None:
     options.max_width = 80
     options.height = 10
 
+    import plotext as plt
+
+    with patch.object(
+        plt, "build", create=True, return_value="\x1b[31mRedPlot\x1b[0m"
     mock_plt = MagicMock()
     mock_plt.build.return_value = "\x1b[31mRedPlot\x1b[0m"
     with patch("nroute.visualization.live_console.plt", mock_plt):
