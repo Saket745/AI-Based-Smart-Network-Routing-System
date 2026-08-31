@@ -35,6 +35,8 @@ def test_plotext_renderable() -> None:
         mock_plt.build.assert_called_once()
         segments = list(renderable.__rich_console__(MagicMock(), options))
         mock_plt.build.assert_called_once()
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
     mock_plt = MagicMock()
     mock_plt.build.return_value = "\x1b[31mRedPlot\x1b[0m"
 
