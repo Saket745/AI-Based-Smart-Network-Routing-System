@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F  # noqa: N812
 
 from nroute.exceptions import ModelError
+from nroute.exceptions import ModelError, ValidationError
 from nroute.utils.validators import validate_file_path
 
 
@@ -163,6 +164,15 @@ class GraphSAGEModel(nn.Module):
             )
             self.load_state_dict(loaded_state)
         except ModelError:
+            ModelError: If the model file path is invalid or loading fails.
+        """
+        try:
+            validated_path = validate_file_path(path, must_exist=True)
+            state_dict = torch.load(
+                validated_path, map_location="cpu", weights_only=not allow_unsafe
+            )
+            self.load_state_dict(state_dict)
+        except (ModelError, ValidationError):
             raise
         except Exception as e:
             raise ModelError(f"Failed to load GraphSAGE model from '{path}': {e}") from e

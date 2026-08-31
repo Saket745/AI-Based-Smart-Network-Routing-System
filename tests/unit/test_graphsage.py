@@ -10,6 +10,7 @@ import pytest
 import torch
 
 from nroute.exceptions import ModelError
+from nroute.exceptions import ModelError, ValidationError
 from nroute.ml.models.graphsage import GraphSAGEModel, SAGEConv
 
 
@@ -192,5 +193,24 @@ def test_graphsage_load_corrupted_file_raises_model_error() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         corrupt_path = Path(tmpdir) / "corrupt.pt"
         corrupt_path.write_bytes(b"invalid checkpoint data")
+def test_graphsage_model_load_invalid_path() -> None:
+    """Test that loading GraphSAGE from non-existent or invalid path raises appropriate error."""
+    model = GraphSAGEModel(node_in_dim=16, edge_in_dim=8)
+
+    with pytest.raises(ValidationError, match="does not exist"):
+        model.load("non_existent_graphsage_model.pt")
+
+    with pytest.raises(ValidationError, match="empty"):
+        model.load("")
+
+
+def test_graphsage_model_load_corrupt_file() -> None:
+    """Test that loading a corrupted checkpoint into GraphSAGE raises ModelError."""
+    model = GraphSAGEModel(node_in_dim=16, edge_in_dim=8)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        corrupt_path = Path(tmpdir) / "corrupt.pt"
+        corrupt_path.write_bytes(b"invalid binary model data")
+
         with pytest.raises(ModelError, match="Failed to load GraphSAGE model"):
             model.load(str(corrupt_path))
