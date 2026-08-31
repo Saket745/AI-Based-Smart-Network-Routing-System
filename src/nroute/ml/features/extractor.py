@@ -57,31 +57,38 @@ class DefaultGraphFeatureExtractor(BaseFeatureExtractor):
         node_to_idx = {node: idx for idx, node in enumerate(nodes)}
         graph = topology.graph
 
+        # Fast direct dict access on NetworkX graph internals to avoid per-node/edge list allocations and view overhead
+        node_attrs = graph._node
+        succ = graph._succ
+
         # Build node features: [capacity, status, degree]
         node_features = []
         for node in nodes:
-            attrs = graph.nodes[node]
+            attrs = node_attrs[node]
             cap = float(attrs.get("capacity", 1000.0)) / 1000.0
-            status = 1.0 if attrs.get("status", "up").lower() == "up" else 0.0
-            degree = float(len(list(graph.successors(node))))
+            st_val = attrs.get("status", "up")
+            status = 1.0 if st_val in ("up", "UP") or str(st_val).lower() == "up" else 0.0
+            degree = float(len(succ[node]))  # O(1) degree lookup avoiding list allocation
             node_features.append([cap, status, degree])
         node_features_arr = np.array(node_features, dtype=np.float32)
 
         # Build edge index and edge features: [bandwidth, latency, utilization, packet_loss, status]
-        edge_index = []
-        edge_features = []
-        for src, dst in edges:
-            edge_index.append([node_to_idx[src], node_to_idx[dst]])
-            attrs = graph.edges[src, dst]
-            bw = float(attrs.get("bandwidth", 1000.0)) / 1000.0
-            lat = float(attrs.get("latency", 5.0)) / 100.0
-            util = float(attrs.get("utilization", 0.0))
-            loss = float(attrs.get("packet_loss", 0.0))
-            status = 1.0 if attrs.get("status", "up").lower() == "up" else 0.0
-            edge_features.append([bw, lat, util, loss, status])
+        if edges:
+            src_indices = [node_to_idx[src] for src, _ in edges]
+            dst_indices = [node_to_idx[dst] for _, dst in edges]
+            edge_index_arr = np.array([src_indices, dst_indices], dtype=np.int64)
 
-        if len(edges) > 0:
-            edge_index_arr = np.array(edge_index, dtype=np.int64).T  # Shape: (2, E)
+            adj = graph._adj
+            edge_features = []
+            for src, dst in edges:
+                attrs = adj[src][dst]
+                bw = float(attrs.get("bandwidth", 1000.0)) / 1000.0
+                lat = float(attrs.get("latency", 5.0)) / 100.0
+                util = float(attrs.get("utilization", 0.0))
+                loss = float(attrs.get("packet_loss", 0.0))
+                st_val = attrs.get("status", "up")
+                status = 1.0 if st_val in ("up", "UP") or str(st_val).lower() == "up" else 0.0
+                edge_features.append([bw, lat, util, loss, status])
             edge_features_arr = np.array(edge_features, dtype=np.float32)
         else:
             edge_index_arr = np.empty((2, 0), dtype=np.int64)
