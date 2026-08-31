@@ -6,6 +6,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F  # noqa: N812
 
+from nroute.exceptions import ModelError, ValidationError
+from nroute.utils.validators import validate_file_path
+
 
 class SAGEConv(nn.Module):
     """
@@ -149,5 +152,17 @@ class GraphSAGEModel(nn.Module):
         Args:
             path: Path to the model checkpoint.
             allow_unsafe: If True, allows insecure deserialization. Defaults to False.
+
+        Raises:
+            ModelError: If the model file path is invalid or loading fails.
         """
-        self.load_state_dict(torch.load(path, map_location="cpu", weights_only=not allow_unsafe))
+        try:
+            validated_path = validate_file_path(path, must_exist=True)
+            state_dict = torch.load(
+                validated_path, map_location="cpu", weights_only=not allow_unsafe
+            )
+            self.load_state_dict(state_dict)
+        except (ModelError, ValidationError):
+            raise
+        except Exception as e:
+            raise ModelError(f"Failed to load GraphSAGE model from '{path}': {e}") from e
