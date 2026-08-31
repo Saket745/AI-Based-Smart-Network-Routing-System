@@ -6,10 +6,13 @@ import json
 from pathlib import Path
 
 import click
+from rich.console import Console
 
 from nroute.core.metrics import MetricsCollectionResult
 from nroute.core.topology import Topology
 from nroute.visualization.exporters import MetricsExporter, TopologyExporter
+
+console = Console()
 
 
 @click.command(name="export")
@@ -52,16 +55,27 @@ def export_cmd(type: str, format: str, input: str, output: str) -> None:
         except Exception as exc:
             raise click.ClickException(f"Failed to load topology from {input_path}: {exc}") from exc
 
+        summary = f"({topo.node_count} nodes, {topo.edge_count} edges)"
         if format == "json":
             TopologyExporter.to_json(topo, output_path)
-            click.echo(f"Successfully exported topology to JSON: {output_path}")
+            console.print(
+                f"[green]+[/green] Successfully exported topology to JSON {summary}: [bold]{output_path}[/bold]"
+                f"[green]+[/green] Successfully exported topology {summary} to JSON: [bold]{output_path}[/bold]"
+                f"[green]+[/green] Successfully exported topology to JSON: [bold]{output_path}[/bold] {summary}"
+            )
         elif format == "graphml":
             TopologyExporter.to_graphml(topo, output_path)
-            click.echo(f"Successfully exported topology to GraphML: {output_path}")
+            console.print(
+                f"[green]+[/green] Successfully exported topology to GraphML {summary}: [bold]{output_path}[/bold]"
+                f"[green]+[/green] Successfully exported topology {summary} to GraphML: [bold]{output_path}[/bold]"
+                f"[green]+[/green] Successfully exported topology to GraphML: [bold]{output_path}[/bold] {summary}"
+            )
         elif format == "csv":
             TopologyExporter.to_csv(topo, output_path)
-            click.echo(
-                f"Successfully exported topology to CSV files using base path: {output_path}"
+            console.print(
+                f"[green]+[/green] Successfully exported topology to CSV files {summary} using base path: [bold]{output_path}[/bold]"
+                f"[green]+[/green] Successfully exported topology {summary} to CSV files using base path: [bold]{output_path}[/bold]"
+                f"[green]+[/green] Successfully exported topology to CSV files using base path: [bold]{output_path}[/bold] {summary}"
             )
 
     elif type == "metrics":
@@ -83,9 +97,28 @@ def export_cmd(type: str, format: str, input: str, output: str) -> None:
         except Exception as exc:
             raise click.ClickException(f"Failed to load metrics from {input_path}: {exc}") from exc
 
+        count = len(metrics_col.results)
+        summary = f"({count} metric record{'s' if count != 1 else ''})"
+
         if format == "json":
             MetricsExporter.to_json(metrics_col, output_path)
-            click.echo(f"Successfully exported metrics to JSON: {output_path}")
+            console.print(
+                f"[green]+[/green] Successfully exported metrics to JSON {summary}: [bold]{output_path}[/bold]"
+        summary = f"({len(metrics_col.results)} records)"
+        if format == "json":
+            MetricsExporter.to_json(metrics_col, output_path)
+            console.print(
+                f"[green]+[/green] Successfully exported metrics {summary} to JSON: [bold]{output_path}[/bold]"
+        summary = f"({len(metrics_col.results)} metric records)"
+        if format == "json":
+            MetricsExporter.to_json(metrics_col, output_path)
+            console.print(
+                f"[green]+[/green] Successfully exported metrics to JSON: [bold]{output_path}[/bold] {summary}"
+            )
         elif format == "csv":
             MetricsExporter.to_csv(metrics_col, output_path)
-            click.echo(f"Successfully exported metrics to CSV: {output_path}")
+            console.print(
+                f"[green]+[/green] Successfully exported metrics to CSV {summary}: [bold]{output_path}[/bold]"
+                f"[green]+[/green] Successfully exported metrics {summary} to CSV: [bold]{output_path}[/bold]"
+                f"[green]+[/green] Successfully exported metrics to CSV: [bold]{output_path}[/bold] {summary}"
+            )
