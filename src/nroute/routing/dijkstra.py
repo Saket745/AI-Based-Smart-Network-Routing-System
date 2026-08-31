@@ -36,6 +36,11 @@ class DijkstraRouter(BaseRouter):
                 f"Destination node '{destination}' is down or does not exist in topology."
             )
 
+        # Adapt weight for NetworkX. Passing string attribute directly allows
+        # fast internal C/dict lookups in NetworkX shortest path algorithms.
+        nx_weight: str | Callable[[str, str, dict[str, Any]], float]
+        if weight is None or isinstance(weight, str):
+            nx_weight = weight or "weight"
         # Adapt weight to NetworkX signature
         if weight is None:
             weight_param: str | Callable[[str, str, dict[str, Any]], float] = "weight"
@@ -47,6 +52,7 @@ class DijkstraRouter(BaseRouter):
             def weight_func(u: str, v: str, d: dict[str, Any]) -> float:
                 return float(wt_callable(d))
 
+            nx_weight = weight_func
             weight_param = weight_func
 
         try:
@@ -54,6 +60,7 @@ class DijkstraRouter(BaseRouter):
                 subgraph,
                 source=source,
                 target=destination,
+                weight=nx_weight,
                 weight=weight_param,
             )
             res_path = list(path)
