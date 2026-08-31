@@ -154,6 +154,9 @@ def test_cli_export_topology(sample_topology: Topology, tmp_path: Path) -> None:
     assert out_path.name in result.output
     assert "nodes" in result.output
     assert "edges" in result.output
+    assert "Successfully exported topology" in result.output
+    assert "(2 nodes, 1 edges)" in result.output
+    assert out_path.name in result.output
     assert out_path.exists()
 
 
@@ -183,6 +186,9 @@ def test_cli_export_metrics(sample_metrics: MetricsCollectionResult, tmp_path: P
     assert "Successfully exported metrics to CSV" in result.output
     assert out_path.name in result.output
     assert "metric records" in result.output
+    assert "Successfully exported metrics" in result.output
+    assert "(2 records)" in result.output
+    assert out_path.name in result.output
     assert out_path.exists()
 
 

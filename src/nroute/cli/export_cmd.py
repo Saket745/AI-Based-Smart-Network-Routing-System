@@ -61,18 +61,27 @@ def export_cmd(type: str, format: str, input: str, output: str) -> None:
             console.print(
                 f"[green]+[/green] Successfully exported topology to JSON: "
                 f"[bold]{output_path}[/bold] {summary}"
+                f"[green]+[/green] Successfully exported topology to JSON {summary}: [bold]{output_path}[/bold]"
+                f"[green]+[/green] Successfully exported topology {summary} to JSON: [bold]{output_path}[/bold]"
+                f"[green]+[/green] Successfully exported topology to JSON: [bold]{output_path}[/bold] {summary}"
             )
         elif format == "graphml":
             TopologyExporter.to_graphml(topo, output_path)
             console.print(
                 f"[green]+[/green] Successfully exported topology to GraphML: "
                 f"[bold]{output_path}[/bold] {summary}"
+                f"[green]+[/green] Successfully exported topology to GraphML {summary}: [bold]{output_path}[/bold]"
+                f"[green]+[/green] Successfully exported topology {summary} to GraphML: [bold]{output_path}[/bold]"
+                f"[green]+[/green] Successfully exported topology to GraphML: [bold]{output_path}[/bold] {summary}"
             )
         elif format == "csv":
             TopologyExporter.to_csv(topo, output_path)
             console.print(
                 f"[green]+[/green] Successfully exported topology to CSV files using base path: "
                 f"[bold]{output_path}[/bold] {summary}"
+                f"[green]+[/green] Successfully exported topology to CSV files {summary} using base path: [bold]{output_path}[/bold]"
+                f"[green]+[/green] Successfully exported topology {summary} to CSV files using base path: [bold]{output_path}[/bold]"
+                f"[green]+[/green] Successfully exported topology to CSV files using base path: [bold]{output_path}[/bold] {summary}"
             )
 
     elif type == "metrics":
@@ -100,10 +109,30 @@ def export_cmd(type: str, format: str, input: str, output: str) -> None:
             console.print(
                 f"[green]+[/green] Successfully exported metrics to JSON: "
                 f"[bold]{output_path}[/bold] {metrics_summary}"
+        count = len(metrics_col.results)
+        summary = f"({count} metric record{'s' if count != 1 else ''})"
+
+        if format == "json":
+            MetricsExporter.to_json(metrics_col, output_path)
+            console.print(
+                f"[green]+[/green] Successfully exported metrics to JSON {summary}: [bold]{output_path}[/bold]"
+        summary = f"({len(metrics_col.results)} records)"
+        if format == "json":
+            MetricsExporter.to_json(metrics_col, output_path)
+            console.print(
+                f"[green]+[/green] Successfully exported metrics {summary} to JSON: [bold]{output_path}[/bold]"
+        summary = f"({len(metrics_col.results)} metric records)"
+        if format == "json":
+            MetricsExporter.to_json(metrics_col, output_path)
+            console.print(
+                f"[green]+[/green] Successfully exported metrics to JSON: [bold]{output_path}[/bold] {summary}"
             )
         elif format == "csv":
             MetricsExporter.to_csv(metrics_col, output_path)
             console.print(
                 f"[green]+[/green] Successfully exported metrics to CSV: "
                 f"[bold]{output_path}[/bold] {metrics_summary}"
+                f"[green]+[/green] Successfully exported metrics to CSV {summary}: [bold]{output_path}[/bold]"
+                f"[green]+[/green] Successfully exported metrics {summary} to CSV: [bold]{output_path}[/bold]"
+                f"[green]+[/green] Successfully exported metrics to CSV: [bold]{output_path}[/bold] {summary}"
             )
