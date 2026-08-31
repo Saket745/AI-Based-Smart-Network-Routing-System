@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import os
 import tempfile
+from pathlib import Path
 
+import pytest
 import torch
 
+from nroute.exceptions import ModelError
+from nroute.exceptions import ModelError, ValidationError
 from nroute.ml.models.graphsage import GraphSAGEModel, SAGEConv
 
 
@@ -174,3 +178,39 @@ def test_sage_conv_specific_graph() -> None:
     # out[2] = [1, 1] + [0, 0] = [1, 1]
     expected_node_2 = torch.tensor([1.0, 1.0])
     torch.testing.assert_close(out[2], expected_node_2)
+
+
+def test_graphsage_load_invalid_path_raises_model_error() -> None:
+    """Test loading GraphSAGE model with non-existent path raises ModelError."""
+    model = GraphSAGEModel(16, 8)
+    with pytest.raises(ModelError, match="does not exist"):
+        model.load("non_existent_graphsage_model.pt")
+
+
+def test_graphsage_load_corrupted_file_raises_model_error() -> None:
+    """Test loading GraphSAGE model with corrupted file raises ModelError."""
+    model = GraphSAGEModel(16, 8)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        corrupt_path = Path(tmpdir) / "corrupt.pt"
+        corrupt_path.write_bytes(b"invalid checkpoint data")
+def test_graphsage_model_load_invalid_path() -> None:
+    """Test that loading GraphSAGE from non-existent or invalid path raises appropriate error."""
+    model = GraphSAGEModel(node_in_dim=16, edge_in_dim=8)
+
+    with pytest.raises(ValidationError, match="does not exist"):
+        model.load("non_existent_graphsage_model.pt")
+
+    with pytest.raises(ValidationError, match="empty"):
+        model.load("")
+
+
+def test_graphsage_model_load_corrupt_file() -> None:
+    """Test that loading a corrupted checkpoint into GraphSAGE raises ModelError."""
+    model = GraphSAGEModel(node_in_dim=16, edge_in_dim=8)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        corrupt_path = Path(tmpdir) / "corrupt.pt"
+        corrupt_path.write_bytes(b"invalid binary model data")
+
+        with pytest.raises(ModelError, match="Failed to load GraphSAGE model"):
+            model.load(str(corrupt_path))

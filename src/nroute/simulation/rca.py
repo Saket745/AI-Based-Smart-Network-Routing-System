@@ -24,8 +24,9 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
-from nroute.exceptions import SimulationError
+from nroute.exceptions import SimulationError, ValidationError
 from nroute.utils.logging import get_logger
+from nroute.utils.validators import validate_file_path
 
 if TYPE_CHECKING:
     from nroute.core.topology import Topology
@@ -200,9 +201,10 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
     ``event_id``, ``timestamp``, ``node_id``, ``interface``,
     ``peer_node``, ``event_type``, ``category``, ``severity``, ``message``.
     """
-    p = Path(path)
-    if not p.is_file():
-        raise SimulationError(f"Events file not found: {path}")
+    try:
+        p = validate_file_path(path, must_exist=True)
+    except ValidationError as exc:
+        raise SimulationError(str(exc)) from exc
 
     try:
         stat = p.stat()
@@ -293,54 +295,16 @@ class RCACorrelator:
         )
 
         # 2. Build affected-node / edge sets
-        for evt in sorted_events:
-            if evt.node_id:
-                result.affected_nodes.add(evt.node_id)
-            if evt.peer_node:
-                result.affected_nodes.add(evt.peer_node)
-            if evt.node_id and evt.peer_node:
-                result.affected_edges.add((evt.node_id, evt.peer_node))
+        self._collect_graph_elements(sorted_events, result)
 
         # 3. Walk events to find the root cause
         #    The root cause is the earliest event on the highest-priority
         #    category that can topologically explain other events.
-        root_candidate = sorted_events[0]
-
-        # Try to find a higher-priority root
-        for evt in sorted_events:
-            if evt.priority < root_candidate.priority:
-                root_candidate = evt
-                break
-            if evt.priority == root_candidate.priority and evt.timestamp < root_candidate.timestamp:
-                root_candidate = evt
-
+        root_candidate = self._find_root_cause(sorted_events)
         result.root_cause = root_candidate
 
         # 4. Build correlation chain — events explained by the root cause
-        chain: list[NetworkEvent] = [root_candidate]
-        root_node = root_candidate.node_id
-        root_peer = root_candidate.peer_node
-
-        # Find downstream effects: events on the same node, adjacent nodes,
-        # or nodes reachable through the failing link
-        downstream_nodes = {root_node}
-        if root_peer:
-            downstream_nodes.add(root_peer)
-
-        # Expand to topology neighbours of the failing link
-        if root_node and root_node in self.topology.nodes:
-            with contextlib.suppress(Exception):
-                downstream_nodes.update(self.topology.neighbors(root_node))
-        if root_peer and root_peer in self.topology.nodes:
-            with contextlib.suppress(Exception):
-                downstream_nodes.update(self.topology.neighbors(root_peer))
-
-        for evt in sorted_events:
-            if evt is root_candidate:
-                continue
-            if evt.node_id in downstream_nodes or evt.peer_node in downstream_nodes:
-                chain.append(evt)
-
+        chain = self._build_correlation_chain(root_candidate, sorted_events)
         result.correlation_chain = chain
 
         # 5. Generate human-readable summary
@@ -355,6 +319,56 @@ class RCACorrelator:
         )
 
         return result
+
+    @staticmethod
+    def _collect_graph_elements(sorted_events: list[NetworkEvent], result: RCAResult) -> None:
+        """Populate affected_nodes and affected_edges from events."""
+        for evt in sorted_events:
+            if evt.node_id:
+                result.affected_nodes.add(evt.node_id)
+            if evt.peer_node:
+                result.affected_nodes.add(evt.peer_node)
+            if evt.node_id and evt.peer_node:
+                result.affected_edges.add((evt.node_id, evt.peer_node))
+
+    @staticmethod
+    def _find_root_cause(sorted_events: list[NetworkEvent]) -> NetworkEvent:
+        """Find the earliest event of highest priority to serve as root cause."""
+        root_candidate = sorted_events[0]
+        for evt in sorted_events:
+            if evt.priority < root_candidate.priority:
+                root_candidate = evt
+                break
+            if evt.priority == root_candidate.priority and evt.timestamp < root_candidate.timestamp:
+                root_candidate = evt
+        return root_candidate
+
+    def _build_correlation_chain(
+        self, root_candidate: NetworkEvent, sorted_events: list[NetworkEvent]
+    ) -> list[NetworkEvent]:
+        """Build downstream correlation chain explained by the root cause."""
+        chain: list[NetworkEvent] = [root_candidate]
+        root_node = root_candidate.node_id
+        root_peer = root_candidate.peer_node
+
+        downstream_nodes = {root_node}
+        if root_peer:
+            downstream_nodes.add(root_peer)
+
+        if root_node and root_node in self.topology.nodes:
+            with contextlib.suppress(Exception):
+                downstream_nodes.update(self.topology.neighbors(root_node))
+        if root_peer and root_peer in self.topology.nodes:
+            with contextlib.suppress(Exception):
+                downstream_nodes.update(self.topology.neighbors(root_peer))
+
+        for evt in sorted_events:
+            if evt is root_candidate:
+                continue
+            if evt.node_id in downstream_nodes or evt.peer_node in downstream_nodes:
+                chain.append(evt)
+
+        return chain
 
     @staticmethod
     def _build_summary(root: NetworkEvent, chain: list[NetworkEvent]) -> str:
