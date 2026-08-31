@@ -114,6 +114,9 @@ class BaseRouter(ABC):
             )
 
         graph = topology.graph
+        down_nodes: set[str] = getattr(topology, "_down_nodes", set())
+        down_edges: set[tuple[str, str]] = getattr(topology, "_down_edges", set())
+
         nodes_dict = graph.nodes
         # Performance optimization: access underlying NetworkX graph directly to bypass O(V)/O(E)
         # list allocation overhead (topology.nodes/topology.edges) and dict copy overhead (get_node/get_edge)
@@ -142,6 +145,7 @@ class BaseRouter(ABC):
             if node not in graph:
                 raise RoutingError(f"Node '{node}' in path does not exist in topology.")
             # If a node is down, the route is invalid
+            if node in down_nodes or graph.nodes[node].get("status") == "down":
             if nodes_dict[node].get("status") == "down":
             if nodes[node].get("status") == "down":
             if graph.nodes[node].get("status") == "down":
@@ -151,6 +155,7 @@ class BaseRouter(ABC):
         for u, v in itertools.pairwise(path):
             if not graph.has_edge(u, v):
                 raise RoutingError(f"Edge '{u}->{v}' in path does not exist in topology.")
+            if (u, v) in down_edges or graph.edges[u, v].get("status") == "down":
             edge_attr = edges_dict[u, v]
             if graph.edges[u, v].get("status") == "down":
             if edges_dict[u, v].get("status") == "down":
