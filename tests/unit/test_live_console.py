@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import plotext as plt
 from rich.layout import Layout
 
 from nroute.core.metrics import SimulationMetrics
@@ -19,14 +20,15 @@ from nroute.visualization.live_console import LiveSimulationConsole, PlotextRend
 def test_plotext_renderable() -> None:
     """Verify PlotextRenderable wraps plotext plots and decodes ANSI properly."""
 
-    def plot_func(plt: Any) -> None:
-        plt.plot([1, 2], [3, 4])
+    def plot_func(plt_arg: Any) -> None:
+        plt_arg.plot([1, 2], [3, 4])
 
     renderable = PlotextRenderable(plot_func)
     options = MagicMock()
     options.max_width = 80
     options.height = 10
 
+    with patch.object(plt, "build", return_value="\x1b[31mRedPlot\x1b[0m", create=True) as mock_build:
     import plotext as plt
 
     with patch.object(
