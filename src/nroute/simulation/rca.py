@@ -15,7 +15,6 @@ to isolate root failures.
 from __future__ import annotations
 
 import contextlib
-import copy
 import functools
 import json
 from dataclasses import dataclass, field
@@ -207,8 +206,7 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
 
     try:
         stat = p.stat()
-        raw_cached = _load_raw_file_cached(str(p.resolve()), stat.st_mtime, stat.st_size)
-        raw = copy.deepcopy(raw_cached)
+        raw = _load_raw_file_cached(str(p.resolve()), stat.st_mtime, stat.st_size)
     except Exception as exc:
         if isinstance(exc, SimulationError):
             raise
