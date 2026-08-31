@@ -148,6 +148,7 @@ class BaseRouter(ABC):
         for u, v in itertools.pairwise(path):
             if not graph.has_edge(u, v):
                 raise RoutingError(f"Edge '{u}->{v}' in path does not exist in topology.")
+            if graph.edges[u, v].get("status") == "down":
             if edges_dict[u, v].get("status") == "down":
             if edges[u, v].get("status") == "down":
             edge_attr = graph_edges[u, v]

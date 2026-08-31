@@ -212,6 +212,7 @@ def test_normalize_topology_happy_path() -> None:
 
 def test_normalize_topology_missing_node_id() -> None:
     """Test that node missing ID/name raises IngestionError."""
+    raw_nodes = [{"type": "router"}]
     raw_nodes: list[dict[str, Any]] = [{"capacity": 1000}]
     raw_nodes = [{"capacity": 1000}]
     with pytest.raises(IngestionError, match=r"Node at index 0 is missing 'id' or 'name'"):
