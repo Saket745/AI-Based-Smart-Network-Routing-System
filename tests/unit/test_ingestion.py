@@ -89,8 +89,23 @@ def test_csv_topology_importer_invalid(tmp_path: Path) -> None:
         CSVTopologyImporter.load(csv_file)
 
     # Missing file
-    with pytest.raises(IngestionError, match="Topology CSV file not found"):
+    with pytest.raises(IngestionError, match="Invalid topology CSV file path"):
         CSVTopologyImporter.load(tmp_path / "non_existent.csv")
+
+
+def test_importer_path_validation_security() -> None:
+    """Test path validation security enforcement across CSV and JSON importers."""
+    invalid_paths = ["", "   ", "non_existent_path.csv", "\0nullbyte.json"]
+
+    for path in invalid_paths:
+        with pytest.raises(IngestionError, match="Invalid topology CSV file path"):
+            CSVTopologyImporter.load(path)
+
+        with pytest.raises(IngestionError, match="Invalid topology JSON file path"):
+            JSONTopologyImporter.load(path)
+
+        with pytest.raises(IngestionError, match="Invalid traffic CSV file path"):
+            CSVTrafficImporter.load(path)
 
 
 def test_json_topology_importer_valid(tmp_path: Path) -> None:
