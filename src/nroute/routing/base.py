@@ -113,6 +113,8 @@ class BaseRouter(ABC):
                 f"Path destination '{path[-1]}' does not match expected destination '{destination}'."
             )
 
+        # Access underlying NetworkX DiGraph directly to avoid creating list[str] and
+        # list[tuple[str, str]] allocations via topology.nodes and topology.edges properties
         graph = topology.graph
         down_nodes: set[str] = getattr(topology, "_down_nodes", set())
         down_edges: set[tuple[str, str]] = getattr(topology, "_down_edges", set())
@@ -185,19 +187,25 @@ class BaseRouter(ABC):
                 d.get("status") == "down" for u, v, d in topology.graph.edges(data=True)
             )
 
-        has_down_nodes = getattr(topology, "has_down_nodes", False)
-        has_down_edges = getattr(topology, "has_down_edges", False)
         if not has_down_nodes and not has_down_edges:
             return topology.graph
 
+        graph = topology.graph
+        down_nodes: set[str] = getattr(topology, "_down_nodes", set())
+        down_edges: set[tuple[str, str]] = getattr(topology, "_down_edges", set())
+
         def filter_node(node: str) -> bool:
-            return str(topology.get_node(node).get("status", "up")).lower() != "down"
+            if node in down_nodes:
+                return False
+            return bool(graph.nodes[node].get("status", "up") != "down")
 
         def filter_edge(u: str, v: str) -> bool:
-            return str(topology.get_edge(u, v).get("status", "up")).lower() != "down"
+            if (u, v) in down_edges:
+                return False
+            return bool(graph.edges[u, v].get("status", "up") != "down")
 
         return nx.subgraph_view(
-            topology.graph,
+            graph,
             filter_node=filter_node,
             filter_edge=filter_edge,
         )
