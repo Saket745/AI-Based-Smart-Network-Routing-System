@@ -15,6 +15,7 @@ from click.testing import CliRunner
 from nroute.cli.export_cmd import export_cmd
 from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
 from nroute.core.topology import Topology
+from nroute.exceptions import SimulationError
 from nroute.visualization.exporters import MetricsExporter, TopologyExporter
 
 
@@ -66,6 +67,15 @@ def test_topology_exporter_json(sample_topology: Topology, tmp_path: Path) -> No
         data = json.load(f)
     assert len(data["nodes"]) == 2
     assert len(data["edges"]) == 1
+
+
+def test_topology_exporter_json_invalid_path(sample_topology: Topology) -> None:
+    """Test exporting topology to JSON with invalid path raises SimulationError."""
+    with pytest.raises(SimulationError, match="Failed to export topology to JSON"):
+        TopologyExporter.to_json(sample_topology, "invalid_path_\0_null.json")
+
+    with pytest.raises(SimulationError, match="Failed to export topology to JSON"):
+        TopologyExporter.to_json(sample_topology, 12345)  # type: ignore[arg-type]
 
 
 def test_topology_exporter_graphml(sample_topology: Topology, tmp_path: Path) -> None:
