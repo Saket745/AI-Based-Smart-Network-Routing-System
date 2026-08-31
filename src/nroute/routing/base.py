@@ -113,17 +113,20 @@ class BaseRouter(ABC):
                 f"Path destination '{path[-1]}' does not match expected destination '{destination}'."
             )
 
+        graph = topology.graph
+        nodes_dict = graph.nodes
         for node in path:
-            if node not in topology.nodes:
+            if node not in graph:
                 raise RoutingError(f"Node '{node}' in path does not exist in topology.")
             # If a node is down, the route is invalid
-            if topology.get_node(node).get("status") == "down":
+            if nodes_dict[node].get("status") == "down":
                 raise RoutingError(f"Node '{node}' in path is down.")
 
+        edges_dict = graph.edges
         for u, v in itertools.pairwise(path):
-            if (u, v) not in topology.edges:
+            if not graph.has_edge(u, v):
                 raise RoutingError(f"Edge '{u}->{v}' in path does not exist in topology.")
-            edge_attr = topology.get_edge(u, v)
+            edge_attr = edges_dict[u, v]
             if edge_attr.get("status") == "down":
                 raise RoutingError(f"Edge '{u}->{v}' in path is down.")
 
