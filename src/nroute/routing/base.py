@@ -113,17 +113,55 @@ class BaseRouter(ABC):
                 f"Path destination '{path[-1]}' does not match expected destination '{destination}'."
             )
 
+        graph = topology.graph
+        down_nodes: set[str] = getattr(topology, "_down_nodes", set())
+        down_edges: set[tuple[str, str]] = getattr(topology, "_down_edges", set())
+
+        nodes_dict = graph.nodes
+        # Performance optimization: access underlying NetworkX graph directly to bypass O(V)/O(E)
+        # list allocation overhead (topology.nodes/topology.edges) and dict copy overhead (get_node/get_edge)
+        graph = topology.graph
+        nodes_dict = graph.nodes
+        edges_dict = graph.edges
+
+        graph = topology.graph
+        nodes = graph.nodes
+        edges = graph.edges
+
+        # Performance optimization: use direct NetworkX graph lookups instead of
+        # topology.nodes/edges (which allocate lists and scan linearly) and
+        # get_node/get_edge (which return dict copies).
+        graph = topology.graph
+        graph_nodes = graph.nodes
+        graph_edges = graph.edges
+
         for node in path:
-            if node not in topology.nodes:
+            if node not in graph_nodes:
                 raise RoutingError(f"Node '{node}' in path does not exist in topology.")
             # If a node is down, the route is invalid
-            if topology.get_node(node).get("status") == "down":
+            if graph_nodes[node].get("status") == "down":
+        graph = topology.graph
+        for node in path:
+            if node not in graph:
+                raise RoutingError(f"Node '{node}' in path does not exist in topology.")
+            # If a node is down, the route is invalid
+            if node in down_nodes or graph.nodes[node].get("status") == "down":
+            if nodes_dict[node].get("status") == "down":
+            if nodes[node].get("status") == "down":
+            if graph.nodes[node].get("status") == "down":
                 raise RoutingError(f"Node '{node}' in path is down.")
 
+        edges_dict = graph.edges
         for u, v in itertools.pairwise(path):
-            if (u, v) not in topology.edges:
+            if not graph.has_edge(u, v):
                 raise RoutingError(f"Edge '{u}->{v}' in path does not exist in topology.")
-            edge_attr = topology.get_edge(u, v)
+            if (u, v) in down_edges or graph.edges[u, v].get("status") == "down":
+            edge_attr = edges_dict[u, v]
+            if graph.edges[u, v].get("status") == "down":
+            if edges_dict[u, v].get("status") == "down":
+            if edges[u, v].get("status") == "down":
+            edge_attr = graph_edges[u, v]
+            edge_attr = graph.edges[u, v]
             if edge_attr.get("status") == "down":
                 raise RoutingError(f"Edge '{u}->{v}' in path is down.")
 
