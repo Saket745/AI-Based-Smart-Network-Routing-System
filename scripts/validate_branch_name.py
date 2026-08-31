@@ -50,8 +50,8 @@ def validate_branch_name(branch_name):
         if branch_name.startswith(prefix):
             return True, ""
 
-    # Check for Jules-style branches (sometimes they are flat)
-    if re.match(r"^jules-", branch_name):
+    # Check for Jules/Palette-style agent branches (sometimes they are flat)
+    if re.match(r"^(jules|palette)-", branch_name):
         return True, ""
 
     return False, (
