@@ -125,12 +125,19 @@ class BaseRouter(ABC):
                 raise RoutingError(f"Node '{node}' in path does not exist in topology.")
             # If a node is down, the route is invalid
             if graph_nodes[node].get("status") == "down":
+        graph = topology.graph
+        for node in path:
+            if node not in graph:
+                raise RoutingError(f"Node '{node}' in path does not exist in topology.")
+            # If a node is down, the route is invalid
+            if graph.nodes[node].get("status") == "down":
                 raise RoutingError(f"Node '{node}' in path is down.")
 
         for u, v in itertools.pairwise(path):
             if not graph.has_edge(u, v):
                 raise RoutingError(f"Edge '{u}->{v}' in path does not exist in topology.")
             edge_attr = graph_edges[u, v]
+            edge_attr = graph.edges[u, v]
             if edge_attr.get("status") == "down":
                 raise RoutingError(f"Edge '{u}->{v}' in path is down.")
 
