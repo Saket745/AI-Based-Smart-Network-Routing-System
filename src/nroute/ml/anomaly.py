@@ -14,7 +14,8 @@ import torch.optim as optim
 from sklearn.ensemble import IsolationForest
 from torch.utils.data import DataLoader, TensorDataset
 
-from nroute.exceptions import ModelError
+from nroute.exceptions import ModelError, ValidationError
+from nroute.utils.validators import validate_file_path
 
 
 class AutoencoderNet(nn.Module):
@@ -357,8 +358,11 @@ class AnomalyDetector:
         Raises:
             ModelError: If loading fails or insecure file is detected with allow_unsafe=False.
         """
-        if not os.path.exists(path):
-            raise ModelError(f"Model file not found: {path}")
+        try:
+            validated_path = validate_file_path(path, must_exist=True)
+            path = str(validated_path)
+        except ValidationError as e:
+            raise ModelError(str(e)) from e
 
         try:
             if path.endswith(".pt") or path.endswith(".pth"):
