@@ -29,6 +29,7 @@ def config_cmd() -> None:
 @click.pass_context
 def init_config(ctx: click.Context, output_path: str) -> None:
     """Initialize a default nroute.yaml configuration file."""
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
     # Default template configuration content
     template = """# nroute system configuration
 # -----------------------------
@@ -83,6 +84,11 @@ custom_routers: {}        # Registry mapping for custom routing plugins
     is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
 
     if dest.exists():
+        if is_json:
+            click.echo(
+                json.dumps({"error": f"Configuration file '{dest}' already exists."}), err=True
+            )
+            raise SystemExit(1)
         click.confirm(f"Configuration file '{dest}' already exists. Overwrite?", abort=True)
 
     try:
@@ -99,4 +105,13 @@ custom_routers: {}        # Registry mapping for custom routing plugins
             click.echo(json.dumps({"error": str(e)}), err=True)
             raise SystemExit(1) from e
         console.print(f"[red]x Error initializing configuration file:[/red] {e}")
+                f"[green]+[/green] Initialized default configuration file at: [bold]{dest}[/bold]"
+            )
+    except Exception as e:
+        if is_json:
+            click.echo(
+                json.dumps({"error": f"Error initializing configuration file: {e}"}), err=True
+            )
+        else:
+            console.print(f"[red]x Error initializing configuration file:[/red] {e}")
         raise SystemExit(1) from e
