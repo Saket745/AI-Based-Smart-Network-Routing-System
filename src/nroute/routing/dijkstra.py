@@ -41,6 +41,11 @@ class DijkstraRouter(BaseRouter):
         nx_weight: str | Callable[[str, str, dict[str, Any]], float]
         if weight is None or isinstance(weight, str):
             nx_weight = weight or "weight"
+        # Adapt weight to NetworkX signature
+        if weight is None:
+            weight_param: str | Callable[[str, str, dict[str, Any]], float] = "weight"
+        elif isinstance(weight, str):
+            weight_param = weight
         else:
             wt_callable = weight
 
@@ -48,6 +53,7 @@ class DijkstraRouter(BaseRouter):
                 return float(wt_callable(d))
 
             nx_weight = weight_func
+            weight_param = weight_func
 
         try:
             path = nx.shortest_path(
@@ -55,6 +61,7 @@ class DijkstraRouter(BaseRouter):
                 source=source,
                 target=destination,
                 weight=nx_weight,
+                weight=weight_param,
             )
             res_path = list(path)
             # Validate computed path (ensures active links and correct endpoints)

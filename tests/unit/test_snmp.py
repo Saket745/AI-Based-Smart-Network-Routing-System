@@ -151,6 +151,12 @@ def test_snmp_parser_missing_file() -> None:
         SNMPParser.parse("non_existent_file.csv")
 
 
+def test_snmp_parser_path_traversal() -> None:
+    """Test error when path contains null bytes or path traversal attempt."""
+    with pytest.raises(IngestionError, match="SNMP export file not found"):
+        SNMPParser.parse("test\x00file.csv")
+
+
 def test_snmp_parser_invalid_json_structure(tmp_path: Path) -> None:
     """Test error for invalid JSON structure."""
     json_file = tmp_path / "invalid.json"

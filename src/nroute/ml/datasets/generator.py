@@ -69,72 +69,12 @@ class DatasetGenerator:
         )
 
         def tick_callback(tick: int, sim: SimulationEngine) -> None:
-            # Gather node details
-            nodes_data = []
-            graph = sim.topology.graph
-            for node, attrs in graph.nodes(data=True):
-                nodes_data.append(
-                    {
-                        "id": node,
-                        "capacity": float(attrs.get("capacity", 1000.0)),
-                        "status": attrs.get("status", "up"),
-                        "queue_length": float(attrs.get("queue_length", 0.0)),
-                        "packet_load": float(attrs.get("packet_load", 0.0)),
-                    }
-                )
-
-            # Gather edge details
-            edges_data = []
-            for u, v, attrs in graph.edges(data=True):
-                edges_data.append(
-                    {
-                        "source": u,
-                        "destination": v,
-                        "bandwidth": float(attrs.get("bandwidth", 1000.0)),
-                        "latency": float(attrs.get("latency", 5.0)),
-                        "utilization": float(attrs.get("utilization", 0.0)),
-                        "packet_loss": float(attrs.get("packet_loss", 0.0)),
-                        "status": attrs.get("status", "up"),
-                        "reliability": float(attrs.get("reliability", 1.0)),
-                        "failure_frequency": float(attrs.get("failure_frequency", 0.0)),
-                    }
-                )
-
-            # Gather traffic completed in this tick
-            traffic_data = []
-            for flow in sim.last_tick_completed_flows:
-                traffic_data.append(
-                    {
-                        "source": flow.source,
-                        "destination": flow.destination,
-                        "bytes": flow.bytes,
-                        "packets": flow.packets,
-                        "protocol": flow.protocol,
-                    }
-                )
-
-            # Gather global metrics of this tick
-            results = sim.collector.get_results()
-            throughput = 0.0
-            avg_latency = 0.0
-            loss_rate = 0.0
-            if results.results:
-                # Get the last recorded tick metric
-                last_m = results.results[-1]
-                throughput = last_m.throughput
-                avg_latency = last_m.avg_latency
-                loss_rate = last_m.packet_loss_rate
-
             snapshot = {
                 "tick": tick,
-                "nodes": nodes_data,
-                "edges": edges_data,
-                "traffic": traffic_data,
-                "global_metrics": {
-                    "throughput": throughput,
-                    "avg_latency": avg_latency,
-                    "packet_loss_rate": loss_rate,
-                },
+                "nodes": self._collect_nodes_telemetry(sim.topology.graph),
+                "edges": self._collect_edges_telemetry(sim.topology.graph),
+                "traffic": self._collect_traffic_telemetry(sim.last_tick_completed_flows),
+                "global_metrics": self._collect_global_telemetry(sim.collector),
             }
             snapshots.append(snapshot)
 
@@ -147,6 +87,76 @@ class DatasetGenerator:
         )
 
         return snapshots
+
+    @staticmethod
+    def _collect_nodes_telemetry(graph: Any) -> list[dict[str, Any]]:
+        """Collect node telemetry attributes from NetworkX graph."""
+        nodes_data = []
+        for node, attrs in graph.nodes(data=True):
+            nodes_data.append(
+                {
+                    "id": node,
+                    "capacity": float(attrs.get("capacity", 1000.0)),
+                    "status": attrs.get("status", "up"),
+                    "queue_length": float(attrs.get("queue_length", 0.0)),
+                    "packet_load": float(attrs.get("packet_load", 0.0)),
+                }
+            )
+        return nodes_data
+
+    @staticmethod
+    def _collect_edges_telemetry(graph: Any) -> list[dict[str, Any]]:
+        """Collect edge telemetry attributes from NetworkX graph."""
+        edges_data = []
+        for u, v, attrs in graph.edges(data=True):
+            edges_data.append(
+                {
+                    "source": u,
+                    "destination": v,
+                    "bandwidth": float(attrs.get("bandwidth", 1000.0)),
+                    "latency": float(attrs.get("latency", 5.0)),
+                    "utilization": float(attrs.get("utilization", 0.0)),
+                    "packet_loss": float(attrs.get("packet_loss", 0.0)),
+                    "status": attrs.get("status", "up"),
+                    "reliability": float(attrs.get("reliability", 1.0)),
+                    "failure_frequency": float(attrs.get("failure_frequency", 0.0)),
+                }
+            )
+        return edges_data
+
+    @staticmethod
+    def _collect_traffic_telemetry(completed_flows: list[Any]) -> list[dict[str, Any]]:
+        """Collect completed flow traffic telemetry."""
+        traffic_data = []
+        for flow in completed_flows:
+            traffic_data.append(
+                {
+                    "source": flow.source,
+                    "destination": flow.destination,
+                    "bytes": flow.bytes,
+                    "packets": flow.packets,
+                    "protocol": flow.protocol,
+                }
+            )
+        return traffic_data
+
+    @staticmethod
+    def _collect_global_telemetry(collector: Any) -> dict[str, float]:
+        """Collect global simulation metrics for the tick."""
+        results = collector.get_results()
+        throughput = 0.0
+        avg_latency = 0.0
+        loss_rate = 0.0
+        if results.results:
+            last_m = results.results[-1]
+            throughput = last_m.throughput
+            avg_latency = last_m.avg_latency
+            loss_rate = last_m.packet_loss_rate
+        return {
+            "throughput": throughput,
+            "avg_latency": avg_latency,
+            "packet_loss_rate": loss_rate,
+        }
 
     def save_json_snapshots(self, snapshots: list[dict[str, Any]], filepath: str) -> None:
         """Save collected snapshots to a JSON file."""
