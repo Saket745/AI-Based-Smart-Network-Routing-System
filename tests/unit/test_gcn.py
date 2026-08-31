@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 import torch
 
+from nroute.exceptions import ModelError
 from nroute.exceptions import ModelError, ValidationError
 from nroute.ml.models.gcn import GCNConv, GCNModel
 
@@ -146,6 +147,19 @@ def test_gcn_model_load_unsafe() -> None:
             assert torch.equal(p1, p2)
 
 
+def test_gcn_load_invalid_path_raises_model_error() -> None:
+    """Test loading GCN model with non-existent path raises ModelError."""
+    model = GCNModel(8, 4)
+    with pytest.raises(ModelError, match="does not exist"):
+        model.load("non_existent_gcn_model.pt")
+
+
+def test_gcn_load_corrupted_file_raises_model_error() -> None:
+    """Test loading GCN model with corrupted file raises ModelError."""
+    model = GCNModel(8, 4)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        corrupt_path = Path(tmpdir) / "corrupt.pt"
+        corrupt_path.write_bytes(b"invalid checkpoint data")
 def test_gcn_model_load_invalid_path() -> None:
     """Test that loading from a non-existent or invalid path raises appropriate error."""
     model = GCNModel(8, 4)
