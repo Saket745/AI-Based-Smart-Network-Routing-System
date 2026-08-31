@@ -1,5 +1,9 @@
 # Stage 1: Build & Compile package
 FROM python:3.10-slim@sha256:57a1b347eb451e1ab6307b1fc9e0976f259cf156219963b5dd7a7be0d908d3d4 AS builder
+FROM python:3.10-slim@sha256:38758a82a44d1acb9bae3dd5f7d2a55452fb44a5ceca7c4589f360f2c4aa3d0c AS builder
+FROM python:3.10-slim@sha256:57a1b347eb451e1ab6307b1fc9e0976f259cf156219963b5dd7a7be0d908d3d4 AS builder
+FROM python:3.10-slim@sha256:38758a82a44d1acb9bae3dd5f7d2a55452fb44a5ceca7c4589f360f2c4aa3d0c AS builder
+FROM python:3.10-slim AS builder
 
 WORKDIR /app
 
@@ -15,6 +19,10 @@ RUN pip install --no-cache-dir build && python -m build
 
 # Stage 2: Minimal runtime image (Slim variant, no ML/torch)
 FROM python:3.10-slim@sha256:57a1b347eb451e1ab6307b1fc9e0976f259cf156219963b5dd7a7be0d908d3d4
+FROM python:3.10-slim@sha256:38758a82a44d1acb9bae3dd5f7d2a55452fb44a5ceca7c4589f360f2c4aa3d0c
+FROM python:3.10-slim@sha256:57a1b347eb451e1ab6307b1fc9e0976f259cf156219963b5dd7a7be0d908d3d4
+FROM python:3.10-slim@sha256:38758a82a44d1acb9bae3dd5f7d2a55452fb44a5ceca7c4589f360f2c4aa3d0c
+FROM python:3.10-slim
 
 LABEL org.opencontainers.image.source="https://github.com/Saket745/AI-Based-Smart-Network-Routing-System"
 LABEL org.opencontainers.image.description="AI-Based Smart Network Routing System (nroute-slim)"
@@ -41,6 +49,8 @@ RUN pip install --user --no-cache-dir --no-deps *.whl \
 
 # Manually install ONLY the lightweight, basic dependencies (routing, simulation, CLI, FastAPI server)
 RUN pip install --user --no-cache-dir \
+    "wheel>=0.46.2" \
+    "jaraco.context>=6.1.0" \
     "networkx>=3.2" \
     "numpy>=1.26" \
     "pandas>=2.1" \
@@ -52,7 +62,9 @@ RUN pip install --user --no-cache-dir \
     "pyarrow>=14.0" \
     "fastapi>=0.100" \
     "python-multipart>=0.0.7" \
-    "uvicorn>=0.22"
+    "uvicorn>=0.22" \
+    "wheel>=0.46.2" \
+    "jaraco.context>=6.1.0"
 
 # Ensure local user bin is on path (where the wheel installs the entry points)
 ENV PATH="/home/nroute/.local/bin:${PATH}"
