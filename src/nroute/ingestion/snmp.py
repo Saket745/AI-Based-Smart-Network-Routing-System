@@ -8,8 +8,9 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-from nroute.exceptions import IngestionError
+from nroute.exceptions import IngestionError, ValidationError
 from nroute.ingestion.normalizer import Normalizer
+from nroute.utils.validators import validate_file_path
 
 if TYPE_CHECKING:
     from nroute.core.topology import Topology
@@ -31,9 +32,10 @@ class SNMPParser:
         Args:
             path: Path to the SNMP export dump file.
         """
-        p = Path(path)
-        if not p.is_file():
-            raise IngestionError(f"SNMP export file not found: {path}")
+        try:
+            p = validate_file_path(path, must_exist=True)
+        except ValidationError as e:
+            raise IngestionError(f"SNMP export file not found: {path}") from e
 
         raw_data: list[dict[str, Any]] = []
 
