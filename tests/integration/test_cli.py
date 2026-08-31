@@ -482,6 +482,18 @@ class TestNewCLIFeatures:
         assert dest.exists()
         assert "general:" in dest.read_text()
 
+    def test_config_init_json_output(self, runner: CliRunner, tmp_path: Path) -> None:
+        """nroute -f json config init should output valid JSON response."""
+        dest = tmp_path / "nroute_json.yaml"
+        result = runner.invoke(
+            cli, ["-f", "json", "config", "init", "-o", str(dest)], catch_exceptions=False
+        )
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["status"] == "success"
+        assert data["file"] == str(dest)
+        assert dest.exists()
+
     def test_completion_subcommand(self, runner: CliRunner) -> None:
         """nroute completion bash should output the bash source eval line."""
         result = runner.invoke(cli, ["completion", "bash"], catch_exceptions=False)
@@ -529,3 +541,32 @@ class TestNewCLIFeatures:
         assert "destination" in route_data
         assert "path" in route_data
         assert "metrics" in route_data
+
+    def test_twin_health_rich_table(self, runner: CliRunner, topo_file: str) -> None:
+        """nroute twin health should render a Rich table with health status indicators by default."""
+        result = runner.invoke(
+            cli,
+            ["twin", "health", "-t", topo_file],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+        assert "Digital Twin Health Summary" in result.output
+        assert (
+            "HEALTHY" in result.output
+            or "DEGRADED" in result.output
+            or "UNHEALTHY" in result.output
+        )
+        assert "Active Nodes" in result.output
+
+    def test_twin_health_json_format(self, runner: CliRunner, topo_file: str) -> None:
+        """nroute twin health should output valid JSON when -f json is provided."""
+        result = runner.invoke(
+            cli,
+            ["-f", "json", "twin", "health", "-t", topo_file],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert "total_nodes" in data
+        assert "total_edges" in data
+        assert "active_nodes" in data
