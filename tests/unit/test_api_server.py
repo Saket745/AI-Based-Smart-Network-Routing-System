@@ -1,3 +1,4 @@
+"""Unit tests for the FastAPI API server endpoints, focusing on security (authentication and path traversal)."""
 """Unit tests for FastAPI API server authentication and path traversal security."""
 
 from __future__ import annotations
