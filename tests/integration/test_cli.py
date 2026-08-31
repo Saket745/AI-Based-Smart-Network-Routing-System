@@ -482,6 +482,18 @@ class TestNewCLIFeatures:
         assert dest.exists()
         assert "general:" in dest.read_text()
 
+    def test_config_init_json_output(self, runner: CliRunner, tmp_path: Path) -> None:
+        """nroute -f json config init should output valid JSON response."""
+        dest = tmp_path / "nroute_json.yaml"
+        result = runner.invoke(
+            cli, ["-f", "json", "config", "init", "-o", str(dest)], catch_exceptions=False
+        )
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["status"] == "success"
+        assert data["file"] == str(dest)
+        assert dest.exists()
+
     def test_completion_subcommand(self, runner: CliRunner) -> None:
         """nroute completion bash should output the bash source eval line."""
         result = runner.invoke(cli, ["completion", "bash"], catch_exceptions=False)

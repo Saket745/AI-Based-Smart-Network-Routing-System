@@ -34,13 +34,17 @@ class PlotextRenderable:
         # Default to height of 10 if not specified
         height = options.height or 10
 
-        plt.clf()
-        plt.plotsize(width, height)
-        plt.theme("dark")
+        clf_fn = getattr(plt, "clf", getattr(plt, "clear_figure", lambda: None))
+        clf_fn()
+        plotsize_fn = getattr(plt, "plotsize", lambda w, h: None)
+        plotsize_fn(width, height)
+        theme_fn = getattr(plt, "theme", lambda t: None)
+        theme_fn("dark")
 
         self.plot_func(plt)
 
-        ansi_output = plt.build()
+        build_fn = getattr(plt, "build", getattr(plt, "_build", lambda: ""))
+        ansi_output = build_fn()
         decoder = AnsiDecoder()
         yield from decoder.decode(ansi_output)
 
