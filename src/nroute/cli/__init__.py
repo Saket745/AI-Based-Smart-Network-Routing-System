@@ -9,6 +9,16 @@ from typing import Any
 import click
 
 import nroute
+from nroute.cli.api_cmd import api_cmd as api_group
+from nroute.cli.configs_cmd import config_cmd as config_group
+from nroute.cli.detect_cmd import detect_cmd as detect_group
+from nroute.cli.export_cmd import export_cmd as export_group
+from nroute.cli.predict_cmd import predict_cmd as predict_group
+from nroute.cli.route_cmd import route_cmd as route_group
+from nroute.cli.simulate_cmd import simulate_cmd as simulate_group
+from nroute.cli.topology_cmd import topology_cmd as topology_group
+from nroute.cli.train_cmd import train_cmd as train_group
+from nroute.cli.twin_cmd import twin_cmd as twin_group
 import nroute.cli.api_cmd as api_cmd_mod
 import nroute.cli.configs_cmd as configs_cmd_mod
 import nroute.cli.detect_cmd as detect_cmd_mod
@@ -120,6 +130,16 @@ def cli(ctx: click.Context, /, **kwargs: Any) -> None:
 
 
 # ── Register Subcommand Groups ──────────────────────────────
+cli.add_command(topology_group, "topology")
+cli.add_command(route_group, "route")
+cli.add_command(simulate_group, "simulate")
+cli.add_command(train_group, "train")
+cli.add_command(predict_group, "predict")
+cli.add_command(detect_group, "detect")
+cli.add_command(twin_group, "twin")
+cli.add_command(export_group, "export")
+cli.add_command(api_group, "api")
+cli.add_command(config_group, "config")
 cli.add_command(topology_cmd_mod.topology_cmd, "topology")
 cli.add_command(route_cmd_mod.route_cmd, "route")
 cli.add_command(simulate_cmd_mod.simulate_cmd, "simulate")

@@ -17,7 +17,7 @@ COPY pyproject.toml README.md LICENSE ./
 COPY src/ ./src/
 
 # Install build dependencies and build package distributions
-RUN pip install --no-cache-dir build && python -m build
+RUN pip install --no-cache-dir --upgrade pip "setuptools>=75.8.0" "wheel>=0.46.2" build && python -m build
 
 # Stage 2: Minimal runtime image
 FROM python:3.10-slim@sha256:57a1b347eb451e1ab6307b1fc9e0976f259cf156219963b5dd7a7be0d908d3d4
@@ -46,6 +46,8 @@ COPY --from=builder --chown=nroute:nroute /app/dist/*.whl ./
 USER nroute
 
 # Install the wheel package locally
+RUN pip install --user --no-cache-dir --upgrade pip "setuptools>=75.8.0" "wheel>=0.46.2" \
+    && pip install --user --no-cache-dir *.whl \
 RUN pip install --user --no-cache-dir "wheel>=0.46.2" "jaraco.context>=6.1.0" *.whl \
 # Install the wheel package locally and upgrade vulnerable indirect dependencies
 # Install the wheel package locally with updated dependencies to satisfy Trivy security scanner

@@ -148,6 +148,7 @@ class TestTopologyShowCLI:
         result = runner.invoke(topology_cmd, ["show", "--file", topo_file])
 
         assert result.exit_code == 0
+        assert "Topology" in result.output
         assert "Topology:" in result.output
         assert "Nodes" in result.output
         assert "10" in result.output
