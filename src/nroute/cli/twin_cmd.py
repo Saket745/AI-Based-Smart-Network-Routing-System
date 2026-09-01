@@ -17,8 +17,12 @@ from typing import Any
 
 import click
 from pydantic import BaseModel
+from rich.console import Console
+from rich.table import Table
 
 from nroute.utils.logging import configure_logging
+
+console = Console()
 
 
 class ImpactArgs(BaseModel):
@@ -84,7 +88,59 @@ def health_cmd(ctx: click.Context, topology: str, config: str | None) -> None:
         twin.ingest_config(config)
 
     summary = twin.health_summary()
-    click.echo(json.dumps(summary, indent=2, default=str))
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
+
+    if is_json:
+        click.echo(json.dumps(summary, indent=2, default=str))
+        return
+
+    # Rich formatted output
+    down_nodes = summary.get("down_nodes", [])
+    down_edges = summary.get("down_edges", [])
+    is_connected = summary.get("is_strongly_connected", False)
+
+    if not down_nodes and not down_edges and is_connected:
+        overall_status = "🟢 HEALTHY"
+    elif is_connected:
+        overall_status = "🟡 DEGRADED"
+    else:
+        overall_status = "🔴 UNHEALTHY"
+
+    console.print()
+    console.rule(f"[bold cyan]Digital Twin Health Summary ({overall_status})[/bold cyan]")
+
+    table = Table(title="Health Overview", show_header=True, header_style="bold magenta")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green", justify="right")
+    table.add_column("Status", justify="center")
+
+    tot_nodes = summary.get("total_nodes", 0)
+    act_nodes = summary.get("active_nodes", 0)
+    tot_edges = summary.get("total_edges", 0)
+    act_edges = summary.get("active_edges", 0)
+
+    table.add_row(
+        "Active Nodes",
+        f"{act_nodes} / {tot_nodes}",
+        "[green]OK[/green]" if len(down_nodes) == 0 else f"[red]{len(down_nodes)} down[/red]",
+    )
+    table.add_row(
+        "Active Edges",
+        f"{act_edges} / {tot_edges}",
+        "[green]OK[/green]" if len(down_edges) == 0 else f"[red]{len(down_edges)} down[/red]",
+    )
+    table.add_row(
+        "Strong Connectivity",
+        "Yes" if is_connected else "No",
+        "[green]YES[/green]" if is_connected else "[bold red]NO[/bold red]",
+    )
+
+    audit_summary = summary.get("audit_summary", {})
+    if isinstance(audit_summary, dict) and "total_events" in audit_summary:
+        table.add_row("Audit Trail Events", str(audit_summary["total_events"]), "[dim]N/A[/dim]")
+
+    console.print(table)
+    console.print()
 
 
 # ── twin impact ──────────────────────────────────────────────

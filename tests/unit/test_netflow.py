@@ -153,10 +153,12 @@ def test_netflow_parser_duration_missing(tmp_path: Path) -> None:
     assert tm.flows[0].duration == 0.0
 
 
-def test_netflow_parser_missing_file() -> None:
-    """Test error when file is missing."""
-    with pytest.raises(IngestionError, match="NetFlow CSV file not found"):
-        NetFlowParser.parse("non_existent_file.csv")
+def test_netflow_parser_path_validation_security() -> None:
+    """Test path validation security enforcement for NetFlow parser."""
+    invalid_paths = ["", "   ", "non_existent_file.csv", "\0nullbyte.csv"]
+    for path in invalid_paths:
+        with pytest.raises(IngestionError, match="Invalid NetFlow CSV file path"):
+            NetFlowParser.parse(path)
 
 
 def test_netflow_parser_invalid_csv(tmp_path: Path) -> None:
