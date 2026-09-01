@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from nroute.exceptions import IngestionError
+from nroute.exceptions import IngestionError, ValidationError
 from nroute.ingestion.normalizer import Normalizer
+from nroute.utils.validators import validate_file_path
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from nroute.core.traffic import TrafficMatrix
 
 
@@ -107,9 +109,10 @@ class PcapParser:
         Args:
             path: Path to the PCAP file.
         """
-        p = Path(path)
-        if not p.is_file():
-            raise IngestionError(f"PCAP file not found: {path}")
+        try:
+            p = validate_file_path(path, must_exist=True)
+        except ValidationError as exc:
+            raise IngestionError(f"Invalid PCAP file path '{path}': {exc}") from exc
 
         # Lazy import scapy to minimize start-up time
         try:
