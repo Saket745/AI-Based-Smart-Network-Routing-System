@@ -58,6 +58,17 @@ def test_api_endpoints_succeed_with_configured_env_token(
     assert response.json()["status"] == "no_topology"
 
 
+def test_api_security_headers(client: TestClient) -> None:
+    """API responses must include defense-in-depth security headers."""
+    headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
+    response = client.get("/api/health", headers=headers)
+    assert response.status_code == 200
+    assert response.headers.get("X-Content-Type-Options") == "nosniff"
+    assert response.headers.get("X-Frame-Options") == "DENY"
+    assert response.headers.get("X-XSS-Protection") == "1; mode=block"
+    assert response.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
+
+
 def test_api_endpoints_succeed_with_configured_config_token(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -83,6 +94,19 @@ def test_fallback_token_usage(client: TestClient) -> None:
     assert response.json()["status"] == "no_topology"
 
 
+# ── Security Headers Tests ──
+
+
+def test_api_responses_include_security_headers(client: TestClient) -> None:
+    """API responses must include defense-in-depth HTTP security headers."""
+    headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
+    response = client.get("/api/health", headers=headers)
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["X-XSS-Protection"] == "1; mode=block"
+    assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+
+
 # ── Path Traversal Tests (with Authentication) ──
 
 
@@ -98,6 +122,12 @@ def test_api_load_topology_success_cwd(client: TestClient) -> None:
 
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     try:
+    try:
+    try:
+    try:
+    try:
+    try:
+        headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
         response = client.post("/api/topology/load", json={"path": str(temp_file)}, headers=headers)
         assert response.status_code == 200
         data = response.json()
@@ -120,6 +150,29 @@ def test_api_load_topology_success_temp(client: TestClient) -> None:
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     try:
         topo.save(temp_path)
+    try:
+        topo.save(temp_path)
+    headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
+    try:
+        topo.save(temp_path)
+    try:
+        topo.save(temp_path)
+        headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
+    headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
+    try:
+        topo.save(temp_path)
+    try:
+        topo.save(temp_path)
+    try:
+        topo.save(temp_path)
+    try:
+        topo.save(temp_path)
+    try:
+        topo.save(temp_path)
+        headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
+    try:
+        topo.save(temp_path)
+        headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
         response = client.post("/api/topology/load", json={"path": str(temp_path)}, headers=headers)
         assert response.status_code == 200
         data = response.json()
@@ -132,6 +185,7 @@ def test_api_load_topology_success_temp(client: TestClient) -> None:
 
 def test_api_load_topology_not_found(client: TestClient) -> None:
     """Test loading a non-existent file inside the allowed directory returns 404."""
+    headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     response = client.post(
         "/api/topology/load", json={"path": "non_existent_file_xyz.json"}, headers=headers
@@ -154,3 +208,33 @@ def test_api_load_topology_outside_cwd_absolute(client: TestClient) -> None:
     response = client.post("/api/topology/load", json={"path": "/etc/passwd"}, headers=headers)
     assert response.status_code == 403
     assert "Access denied: Path is outside allowed directories" in response.json()["detail"]
+
+
+def test_load_topology_path_traversal_rejected(client: TestClient) -> None:
+    """Verify that path traversal attempts with ../ are explicitly rejected with HTTP 403."""
+    headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
+    response = client.post(
+        "/api/topology/load", json={"path": "../../../etc/shadow"}, headers=headers
+    )
+    assert response.status_code == 403
+    assert "Access denied" in response.json()["detail"]
+
+
+def test_load_topology_nonexistent_path(client: TestClient) -> None:
+    """Verify that loading a non-existent topology within valid directory returns 404."""
+    headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
+    response = client.post(
+        "/api/topology/load", json={"path": "missing_topology_file_12345.json"}, headers=headers
+    )
+    assert response.status_code == 404
+    assert "File not found" in response.json()["detail"]
+
+
+def test_load_topology_null_byte_path_rejected(client: TestClient) -> None:
+    """Verify that paths containing null bytes or invalid characters return HTTP 400."""
+    headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
+    response = client.post(
+        "/api/topology/load", json={"path": "topology.json\0.txt"}, headers=headers
+    )
+    assert response.status_code == 400
+    assert "null bytes" in response.json()["detail"]
