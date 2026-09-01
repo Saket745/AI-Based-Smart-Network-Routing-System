@@ -94,7 +94,7 @@ def test_csv_topology_importer_invalid(tmp_path: Path) -> None:
 
 
 def test_importer_path_validation_security() -> None:
-    """Test path validation security enforcement across CSV and JSON importers."""
+    """Test path validation security enforcement across CSV, JSON, and PCAP importers."""
     invalid_paths = ["", "   ", "non_existent_path.csv", "\0nullbyte.json"]
 
     for path in invalid_paths:
@@ -106,6 +106,9 @@ def test_importer_path_validation_security() -> None:
 
         with pytest.raises(IngestionError, match="Invalid traffic CSV file path"):
             CSVTrafficImporter.load(path)
+
+        with pytest.raises(IngestionError, match="Invalid PCAP file path"):
+            PcapParser.parse(path)
 
 
 def test_json_topology_importer_valid(tmp_path: Path) -> None:
