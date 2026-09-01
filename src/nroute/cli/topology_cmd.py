@@ -209,14 +209,16 @@ def _print_topology_summary(topo: Topology, title: str = "Topology Summary") -> 
     # Count node statuses
     up_nodes = sum(1 for n in topo.nodes if topo.get_node(n).get("status") == "up")
     down_nodes = topo.node_count - up_nodes
-    stats_table.add_row("Nodes Up", str(up_nodes))
-    stats_table.add_row("Nodes Down", str(down_nodes))
+    nodes_down_icon = "🔴" if down_nodes > 0 else "🟢"
+    stats_table.add_row("Nodes Up", f"🟢 {up_nodes}")
+    stats_table.add_row("Nodes Down", f"{nodes_down_icon} {down_nodes}")
 
     # Count edge statuses
     up_edges = sum(1 for u, v in topo.edges if topo.get_edge(u, v).get("status") == "up")
     down_edges = topo.edge_count - up_edges
-    stats_table.add_row("Links Up", str(up_edges))
-    stats_table.add_row("Links Down", str(down_edges))
+    links_down_icon = "🔴" if down_edges > 0 else "🟢"
+    stats_table.add_row("Links Up", f"🟢 {up_edges}")
+    stats_table.add_row("Links Down", f"{links_down_icon} {down_edges}")
 
     console.print(stats_table)
 
