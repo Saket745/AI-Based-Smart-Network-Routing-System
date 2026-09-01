@@ -107,7 +107,9 @@ def train_congestion(
         out_path.parent.mkdir(parents=True, exist_ok=True)
         predictor.save(str(out_path))
 
-        console.print(f"[green]+[/green] Congestion model saved to [bold]{out_path}[/bold]")
+        console.print(
+            f"[green]+[/green] Congestion model saved to [bold]{out_path}[/bold] ({n_samples} training samples)"
+        )
     except ModelError as e:
         console.print(f"[red]x Training error:[/red] {e}")
         raise SystemExit(1) from e
@@ -188,7 +190,9 @@ def train_anomaly(
         out_path.parent.mkdir(parents=True, exist_ok=True)
         detector.save(str(out_path))
 
-        console.print(f"[green]+[/green] Anomaly model saved to [bold]{out_path}[/bold]")
+        console.print(
+            f"[green]+[/green] Anomaly model saved to [bold]{out_path}[/bold] ({n_samples} normal feature samples)"
+        )
     except ModelError as e:
         console.print(f"[red]x Training error:[/red] {e}")
         raise SystemExit(1) from e
@@ -258,7 +262,9 @@ def train_rl(
         out_path.parent.mkdir(parents=True, exist_ok=True)
         rl_router.save(str(out_path))
 
-        console.print(f"[green]+[/green] RL model saved to [bold]{out_path}[/bold]")
+        console.print(
+            f"[green]+[/green] RL model saved to [bold]{out_path}[/bold] ({episodes} episodes, {timesteps} timesteps)"
+        )
     except Exception as e:
         console.print(f"[red]x RL training error:[/red] {e}")
         raise SystemExit(1) from e

@@ -1,9 +1,7 @@
-<<<<<<< HEAD
 """Unit tests for the FastAPI API server endpoints, focusing on security (authentication, CORS, and path traversal)."""
-=======
 """Unit tests for the FastAPI API server endpoints, focusing on security and path traversal."""
 """Unit tests for the FastAPI API server endpoints, focusing on security (authentication and path traversal)."""
->>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144
+
 
 from __future__ import annotations
 
@@ -104,7 +102,6 @@ def test_fallback_token_usage(client: TestClient) -> None:
     assert response.json()["status"] == "no_topology"
 
 
-<<<<<<< HEAD
 # ── CORS Security Tests ──
 
 
@@ -137,7 +134,6 @@ def test_api_server_cors_middleware_initialization() -> None:
             assert len(origins) > 0
             for origin in origins:
                 assert origin.startswith("http")
-=======
 # ── Security Headers Tests ──
 
 
@@ -149,7 +145,6 @@ def test_api_responses_include_security_headers(client: TestClient) -> None:
     assert response.headers["X-Frame-Options"] == "DENY"
     assert response.headers["X-XSS-Protection"] == "1; mode=block"
     assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
->>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144
 
 
 # ── Path Traversal Tests (with Authentication) ──
@@ -167,8 +162,6 @@ def test_api_load_topology_success_cwd(client: TestClient) -> None:
 
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     try:
-<<<<<<< HEAD
-=======
         headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
         response = client.post(
             "/api/topology/load",
@@ -184,7 +177,7 @@ def test_api_load_topology_success_cwd(client: TestClient) -> None:
     try:
     try:
         headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
->>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144
+
         response = client.post("/api/topology/load", json={"path": str(temp_file)}, headers=headers)
         assert response.status_code == 200
         data = response.json()
@@ -205,10 +198,10 @@ def test_api_load_topology_success_temp(client: TestClient) -> None:
         temp_path = Path(f.name)
 
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
-<<<<<<< HEAD
     try:
         topo.save(temp_path)
-=======
+    try:
+        topo.save(temp_path)
     try:
         topo.save(temp_path)
     try:
@@ -246,7 +239,7 @@ def test_api_load_topology_success_temp(client: TestClient) -> None:
     try:
         topo.save(temp_path)
         headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
->>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144
+
         response = client.post("/api/topology/load", json={"path": str(temp_path)}, headers=headers)
         assert response.status_code == 200
         data = response.json()
@@ -259,15 +252,13 @@ def test_api_load_topology_success_temp(client: TestClient) -> None:
 
 def test_api_load_topology_not_found(client: TestClient) -> None:
     """Test loading a non-existent file inside the allowed directory returns 404."""
-<<<<<<< HEAD
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
-=======
     headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
->>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144
     response = client.post(
         "/api/topology/load",
         json={"path": "nonexistent_topo_file_123.json"},
         headers=headers,
+
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     response = client.post(
         "/api/topology/load", json={"path": "non_existent_file_xyz.json"}, headers=headers
@@ -278,15 +269,12 @@ def test_api_load_topology_not_found(client: TestClient) -> None:
 
 def test_api_load_topology_outside_cwd_relative(client: TestClient) -> None:
     """Test relative path traversal outside the allowed directories returns 403."""
-<<<<<<< HEAD
-=======
     headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
     response = client.post(
         "/api/topology/load",
         json={"path": "../../../etc/passwd"},
         headers=headers,
     )
->>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     response = client.post("/api/topology/load", json={"path": "../../etc/passwd"}, headers=headers)
     assert response.status_code == 403
@@ -295,22 +283,18 @@ def test_api_load_topology_outside_cwd_relative(client: TestClient) -> None:
 
 def test_api_load_topology_outside_cwd_absolute(client: TestClient) -> None:
     """Test absolute path traversal outside the allowed directories returns 403."""
-<<<<<<< HEAD
-=======
     headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
     response = client.post(
         "/api/topology/load",
         json={"path": "/etc/passwd"},
         headers=headers,
     )
->>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     response = client.post("/api/topology/load", json={"path": "/etc/passwd"}, headers=headers)
     assert response.status_code == 403
     assert "Access denied: Path is outside allowed directories" in response.json()["detail"]
 
 
-<<<<<<< HEAD
 def test_api_config_ingest_file_size_limit(client: TestClient) -> None:
     """Verify that uploading a file larger than 5MB returns 413 Payload Too Large."""
     headers = {
@@ -334,7 +318,6 @@ def test_api_config_ingest_file_size_limit(client: TestClient) -> None:
     )
     assert response.status_code == 413
     assert "exceeds maximum limit" in response.json()["detail"]
-=======
 def test_load_topology_path_traversal_rejected(client: TestClient) -> None:
     """Verify that path traversal attempts with ../ are explicitly rejected with HTTP 403."""
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
@@ -363,4 +346,3 @@ def test_load_topology_null_byte_path_rejected(client: TestClient) -> None:
     )
     assert response.status_code == 400
     assert "null bytes" in response.json()["detail"]
->>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144

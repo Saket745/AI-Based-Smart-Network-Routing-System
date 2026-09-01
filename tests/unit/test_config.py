@@ -155,7 +155,7 @@ def test_config_init_cli_interactive(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert result.exit_code == 0
     assert out_file.exists()
     assert "+" in result.output
-    assert "Initialized default configuration file at:" in result.output
+    assert "Initialized default configuration file at" in result.output
 
 
 def test_config_init_cli_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

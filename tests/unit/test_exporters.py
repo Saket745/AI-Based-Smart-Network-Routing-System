@@ -162,6 +162,8 @@ def test_cli_export_topology(sample_topology: Topology, tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "Successfully exported topology to GraphML" in result.output
     assert out_path.name in result.output
+    clean_output = " ".join(result.output.split())
+    assert "(2 nodes, 1 edges)" in clean_output
     assert "2" in result.output
     assert "1" in result.output
     assert out_path.exists()
@@ -192,6 +194,8 @@ def test_cli_export_metrics(sample_metrics: MetricsCollectionResult, tmp_path: P
     assert result.exit_code == 0
     assert "Successfully exported metrics to CSV" in result.output
     assert out_path.name in result.output
+    clean_output = " ".join(result.output.split())
+    assert "(2 records)" in clean_output
     assert "metric records" in result.output
     assert out_path.exists()
 

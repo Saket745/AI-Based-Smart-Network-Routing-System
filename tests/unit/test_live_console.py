@@ -27,6 +27,7 @@ def test_plotext_renderable() -> None:
     options.max_width = 80
     options.height = 10
 
+    with patch("nroute.visualization.live_console.plt.build", return_value="\x1b[31mRedPlot\x1b[0m") as mock_build:
     with patch("nroute.visualization.live_console.plt.build", return_value="\x1b[31mRedPlot\x1b[0m"):
         segments = list(renderable.__rich_console__(MagicMock(), options))
         assert len(segments) > 0
