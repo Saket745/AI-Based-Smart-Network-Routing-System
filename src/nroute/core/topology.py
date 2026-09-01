@@ -131,17 +131,13 @@ class Topology:
         if location is not None and not isinstance(location, str):
             raise ValidationError(f"Node location must be a string, got {type(location).__name__}.")
 
-        validated_attrs = {
-            "type": node_type,
-            "capacity": capacity,
-            "status": status,
-            "location": location,
-        }
+        # Fast in-place updates over attrs to avoid dictionary copying
+        attrs["type"] = node_type
+        attrs["capacity"] = capacity
+        attrs["status"] = status
+        attrs["location"] = location
 
-        # Preserve any extra custom attributes the user passes
-        validated_attrs = {**attrs, **validated_attrs}
-
-        self._graph.add_node(validated_id, **validated_attrs)
+        self._graph.add_node(validated_id, **attrs)
         if status == "down":
             self._down_nodes.add(validated_id)
         else:
@@ -213,20 +209,16 @@ class Topology:
                 f"Edge status '{status}' is invalid. Must be one of {self.EDGE_STATUSES}."
             )
 
-        validated_attrs = {
-            "bandwidth": bandwidth,
-            "latency": latency,
-            "jitter": jitter,
-            "packet_loss": packet_loss,
-            "utilization": utilization,
-            "weight": weight,
-            "status": status,
-        }
+        # Fast in-place updates over attrs to avoid dictionary copying
+        attrs["bandwidth"] = bandwidth
+        attrs["latency"] = latency
+        attrs["jitter"] = jitter
+        attrs["packet_loss"] = packet_loss
+        attrs["utilization"] = utilization
+        attrs["weight"] = weight
+        attrs["status"] = status
 
-        # Preserve any extra custom attributes
-        validated_attrs = {**attrs, **validated_attrs}
-
-        self._graph.add_edge(src, dst, **validated_attrs)
+        self._graph.add_edge(src, dst, **attrs)
         if status == "down":
             self._down_edges.add((src, dst))
         else:
@@ -307,8 +299,22 @@ class Topology:
                 )
             updated_data["status"] = status
 
-        # Merge other attributes and apply update
-        edge_data.update({**attrs, **updated_data})
+        # Merge other attributes
+        for k, v in attrs.items():
+            if k not in {
+                "bandwidth",
+                "latency",
+                "jitter",
+                "packet_loss",
+                "utilization",
+                "weight",
+                "status",
+            }:
+                updated_data[k] = v
+
+        # Apply update (attrs holds all custom attributes; updated_data holds schema-validated overrides)
+        edge_data.update(attrs)
+        edge_data.update(updated_data)
         if "status" in updated_data:
             if updated_data["status"] == "down":
                 self._down_edges.add((src, dst))
