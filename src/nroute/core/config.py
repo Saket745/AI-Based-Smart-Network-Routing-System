@@ -39,11 +39,21 @@ class GeneralConfig(BaseModel):
     @classmethod
     def validate_cors_origins(cls, v: Any) -> list[str]:
         if isinstance(v, str):
+            parts = [o.strip() for o in v.split(",") if o.strip()]
+            cleaned = [o for o in parts if o != "*"]
             cleaned = [o.strip() for o in v.split(",") if o.strip() and o.strip() != "*"]
             if not cleaned:
                 return DEFAULT_CORS_ORIGINS
             return cleaned
         if isinstance(v, list):
+            for origin in v:
+                if str(origin).strip() == "*":
+                    raise ValueError(
+                        "Wildcard '*' is not allowed for cors_origins due to security risks. "
+                        "Please specify explicit origins."
+                    )
+            return v
+        return v
             if "*" in v or any(origin == "*" for origin in v):
                 raise ValueError(
                     "Wildcard '*' is not allowed for cors_origins due to security risks. "
@@ -127,28 +137,9 @@ class NRouteConfig(BaseModel):
     )
 
 
-def load_config(path: str | Path | None = None) -> NRouteConfig:
-    """
-    Load configuration from YAML files and environment variables.
-
-    Searches:
-    1. The provided path (if any).
-    2. ./nroute.yaml or ./nroute.yml
-    3. ~/.nroute/config.yaml or ~/.nroute/config.yml
-    4. Default settings.
-
-    Environment variables with prefix NROUTE_ override loaded values.
-    For example: NROUTE_GENERAL_LOG_LEVEL=DEBUG
-
-    Args:
-        path: Optional file path to configuration.
-
-    Returns:
-        Loaded NRouteConfig object.
-    """
+def _load_config_from_file(path: str | Path | None) -> dict[str, Any]:
+    """Search for and parse candidate YAML configuration files into a dict."""
     config_dict: dict[str, Any] = {}
-
-    # 1. Search for files
     paths_to_try: list[Path] = []
     if path is not None:
         paths_to_try.append(Path(path))
@@ -185,8 +176,11 @@ def load_config(path: str | Path | None = None) -> NRouteConfig:
                 raise
             raise ConfigError(f"Failed to read configuration from {found_path}: {e}") from e
 
-    # 2. Merge Environment Variable Overrides
-    # Expected format: NROUTE_SECTION_KEY (e.g., NROUTE_GENERAL_LOG_LEVEL)
+    return config_dict
+
+
+def _apply_env_overrides(config_dict: dict[str, Any]) -> None:
+    """Merge environment variable overrides matching NROUTE_SECTION_KEY into config_dict."""
     for env_key, env_val in os.environ.items():
         if env_key.startswith("NROUTE_"):
             parts = env_key[7:].lower().split("_", 1)
@@ -196,7 +190,6 @@ def load_config(path: str | Path | None = None) -> NRouteConfig:
                     if section not in config_dict:
                         config_dict[section] = {}
 
-                    # Cast string value based on Pydantic target type if possible
                     section_model_cls = NRouteConfig.model_fields[section].annotation
                     if (
                         section_model_cls
@@ -204,7 +197,6 @@ def load_config(path: str | Path | None = None) -> NRouteConfig:
                         and key in section_model_cls.model_fields
                     ):
                         field_info = section_model_cls.model_fields[key]
-                        # Simple type casting
                         try:
                             if field_info.annotation is bool:
                                 config_dict[section][key] = env_val.lower() in ("true", "1", "yes")
@@ -216,12 +208,33 @@ def load_config(path: str | Path | None = None) -> NRouteConfig:
                                 config_dict[section][key] = float(env_val)
                                 continue
                         except ValueError:
-                            # Fall back to raw string to let Pydantic handle/error
                             pass
 
                     config_dict[section][key] = env_val
 
-    # 3. Instantiate and validate with Pydantic
+
+def load_config(path: str | Path | None = None) -> NRouteConfig:
+    """
+    Load configuration from YAML files and environment variables.
+
+    Searches:
+    1. The provided path (if any).
+    2. ./nroute.yaml or ./nroute.yml
+    3. ~/.nroute/config.yaml or ~/.nroute/config.yml
+    4. Default settings.
+
+    Environment variables with prefix NROUTE_ override loaded values.
+    For example: NROUTE_GENERAL_LOG_LEVEL=DEBUG
+
+    Args:
+        path: Optional file path to configuration.
+
+    Returns:
+        Loaded NRouteConfig object.
+    """
+    config_dict = _load_config_from_file(path)
+    _apply_env_overrides(config_dict)
+
     try:
         return NRouteConfig.model_validate(config_dict)
     except Exception as e:

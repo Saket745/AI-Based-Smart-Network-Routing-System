@@ -283,7 +283,7 @@ class RLRouter(BaseRouter):
             action, _ = self.model.predict(obs, deterministic=True)
             return int(action), 1.0  # Assume full confidence on failure
 
-    def compute_path(
+    def _run_rl_inference(
         self,
         topology: Topology,
         source: str,
@@ -291,39 +291,7 @@ class RLRouter(BaseRouter):
         weight: str | Callable[[dict[str, Any]], float] | None = None,
         **kwargs: Any,
     ) -> list[str]:
-        """
-        Compute path from source to destination.
-
-        Cascade fallback chain: RL -> Dijkstra -> BFS -> RoutingError.
-        If the RL model's action confidence is below ``confidence_threshold``,
-        the policy is not trusted and the cascade fallback is used instead.
-
-        Args:
-            topology: The network topology.
-            source: Source node ID.
-            destination: Destination node ID.
-            weight: Unused, kept for signature compatibility (RL works on multi-attribute state).
-        """
-        # 1. Fallback if not trained
-        if not self.is_trained or self.model is None:
-            if not getattr(self, "_warned_untrained", False):
-                logger.warning(
-                    "RLRouter is not trained. Using cascade fallback (suppressing future warnings)."
-                )
-                self._warned_untrained = True
-            return self._cascade_fallback(topology, source, destination, weight=weight, **kwargs)
-
-        # 2. Check topology compatibility with training topology
-        is_compatible, reason = self._check_topology_compatibility(topology)
-        if not is_compatible:
-            if not getattr(self, "_warned_incompatible", False):
-                logger.warning(
-                    f"Topology incompatible with training topology: {reason}. Using cascade fallback (suppressing future warnings)."
-                )
-                self._warned_incompatible = True
-            return self._cascade_fallback(topology, source, destination, weight=weight, **kwargs)
-
-        # 3. Run RL inference step-by-step
+        """Run step-by-step RL inference in the Gymnasium environment to navigate path."""
         try:
             # Create inference environment with training_mode=False
             # to avoid randomizing edge attributes during inference
@@ -386,6 +354,49 @@ class RLRouter(BaseRouter):
                 raise
             logger.error(f"RL path inference encountered an error: {e}. Using cascade fallback.")
             return self._cascade_fallback(topology, source, destination, weight=weight, **kwargs)
+
+    def compute_path(
+        self,
+        topology: Topology,
+        source: str,
+        destination: str,
+        weight: str | Callable[[dict[str, Any]], float] | None = None,
+        **kwargs: Any,
+    ) -> list[str]:
+        """
+        Compute path from source to destination.
+
+        Cascade fallback chain: RL -> Dijkstra -> BFS -> RoutingError.
+        If the RL model's action confidence is below ``confidence_threshold``,
+        the policy is not trusted and the cascade fallback is used instead.
+
+        Args:
+            topology: The network topology.
+            source: Source node ID.
+            destination: Destination node ID.
+            weight: Unused, kept for signature compatibility (RL works on multi-attribute state).
+        """
+        # 1. Fallback if not trained
+        if not self.is_trained or self.model is None:
+            if not getattr(self, "_warned_untrained", False):
+                logger.warning(
+                    "RLRouter is not trained. Using cascade fallback (suppressing future warnings)."
+                )
+                self._warned_untrained = True
+            return self._cascade_fallback(topology, source, destination, weight=weight, **kwargs)
+
+        # 2. Check topology compatibility with training topology
+        is_compatible, reason = self._check_topology_compatibility(topology)
+        if not is_compatible:
+            if not getattr(self, "_warned_incompatible", False):
+                logger.warning(
+                    f"Topology incompatible with training topology: {reason}. Using cascade fallback (suppressing future warnings)."
+                )
+                self._warned_incompatible = True
+            return self._cascade_fallback(topology, source, destination, weight=weight, **kwargs)
+
+        # 3. Run RL inference step-by-step
+        return self._run_rl_inference(topology, source, destination, weight=weight, **kwargs)
 
     def save(self, path: str) -> None:
         """Save the trained model weights and type information."""

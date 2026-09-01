@@ -203,9 +203,9 @@ def test_rl_env_training_mode_randomization(small_graph_data: dict[str, Any]) ->
     env._restore_edge_attributes()
     for (src, dst), orig_util in original_utils.items():
         current_util = float(env.topology.get_edge(src, dst).get("utilization", 0.0))
-        assert abs(current_util - orig_util) < 1e-6, (
-            f"Edge ({src}, {dst}) utilization not restored: {current_util} != {orig_util}"
-        )
+        assert (
+            abs(current_util - orig_util) < 1e-6
+        ), f"Edge ({src}, {dst}) utilization not restored: {current_util} != {orig_util}"
 
 
 def test_rl_env_inference_mode_no_randomization(small_graph_data: dict[str, Any]) -> None:
@@ -223,9 +223,9 @@ def test_rl_env_inference_mode_no_randomization(small_graph_data: dict[str, Any]
     # Utilizations should be unchanged in inference mode
     for (src, dst), pre_util in pre_utils.items():
         post_util = float(env.topology.get_edge(src, dst).get("utilization", 0.0))
-        assert abs(post_util - pre_util) < 1e-6, (
-            f"Inference mode should not randomize: ({src}, {dst}) changed from {pre_util} to {post_util}"
-        )
+        assert (
+            abs(post_util - pre_util) < 1e-6
+        ), f"Inference mode should not randomize: ({src}, {dst}) changed from {pre_util} to {post_util}"
 
 
 def test_rl_router_topology_mismatch_fallback(small_graph_data: dict[str, Any]) -> None:
@@ -308,9 +308,9 @@ def test_rl_env_proximity_reward_signal(small_graph_data: dict[str, Any]) -> Non
 
     # Reward for moving toward destination should be positive (distance decreased by 1)
     # proximity_weight * (prev_distance - curr_distance) = 10 * (2 - 1) = 10.0
-    assert reward_toward > 0, (
-        f"Moving toward destination should give positive reward, got {reward_toward}"
-    )
+    assert (
+        reward_toward > 0
+    ), f"Moving toward destination should give positive reward, got {reward_toward}"
 
 
 # ── Pass 2: PRD Compliance Gap Tests ──────────────────────────────────────────

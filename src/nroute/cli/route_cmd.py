@@ -149,6 +149,7 @@ def _init_router(
     custom_router: str | None,
 ) -> BaseRouter:
     """Initialize the appropriate router based on algorithm name."""
+
     if algorithm.lower() == "custom":
         if not custom_router:
             raise click.UsageError(
@@ -162,10 +163,23 @@ def _init_router(
             custom_router, expected_superclass=BaseRouter, allow_unsafe=allow_unsafe
         )
         sig = inspect.signature(router_cls)
+<<<<<<< HEAD
+=======
+
+        inst = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        return typing.cast("BaseRouter", inst)
+
+        return typing.cast(
+        res = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        return cast("BaseRouter", res)
+>>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144
         return cast(
             "BaseRouter",
             router_cls(topology=topo) if "topology" in sig.parameters else router_cls(),
         )
+
+        res = router_cls(topology=topo) if "topology" in sig.parameters else router_cls()
+        return typing.cast("BaseRouter", res)
 
     return get_router(algorithm, topology=topo, allow_unsafe=allow_unsafe)
 
@@ -188,6 +202,18 @@ def _print_json_metrics(
         },
     }
     click.echo(json.dumps(out, indent=2))
+
+
+def _format_utilization(util: float | None, is_down: bool = False) -> str:
+    """Format utilization value with color coding and visual status indicator."""
+    if is_down or util is None:
+        return "[dim]--[/dim]"
+    pct = util * 100
+    if util > 0.85:
+        return f"🔴 [bold red]{pct:.1f}%[/bold red]"
+    if util > 0.60:
+        return f"🟡 [yellow]{pct:.1f}%[/yellow]"
+    return f"🟢 [green]{pct:.1f}%[/green]"
 
 
 def _print_console_metrics(
@@ -220,7 +246,7 @@ def _print_console_metrics(
         if metrics.bottleneck_bandwidth < float("inf")
         else "N/A",
     )
-    table.add_row("Bottleneck Utilization", f"{metrics.bottleneck_utilization:.1%}")
+    table.add_row("Bottleneck Utilization", _format_utilization(metrics.bottleneck_utilization))
 
     console.print(table)
 
@@ -234,7 +260,7 @@ def _print_console_metrics(
         hop_table.add_column("To", style="cyan")
         hop_table.add_column("Latency (ms)", style="green", justify="right")
         hop_table.add_column("Bandwidth (Mbps)", style="green", justify="right")
-        hop_table.add_column("Utilization", style="green", justify="right")
+        hop_table.add_column("Utilization", justify="right")
         hop_table.add_column("Status", justify="center")
 
         for i in range(metrics.total_hops):
@@ -243,13 +269,29 @@ def _print_console_metrics(
                 edge = topo.get_edge(u, v)
                 lat_str = f"{float(edge.get('latency', 0)):.1f}"
                 bw_str = f"{float(edge.get('bandwidth', 0)):.0f}"
-                util_str = f"{float(edge.get('utilization', 0)):.1%}"
+                util = float(edge.get("utilization", 0.0))
                 status = edge.get("status", "up")
-                status_icon = "[green]up[/green]" if status == "up" else "[red]down[/red]"
+
+                if status == "down":
+                    util_str = "[grey]--[/grey]"
+                    status_icon = "[red]down[/red]"
+                else:
+                    status_icon = "[green]up[/green]"
+                    if util > 0.85:
+                        util_str = f"[bold red]{util:.1%}[/bold red] 🔴"
+                    elif util > 0.60:
+                        util_str = f"[bold yellow]{util:.1%}[/bold yellow] 🟡"
+                    else:
+                        util_str = f"[bold green]{util:.1%}[/bold green] 🟢"
+                status = edge.get("status", "up")
+                is_down = status != "up"
+                util_val = float(edge.get("utilization", 0)) if not is_down else None
+                util_str = _format_utilization(util_val, is_down=is_down)
+                status_icon = "[green]up[/green]" if not is_down else "[red]down[/red]"
             except Exception:
                 lat_str = "?"
                 bw_str = "?"
-                util_str = "?"
+                util_str = _format_utilization(None, is_down=True)
                 status_icon = "[yellow]?[/yellow]"
 
             hop_table.add_row(str(i + 1), u, v, lat_str, bw_str, util_str, status_icon)

@@ -68,23 +68,19 @@ class ECMPRouter(BaseRouter):
 
     def _resolve_weight_function(
         self, weight: str | Callable[[dict[str, Any]], float] | None
-    ) -> Callable[[str, str, dict[str, Any]], float]:
+    ) -> str | Callable[[str, str, dict[str, Any]], float]:
         """
-        Adapt weight attribute or callable into a standard NetworkX weight function.
+        Adapt weight attribute or callable into a standard NetworkX weight parameter.
+
+        Performance optimization: If `weight` is a string attribute name or `None`, return
+        the attribute string directly so NetworkX uses direct dictionary lookup internally
+        (`d.get(weight, 1)` in C/Python loops) rather than calling a Python wrapper function
+        on every edge traversal during shortest path algorithms.
         """
         if weight is None:
-
-            def weight_func(u: str, v: str, d: dict[str, Any]) -> float:
-                return float(d.get("weight", 1.0))
-
-            return weight_func
+            return "weight"
         if isinstance(weight, str):
-            weight_attr = weight
-
-            def weight_func_attr(u: str, v: str, d: dict[str, Any]) -> float:
-                return float(d.get(weight_attr, 1.0))
-
-            return weight_func_attr
+            return weight
         wt_callable = weight
 
         def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
@@ -92,6 +88,17 @@ class ECMPRouter(BaseRouter):
 
         return weight_func_callable
 
+    def _compute_equal_cost_paths_impl(
+        self,
+        topology: Topology,
+        subgraph: nx.DiGraph,
+        source: str,
+        destination: str,
+        weight_func: Callable[[str, str, dict[str, Any]], float],
+    ) -> list[list[str]]:
+        """
+        Internal implementation of finding and validating equal cost paths.
+        """
     def compute_all_equal_cost_paths(
         self,
         topology: Topology,
@@ -112,17 +119,17 @@ class ECMPRouter(BaseRouter):
         try:
             paths = nx.all_shortest_paths(
                 subgraph,
-                source=source_val,
-                target=dest_val,
+                source=source,
+                target=destination,
                 weight=weight_func,
             )
             res_paths = [list(p) for p in paths]
             for p in res_paths:
-                self.validate_path(topology, p, source_val, dest_val)
+                self.validate_path(topology, p, source, destination)
             return res_paths
         except nx.NetworkXNoPath as e:
             raise RoutingError(
-                f"No active path found between '{source_val}' and '{dest_val}'."
+                f"No active path found between '{source}' and '{destination}'."
             ) from e
         except Exception as e:
             if isinstance(e, RoutingError):
@@ -132,6 +139,14 @@ class ECMPRouter(BaseRouter):
     def compute_k_shortest_paths(
         self,
         topology: Topology,
+<<<<<<< HEAD
+=======
+        subgraph: nx.DiGraph,
+        source: str,
+        destination: str,
+        k: int,
+        weight_func: Callable[[str, str, dict[str, Any]], float],
+>>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144
         query: RoutingQuery | None = None,
         source: str | None = None,
         destination: str | None = None,
@@ -150,18 +165,18 @@ class ECMPRouter(BaseRouter):
         try:
             generator = nx.shortest_simple_paths(
                 subgraph,
-                source=source_val,
-                target=dest_val,
+                source=source,
+                target=destination,
                 weight=weight_func,
             )
             paths = list(itertools.islice(generator, k_val))
             res_paths = [list(p) for p in paths]
             for p in res_paths:
-                self.validate_path(topology, p, source_val, dest_val)
+                self.validate_path(topology, p, source, destination)
             return res_paths
         except (nx.NetworkXNoPath, StopIteration) as e:
             raise RoutingError(
-                f"No active path found between '{source_val}' and '{dest_val}'."
+                f"No active path found between '{source}' and '{destination}'."
             ) from e
         except Exception as e:
             if isinstance(e, RoutingError):

@@ -98,6 +98,27 @@ def test_anomaly_detector_isolation_forest(
         pd.testing.assert_frame_equal(anomaly_results, new_results)
 
 
+def test_anomaly_detector_load_path_validation() -> None:
+    """Test that AnomalyDetector.load validates input path formatting and existence."""
+    detector = AnomalyDetector()
+
+    # Test empty path
+    with pytest.raises(ModelError, match="File path cannot be empty"):
+        detector.load("")
+
+    # Test whitespace-only path
+    with pytest.raises(ModelError, match="File path cannot be empty"):
+        detector.load("   ")
+
+    # Test null bytes in path
+    with pytest.raises(ModelError, match="null bytes are not allowed"):
+        detector.load("model\0.pt")
+
+    # Test missing file path
+    with pytest.raises(ModelError, match="does not exist"):
+        detector.load("nonexistent_model_file_xyz.pt")
+
+
 def test_anomaly_detector_autoencoder(
     normal_traffic_data: pd.DataFrame, anomalous_traffic_data: pd.DataFrame
 ) -> None:

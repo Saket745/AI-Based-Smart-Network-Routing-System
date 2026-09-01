@@ -10,11 +10,36 @@ import zipfile
 from typing import Any
 
 import joblib
+import joblib.numpy_pickle
 import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
 from nroute.exceptions import ModelError
+
+# Monkeypatch joblib to prevent Remote Code Execution via insecure deserialization
+_original_find_class = joblib.numpy_pickle.NumpyUnpickler.find_class
+
+
+def _secure_find_class(self: Any, module: str, name: str) -> Any:
+    safe_prefixes = (
+        "numpy",
+        "sklearn",
+        "xgboost",
+        "joblib",
+        "collections",
+        "pandas",
+        "scipy",
+        "nroute",
+    )
+    if module == "builtins" or any(
+        module == p or module.startswith(p + ".") for p in safe_prefixes
+    ):
+        return _original_find_class(self, module, name)
+    raise ValueError(f"Unsafe deserialization attempt detected: module '{module}', class '{name}'")
+
+
+joblib.numpy_pickle.NumpyUnpickler.find_class = _secure_find_class
 
 
 def _get_torch() -> tuple[Any, Any, Any, Any, Any]:

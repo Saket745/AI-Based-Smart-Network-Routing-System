@@ -263,53 +263,11 @@ class ChangeImpactSimulator:
                 if src == dst:
                     continue
 
-                blast.total_pairs_analysed += 1
-
                 bp = before_paths.get(src, {}).get(dst)
                 ap = after_paths.get(src, {}).get(dst)
 
-                delta = PathDelta(source=src, destination=dst)
-
-                if bp:
-                    delta.before_path = bp
-                    delta.before_hops = len(bp) - 1
-                    delta.before_latency = AnalyticalEngine.compute_path_latency(
-                        before_g, bp, weight
-                    )
-                    latencies_before.append(delta.before_latency)
-                else:
-                    blast.unreachable_pairs_before += 1
-
-                if ap:
-                    delta.after_path = ap
-                    delta.after_hops = len(ap) - 1
-                    delta.after_latency = AnalyticalEngine.compute_path_latency(after_g, ap, weight)
-                    latencies_after.append(delta.after_latency)
-                else:
-                    blast.unreachable_pairs_after += 1
-
-                # Classify the delta
-                if bp and not ap:
-                    delta.became_unreachable = True
-                    blast.newly_unreachable_pairs += 1
-                    # Record affected nodes
-                    blast.affected_nodes.update(bp)
-                elif not bp and ap:
-                    delta.became_reachable = True
-                    blast.newly_reachable_pairs += 1
-                elif bp and ap and bp != ap:
-                    delta.path_changed = True
-                    blast.path_changed_pairs += 1
-                    # Track edges that differ
-                    before_edges = set(itertools.pairwise(bp))
-                    after_edges = set(itertools.pairwise(ap))
-                    blast.affected_edges.update(before_edges.symmetric_difference(after_edges))
-                    blast.affected_nodes.update(set(bp) ^ set(ap))
-
-                    lat_increase = delta.after_latency - delta.before_latency
-                    if lat_increase > blast.max_latency_increase:
-                        blast.max_latency_increase = lat_increase
-
+                delta = self._compute_pair_delta(src, dst, bp, ap, before_g, after_g, weight)
+                self._update_blast_aggregates(blast, delta, latencies_before, latencies_after)
                 blast.path_deltas.append(delta)
 
         # Aggregate latency stats
@@ -329,3 +287,71 @@ class ChangeImpactSimulator:
         )
 
         return blast
+
+    @staticmethod
+    def _compute_pair_delta(
+        src: str,
+        dst: str,
+        bp: list[str] | None,
+        ap: list[str] | None,
+        before_g: nx.DiGraph,
+        after_g: nx.DiGraph,
+        weight: str,
+    ) -> PathDelta:
+        """Compute path delta for a single source-destination pair."""
+        delta = PathDelta(source=src, destination=dst)
+        if bp:
+            delta.before_path = bp
+            delta.before_hops = len(bp) - 1
+            delta.before_latency = AnalyticalEngine.compute_path_latency(before_g, bp, weight)
+
+        if ap:
+            delta.after_path = ap
+            delta.after_hops = len(ap) - 1
+            delta.after_latency = AnalyticalEngine.compute_path_latency(after_g, ap, weight)
+
+        if bp and not ap:
+            delta.became_unreachable = True
+        elif not bp and ap:
+            delta.became_reachable = True
+        elif bp and ap and bp != ap:
+            delta.path_changed = True
+
+        return delta
+
+    @staticmethod
+    def _update_blast_aggregates(
+        blast: BlastRadius,
+        delta: PathDelta,
+        latencies_before: list[float],
+        latencies_after: list[float],
+    ) -> None:
+        """Update blast radius summary metrics based on a computed PathDelta."""
+        blast.total_pairs_analysed += 1
+
+        if delta.before_path:
+            latencies_before.append(delta.before_latency)
+        else:
+            blast.unreachable_pairs_before += 1
+
+        if delta.after_path:
+            latencies_after.append(delta.after_latency)
+        else:
+            blast.unreachable_pairs_after += 1
+
+        if delta.became_unreachable:
+            blast.newly_unreachable_pairs += 1
+            if delta.before_path:
+                blast.affected_nodes.update(delta.before_path)
+        elif delta.became_reachable:
+            blast.newly_reachable_pairs += 1
+        elif delta.path_changed and delta.before_path and delta.after_path:
+            blast.path_changed_pairs += 1
+            before_edges = set(itertools.pairwise(delta.before_path))
+            after_edges = set(itertools.pairwise(delta.after_path))
+            blast.affected_edges.update(before_edges.symmetric_difference(after_edges))
+            blast.affected_nodes.update(set(delta.before_path) ^ set(delta.after_path))
+
+            lat_increase = delta.after_latency - delta.before_latency
+            if lat_increase > blast.max_latency_increase:
+                blast.max_latency_increase = lat_increase

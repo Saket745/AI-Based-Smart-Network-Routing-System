@@ -34,13 +34,17 @@ class PlotextRenderable:
         # Default to height of 10 if not specified
         height = options.height or 10
 
-        plt.clf()
-        plt.plotsize(width, height)
-        plt.theme("dark")
+        clf_fn = getattr(plt, "clf", getattr(plt, "clear_figure", lambda: None))
+        clf_fn()
+        plotsize_fn = getattr(plt, "plotsize", lambda w, h: None)
+        plotsize_fn(width, height)
+        theme_fn = getattr(plt, "theme", lambda t: None)
+        theme_fn("dark")
 
         self.plot_func(plt)
 
-        ansi_output = plt.build()
+        build_fn = getattr(plt, "build", getattr(plt, "_build", lambda: ""))
+        ansi_output = build_fn()
         decoder = AnsiDecoder()
         yield from decoder.decode(ansi_output)
 
@@ -308,6 +312,7 @@ class LiveSimulationConsole:
                     show_progress=False,  # Turn off standard progress bar
                 )
                 self.log_event("[bold green]Simulation completed[/bold green]")
+                self.status = "Completed"
                 if self.engine.collector.results:
                     last_metric = self.engine.collector.results[-1]
                     self._update_layout(
@@ -317,8 +322,14 @@ class LiveSimulationConsole:
             self.status = "Completed"
             return result
         except KeyboardInterrupt:
+            self.status = "Completed"
+            self.console.print(
+                "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
+            )
             self.status = "Aborted"
             self.console.print(
                 "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
             )
             return MetricsCollectionResult(results=self.engine.collector.results)
+        finally:
+            self.status = "Completed"
