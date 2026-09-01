@@ -1,22 +1,22 @@
-"""Comprehensive Git Branch Forensic Audit Script.
+"""Git Branch Forensic Audit Script.
 
-Analyzes:
-  * All local and remote branches
-  * Reachability and merge status relative to main
-  * Unique commits on each branch
-  * Commit classification and relevance
-  * Deletion safety and preservation requirements
+Analyzes all local and remote branches against `main`:
+  * Merge status (is ancestor of main?)
+  * Commit distance (ahead / behind main)
+  * Unique commits (hashes, authors, dates, subjects)
+  * Remote tracking relationship
+  * Heuristic classification (Jules / AI agent bot branches, security patches, test improvements, etc.)
 """
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 
-def run_git(cmd: list[str]) -> str:
-    """Run a git command and return stripped stdout."""
+def run_git(args: list[str]) -> str:
     res = subprocess.run(
-        ["git"] + cmd,
+        ["git"] + args,
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -26,108 +26,128 @@ def run_git(cmd: list[str]) -> str:
     return res.stdout.strip()
 
 
-def is_ancestor(commit: str, base: str = "main") -> bool:
-    """Check if commit is an ancestor of base (i.e., fully merged)."""
-    res = subprocess.run(["git", "merge-base", "--is-ancestor", commit, base])
-    return res.returncode == 0
+def main():
+    # 1. Get current HEAD
+    head_branch = run_git(["rev-parse", "--abbrev-ref", "HEAD"])
+    main_sha = run_git(["rev-parse", "main"])
+    origin_main_sha = run_git(["rev-parse", "origin/main"])
 
+    print(f"HEAD: {head_branch} ({main_sha}) | origin/main: {origin_main_sha}")
 
-def audit_branches():
-    # 1. Fetch remote branch list
-    raw_branches = run_git(["branch", "-a"]).splitlines()
-    local_branches = [b.strip().replace("* ", "") for b in run_git(["branch"]).splitlines()]
-    
-    remote_branches = []
-    for line in raw_branches:
-        line = line.strip()
-        if line.startswith("remotes/origin/") and not line.startswith("remotes/origin/HEAD"):
-            bname = line.replace("remotes/origin/", "")
-            remote_branches.append(bname)
+    # 2. Get all local branches
+    raw_local = run_git(["branch", "--format=%(refname:short)|%(upstream:short)|%(objectname)"]).splitlines()
+    local_branches = {}
+    for line in raw_local:
+        if not line:
+            continue
+        parts = line.split("|")
+        name = parts[0]
+        upstream = parts[1] if len(parts) > 1 else ""
+        sha = parts[2] if len(parts) > 2 else ""
+        local_branches[name] = {"upstream": upstream, "sha": sha}
+
+    # 3. Get all remote branches
+    raw_remote = run_git(["branch", "-r", "--format=%(refname:short)|%(objectname)"]).splitlines()
+    remote_branches = {}
+    for line in raw_remote:
+        if not line:
+            continue
+        parts = line.split("|")
+        name = parts[0]
+        if "HEAD" in name:
+            continue
+        sha = parts[1] if len(parts) > 1 else ""
+        remote_branches[name] = {"sha": sha}
+
+    # 4. Check merged status against main
+    merged_local = set(run_git(["branch", "--merged", "main", "--format=%(refname:short)"]).splitlines())
+    merged_remote = set(run_git(["branch", "-r", "--merged", "main", "--format=%(refname:short)"]).splitlines())
+
+    branch_audit = []
+
+    # Audit Local Branches
+    for name, data in local_branches.items():
+        is_merged = name in merged_local
+        # Ahead/behind main
+        try:
+            rev_counts = run_git(["rev-list", "--left-right", "--count", f"main...{name}"]).split()
+            behind = int(rev_counts[0])
+            ahead = int(rev_counts[1])
+        except Exception:
+            ahead, behind = -1, -1
+
+        unique_commits = []
+        if ahead > 0:
+            raw_log = run_git(["log", "--oneline", f"main..{name}"]).splitlines()
+            unique_commits = raw_log
+
+        last_commit_info = run_git(["log", "-1", "--format=%cd|%an|%s", "--date=iso", name]).split("|")
+
+        branch_audit.append({
+            "name": name,
+            "type": "local",
+            "sha": data["sha"],
+            "upstream": data["upstream"],
+            "is_merged_to_main": is_merged,
+            "ahead_main": ahead,
+            "behind_main": behind,
+            "unique_commits_count": len(unique_commits),
+            "unique_commits": unique_commits[:10],
+            "last_commit_date": last_commit_info[0] if len(last_commit_info) > 0 else "",
+            "last_commit_author": last_commit_info[1] if len(last_commit_info) > 1 else "",
+            "last_commit_subject": last_commit_info[2] if len(last_commit_info) > 2 else "",
+        })
+
+    # Audit Remote Branches
+    for name, data in remote_branches.items():
+        clean_name = name.replace("origin/", "")
+        is_merged = name in merged_remote
+        try:
+            rev_counts = run_git(["rev-list", "--left-right", "--count", f"main...{name}"]).split()
+            behind = int(rev_counts[0])
+            ahead = int(rev_counts[1])
+        except Exception:
+            ahead, behind = -1, -1
+
+        unique_commits = []
+        if ahead > 0:
+            try:
+                raw_log = run_git(["log", "--oneline", f"main..{name}"]).splitlines()
+                unique_commits = raw_log
+            except Exception:
+                pass
+
+        last_commit_info = run_git(["log", "-1", "--format=%cd|%an|%s", "--date=iso", name]).split("|")
+
+        branch_audit.append({
+            "name": name,
+            "clean_name": clean_name,
+            "type": "remote",
+            "sha": data["sha"],
+            "is_merged_to_main": is_merged,
+            "ahead_main": ahead,
+            "behind_main": behind,
+            "unique_commits_count": len(unique_commits),
+            "unique_commits": unique_commits[:10],
+            "last_commit_date": last_commit_info[0] if len(last_commit_info) > 0 else "",
+            "last_commit_author": last_commit_info[1] if len(last_commit_info) > 1 else "",
+            "last_commit_subject": last_commit_info[2] if len(last_commit_info) > 2 else "",
+        })
+
+    out_file = Path("artifacts/branch_forensic_inventory.json")
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    out_file.write_text(json.dumps(branch_audit, indent=2), encoding="utf-8")
 
     print(f"Total Local Branches: {len(local_branches)}")
     print(f"Total Remote Branches: {len(remote_branches)}")
+    print(f"Audit saved to {out_file}")
 
-    inventory = []
-
-    for b in remote_branches:
-        ref = f"origin/{b}"
-        merged = is_ancestor(ref, "main")
-        
-        # Ahead / Behind main
-        ahead = int(run_git(["rev-list", "--count", f"main..{ref}"]))
-        behind = int(run_git(["rev-list", "--count", f"{ref}..main"]))
-        
-        # Last commit metadata
-        last_commit_info = run_git(
-            ["log", "-1", "--format=%H|%an|%ad|%s", "--date=short", ref]
-        ).split("|", 3)
-        commit_hash, author, date, subject = (
-            last_commit_info[0],
-            last_commit_info[1],
-            last_commit_info[2],
-            last_commit_info[3] if len(last_commit_info) > 3 else "",
-        )
-
-        # Unique commits
-        unique_commits = []
-        if ahead > 0:
-            raw_unique = run_git(["log", f"main..{ref}", "--format=%H|%s"]).splitlines()
-            for u in raw_unique:
-                if u.strip():
-                    h, s = u.split("|", 1)
-                    unique_commits.append({"hash": h, "subject": s})
-
-        # Classification & Action
-        if merged or ahead == 0:
-            relevance = "Merged into main"
-            action = "DELETE"
-            reason = "All commits are already merged into main."
-        else:
-            # Analyze unmerged branch
-            if "jules" in b or any(c.isdigit() and len(c) > 10 for c in b.split("-")):
-                relevance = "Abandoned AI Agent / Automated branch"
-                action = "DELETE" if "test" not in b else "REVIEW"
-                reason = f"{ahead} unmerged commits from automated agent experiment."
-            else:
-                relevance = "Unmerged feature/fix branch"
-                action = "REVIEW"
-                reason = f"{ahead} unmerged commits require diff inspection."
-
-        record = {
-            "branch_name": b,
-            "ref": ref,
-            "merged": merged,
-            "ahead_of_main": ahead,
-            "behind_main": behind,
-            "last_commit_hash": commit_hash,
-            "author": author,
-            "date": date,
-            "subject": subject,
-            "unique_commits": unique_commits,
-            "relevance": relevance,
-            "action": action,
-            "reason": reason,
-        }
-        inventory.append(record)
-
-    out_path = Path("artifacts/branch_forensic_inventory.json")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(inventory, indent=2))
-    print(f"Inventory written to {out_path} ({len(inventory)} branches audited)")
-
-    # Print Summary stats
-    merged_count = sum(1 for b in inventory if b["merged"])
-    unmerged_count = sum(1 for b in inventory if not b["merged"])
-    print(f"Merged Branches: {merged_count}")
-    print(f"Unmerged Branches: {unmerged_count}")
-
-    if unmerged_count > 0:
-        print("\n--- UNMERGED BRANCHES ---")
-        for b in inventory:
-            if not b["merged"]:
-                clean_subj = b["subject"].encode("ascii", "replace").decode("ascii")
-                print(f" * {b['branch_name']}: {b['ahead_of_main']} commits ahead ({clean_subj})")
+    # Summary of unmerged branches
+    unmerged = [b for b in branch_audit if not b["is_merged_to_main"] and b["name"] != "main"]
+    print(f"Total Unmerged Branches: {len(unmerged)}")
+    for b in unmerged:
+        print(f"  * {b['name']} (ahead={b['ahead_main']}, behind={b['behind_main']}) -> {b['last_commit_subject']}")
 
 
 if __name__ == "__main__":
-    audit_branches()
+    main()
