@@ -47,6 +47,19 @@ class AuditArgs(BaseModel):
     action: str | None = None
 
 
+class ValidateArgs(BaseModel):
+    """Arguments for the validate command."""
+
+    topology: str
+    change: str
+    policy: str | None = None
+    config: str | None = None
+    weight: str = "latency"
+    output: str | None = None
+    json_output: bool = False
+    strict_warnings: bool = False
+
+
 @click.group(name="twin", help="Digital Twin Engine commands.")
 @click.pass_context
 def twin_cmd(ctx: click.Context) -> None:
@@ -293,3 +306,151 @@ def audit_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
     else:
         click.echo(f"Audit trail: {len(records)} record(s)")
         click.echo(json.dumps(records, indent=2))
+
+
+# ── twin validate ────────────────────────────────────────────
+
+
+@twin_cmd.command("validate")
+@click.option(
+    "--topology",
+    "-t",
+    type=click.Path(exists=True),
+    required=True,
+    help="Path to baseline topology JSON file.",
+)
+@click.option(
+    "--change",
+    "-ch",
+    type=click.Path(exists=True),
+    required=True,
+    help="Path to proposed change YAML/JSON file.",
+)
+@click.option(
+    "--policy",
+    "-p",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to safety policy YAML/JSON file.",
+)
+@click.option(
+    "--config",
+    "-c",
+    type=click.Path(exists=True),
+    default=None,
+    help="Optional device config to ingest before validation.",
+)
+@click.option(
+    "--weight",
+    "-w",
+    default="latency",
+    help="Edge weight attribute for path computation.",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    default=None,
+    help="Write validation report to JSON file.",
+)
+@click.option(
+    "--json",
+    "-j",
+    "json_output",
+    is_flag=True,
+    default=False,
+    help="Emit machine-readable JSON to stdout.",
+)
+@click.option(
+    "--strict-warnings",
+    "-s",
+    is_flag=True,
+    default=False,
+    help="Exit with code 2 on WARN verdicts in CI/CD.",
+)
+@click.pass_context
+def validate_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
+    """Validate a proposed network change against a declarative safety policy."""
+    try:
+        args = ValidateArgs(**kwargs)
+    except Exception as exc:
+        click.echo(f"CLI Parameter Error: {exc}", err=True)
+        sys.exit(64)
+
+    from nroute.simulation.digital_twin import DigitalTwinEngine
+    from nroute.simulation.policy import ValidationVerdict
+
+    twin = DigitalTwinEngine()
+    try:
+        twin.load_topology(args.topology)
+        if args.config:
+            twin.ingest_config(args.config)
+    except Exception as exc:
+        click.echo(f"Topology/Config Ingestion Error: {exc}", err=True)
+        sys.exit(65)
+
+    try:
+        result = twin.validate_change(change=args.change, policy=args.policy, weight=args.weight)
+    except (ValueError, TypeError) as exc:
+        click.echo(f"Input/Policy Validation Error: {exc}", err=True)
+        sys.exit(65)
+    except Exception as exc:
+        click.echo(f"Validation Execution Error: {exc}", err=True)
+        sys.exit(70)
+
+    report = result.to_dict()
+
+    if args.output:
+        out_path = Path(args.output)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with out_path.open("w", encoding="utf-8") as f:
+            json.dump(report, f, indent=2)
+
+    if args.json_output:
+        click.echo(json.dumps(report, indent=2))
+    else:
+        # Human-readable summary
+        verdict = result.verdict
+        badge = f"[{verdict.value}]"
+        click.echo("=" * 70)
+        click.echo(f"NROUTE PRE-FLIGHT VALIDATION: {badge} - {result.summary}")
+        click.echo("=" * 70)
+        click.echo(f"Change ID:             {result.change_id}")
+        click.echo(f"Execution Duration:    {result.execution_duration_ms:.2f} ms")
+        click.echo(
+            f"Pairs Analysed:        {result.blast_radius_summary.get('total_pairs_analysed', 0)}"
+        )
+        click.echo(
+            f"Newly Unreachable:     {result.blast_radius_summary.get('newly_unreachable_pairs', 0)}"
+        )
+        changed_count = result.blast_radius_summary.get("path_changed_pairs", 0)
+        changed_ratio = result.blast_radius_summary.get("path_changed_ratio", 0.0) * 100
+        click.echo(f"Path Changed Pairs:    {changed_count} ({changed_ratio:.1f}%)")
+        click.echo(
+            f"Max Latency Increase:  +{result.blast_radius_summary.get('max_latency_increase_ms', 0.0):.2f} ms"
+        )
+
+        if result.blocking_violations:
+            click.echo("\n[BLOCKING VIOLATIONS]")
+            for v in result.blocking_violations:
+                click.echo(f"  * [BLOCK] {v}")
+
+        if result.warning_violations:
+            click.echo("\n[WARNING VIOLATIONS]")
+            for v in result.warning_violations:
+                click.echo(f"  * [WARN]  {v}")
+
+        if args.output:
+            click.echo(f"\nFull report written to {args.output}")
+        click.echo("=" * 70)
+
+    # Determine exit code according to exit code contract
+    if result.verdict == ValidationVerdict.BLOCK:
+        sys.exit(1)
+    elif result.verdict == ValidationVerdict.WARN:
+        if args.strict_warnings:
+            sys.exit(2)
+        else:
+            sys.exit(0)
+    else:
+        sys.exit(0)

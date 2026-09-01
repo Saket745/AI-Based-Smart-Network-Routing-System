@@ -9,3 +9,8 @@ from __future__ import annotations
 from nroute.cli import cli
 
 __all__ = ["cli"]
+
+
+if __name__ == "__main__":
+    cli()
+

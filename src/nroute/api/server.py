@@ -161,6 +161,12 @@ class ImpactRequest(BaseModel):
     weight: str = "latency"
 
 
+class ValidateRequest(BaseModel):
+    change: dict[str, Any]
+    policy: dict[str, Any] | None = None
+    weight: str = "latency"
+
+
 class NetworkEventInput(BaseModel):
     """Pydantic schema for a single network event in the RCA endpoint.
 
@@ -301,6 +307,27 @@ async def simulate_impact(req: ImpactRequest) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/twin/validate")
+@app.post("/api/validate")
+async def validate_change(req: ValidateRequest) -> dict[str, Any]:
+    """Validate a proposed network change against a declarative safety policy."""
+    engine = get_engine()
+    try:
+        result = await _run_in_executor(
+            engine.validate_change,
+            change=req.change,
+            policy=req.policy,
+            weight=req.weight,
+        )
+        return cast("dict[str, Any]", result.to_dict())
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail=f"Validation error: {exc}") from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Internal validation error: {exc}") from exc
 
 
 @app.post("/api/rca")
