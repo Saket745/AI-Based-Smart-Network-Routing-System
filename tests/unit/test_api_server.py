@@ -1,4 +1,3 @@
-"""Unit tests for FastAPI API server authentication and path traversal security."""
 """Unit tests for the FastAPI API server endpoints, focusing on security (authentication and path traversal)."""
 
 from __future__ import annotations
@@ -124,6 +123,7 @@ def test_api_load_topology_success_cwd(client: TestClient) -> None:
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     try:
     try:
+    try:
         headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
         response = client.post("/api/topology/load", json={"path": str(temp_file)}, headers=headers)
         assert response.status_code == 200
@@ -145,6 +145,8 @@ def test_api_load_topology_success_temp(client: TestClient) -> None:
         temp_path = Path(f.name)
 
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
+    try:
+        topo.save(temp_path)
     try:
         topo.save(temp_path)
     try:
