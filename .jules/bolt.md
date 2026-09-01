@@ -26,3 +26,7 @@
 ## 2026-08-17 - NetworkX GNN Feature Extraction Optimization
 **Learning:** Calling `len(list(graph.successors(node)))` or `len(list(topology.neighbors(n)))` inside node feature extraction loops allocates a new Python `list` object for every node, while `graph.nodes[n]` / `graph.edges[u, v]` queries NetworkX `NodeView`/`EdgeView` lookup descriptors repeatedly. Direct out-degree length lookups `len(graph._succ[node])` alongside direct `graph._node` and `graph._adj` attribute access eliminate O(V) list allocations and view overhead, yielding a ~2.2x to 2.3x speedup on graph feature extraction.
 **Action:** In graph feature extraction loops, use `len(graph._succ[node])` instead of `len(list(graph.successors(node)))` and access internal `_node`/`_adj` dicts directly.
+
+## 2026-09-01 - MetricsCollector.record_tick Fast-Path Optimization
+**Learning:** In per-tick simulation metrics collection, checking whether down-tracking sets (`down_edges`) are non-empty allows bypassing `(u, v)` tuple key construction and set membership lookups on every edge hop when no links are down. Accessing the underlying NetworkX graph adjacency dictionary (`topology.graph._adj`) directly avoids `AdjacencyView` descriptor overhead and yields up to a ~4.25x speedup in `record_tick` execution time and a ~1.63x overall simulation tick rate speedup on 1000-node topologies.
+**Action:** Use fast-path conditionals when down-tracking sets are empty in hot simulation loops to bypass tuple allocations and set lookups.
