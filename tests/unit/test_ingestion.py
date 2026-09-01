@@ -216,6 +216,21 @@ def test_pcap_parser(mock_pcap_reader_cls: MagicMock, tmp_path: Path) -> None:
     assert any(f.protocol == "PROTO_99" for f in tm.flows)
 
 
+def test_pcap_parser_security_path_validation(tmp_path: Path) -> None:
+    """Test PCAP parser input validation against missing, empty, or invalid file paths."""
+    # 1. Non-existent file path
+    with pytest.raises(IngestionError, match="Invalid PCAP file path"):
+        PcapParser.parse(tmp_path / "non_existent.pcap")
+
+    # 2. Empty string path
+    with pytest.raises(IngestionError, match="Invalid PCAP file path"):
+        PcapParser.parse("")
+
+    # 3. Null bytes in path
+    with pytest.raises(IngestionError, match="Invalid PCAP file path"):
+        PcapParser.parse("test\0.pcap")
+
+
 def test_unified_ingest_explicit_and_auto_detect(tmp_path: Path) -> None:
     """Test the unified ingest() function with format overrides and auto-detection."""
     # 1. Non-existent file

@@ -39,6 +39,23 @@ class PcapParser:
         """
         Read up to max_packets from a PCAP file and aggregate flow metrics.
         """
+        try:
+            p = validate_file_path(path, must_exist=True)
+        except ValidationError as e:
+            raise IngestionError(f"Invalid PCAP file path: {e}") from e
+
+        # Lazy import scapy to minimize start-up time
+        try:
+            from scapy.layers.inet import IP
+            from scapy.utils import PcapReader
+        except ImportError as e:
+            raise IngestionError(
+                "Scapy library is required for PCAP parsing. Run 'pip install scapy'."
+            ) from e
+
+        # Store aggregations of flows
+        # Key: (src_ip, dst_ip, protocol_str)
+        # Value: dict with keys: bytes, packets, first_time, last_time
         flow_aggregations: dict[tuple[str, str, str], dict[str, Any]] = defaultdict(
             lambda: {
                 "bytes": 0,
