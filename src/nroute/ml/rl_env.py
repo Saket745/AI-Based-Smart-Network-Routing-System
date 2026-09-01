@@ -5,18 +5,39 @@ from __future__ import annotations
 import contextlib
 from typing import TYPE_CHECKING, Any
 
-import gymnasium as gym
 import networkx as nx
 import numpy as np
-from gymnasium import spaces
 
-from nroute.exceptions import TopologyError
+try:
+    import gymnasium as gym
+    from gymnasium import spaces
+
+    _HAS_GYMNASIUM = True
+    _EnvBase: type[Any] = gym.Env[np.ndarray, int]
+except ImportError:
+    _HAS_GYMNASIUM = False
+    _EnvBase = object
+
+from nroute.exceptions import ModelError, TopologyError
 
 if TYPE_CHECKING:
     from nroute.core.topology import Topology
 
 
-class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
+def _get_gym() -> tuple[Any, Any]:
+    try:
+        import gymnasium as gym
+        from gymnasium import spaces
+
+        return gym, spaces
+    except ImportError as e:
+        raise ModelError(
+            "Optional dependency 'gymnasium' is required for NetworkRoutingEnv. "
+            "Install with 'pip install nroute[rl]'."
+        ) from e
+
+
+class NetworkRoutingEnv(_EnvBase):
     """
     Gymnasium environment that models a network topology for routing.
 
@@ -50,6 +71,11 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             training_mode: If True, randomize edge attributes on each reset
                 to expose the agent to varied congestion states.
         """
+        if not _HAS_GYMNASIUM:
+            raise ModelError(
+                "Optional dependency 'gymnasium' is required for NetworkRoutingEnv. "
+                "Install with 'pip install nroute[rl]'."
+            )
         super().__init__()
         self.topology = topology.copy()
         self.max_hops = max_hops

@@ -44,20 +44,41 @@ from nroute.exceptions import (
     TopologyError,
     ValidationError,
 )
-from nroute.ml import (
-    BaseFeatureExtractor,
-    DefaultGraphFeatureExtractor,
-    GraphTensorBundle,
-    NetworkRoutingEnv,
-)
 from nroute.routing import (
     ROUTER_REGISTRY,
-    AIRouter,
     BaseRouter,
-    RLRouter,
     get_router,
     register_router,
 )
+
+
+def __getattr__(name: str) -> Any:
+    if name in {"BaseFeatureExtractor", "DefaultGraphFeatureExtractor"}:
+        from nroute.ml.features.extractor import (
+            BaseFeatureExtractor,
+            DefaultGraphFeatureExtractor,
+        )
+
+        return (
+            BaseFeatureExtractor if name == "BaseFeatureExtractor" else DefaultGraphFeatureExtractor
+        )
+    if name == "GraphTensorBundle":
+        from nroute.ml.graph.bundle import GraphTensorBundle
+
+        return GraphTensorBundle
+    if name == "NetworkRoutingEnv":
+        from nroute.ml.rl_env import NetworkRoutingEnv
+
+        return NetworkRoutingEnv
+    if name == "RLRouter":
+        from nroute.routing.rl_router import RLRouter
+
+        return RLRouter
+    if name == "AIRouter":
+        from nroute.routing.ai import AIRouter
+
+        return AIRouter
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
 class Simulator:

@@ -35,7 +35,8 @@ class PcapParser:
             from scapy.utils import PcapReader
         except ImportError as e:
             raise IngestionError(
-                "Scapy library is required for PCAP parsing. Run 'pip install scapy'."
+                "Optional dependency 'scapy' is required for PCAP parsing. "
+                "Install with 'pip install nroute[pcap]'."
             ) from e
 
         # Store aggregations of flows

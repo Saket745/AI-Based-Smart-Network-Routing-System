@@ -7,10 +7,8 @@ import os
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from stable_baselines3 import DQN, PPO
 
 from nroute.exceptions import ModelError, RoutingError
-from nroute.ml.rl_env import NetworkRoutingEnv
 from nroute.routing.base import BaseRouter, FallbackRouter
 from nroute.routing.bfs import BFSRouter
 from nroute.routing.dijkstra import DijkstraRouter
@@ -20,6 +18,18 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from nroute.core.topology import Topology
+
+
+def _get_sb3() -> tuple[type[Any], type[Any]]:
+    try:
+        from stable_baselines3 import DQN, PPO
+
+        return DQN, PPO
+    except ImportError as e:
+        raise ModelError(
+            "Optional dependencies 'stable-baselines3' and 'gymnasium' are required for RL routing. "
+            "Install with 'pip install nroute[rl]'."
+        ) from e
 
 
 logger = get_logger(__name__)
@@ -151,8 +161,12 @@ class RLRouter(BaseRouter):
         Returns:
             Dictionary of training metrics.
         """
+        dqn_cls, ppo_cls = _get_sb3()
+
         if self.topology is None:
             raise ModelError("Cannot train RLRouter without a topology context.")
+
+        from nroute.ml.rl_env import NetworkRoutingEnv
 
         logger.info("Initializing Gymnasium environment for RL training...")
         env = NetworkRoutingEnv(self.topology, training_mode=True)
@@ -187,7 +201,7 @@ class RLRouter(BaseRouter):
             while n_steps % batch_size != 0 and batch_size > 1:
                 batch_size -= 1
 
-            self.model = PPO(
+            self.model = ppo_cls(
                 "MlpPolicy",
                 env,
                 verbose=0,
@@ -199,7 +213,7 @@ class RLRouter(BaseRouter):
                 ent_coef=0.01,  # Encourage exploration
             )
         else:  # dqn
-            self.model = DQN(
+            self.model = dqn_cls(
                 "MlpPolicy",
                 env,
                 verbose=0,
@@ -313,6 +327,8 @@ class RLRouter(BaseRouter):
         try:
             # Create inference environment with training_mode=False
             # to avoid randomizing edge attributes during inference
+            from nroute.ml.rl_env import NetworkRoutingEnv
+
             env = NetworkRoutingEnv(topology, training_mode=False)
 
             # Verify observation space matches training
@@ -430,11 +446,13 @@ class RLRouter(BaseRouter):
         except Exception as e:
             raise ModelError(f"Failed to load RLRouter metadata from {meta_path}: {e}") from e
 
+        dqn_cls, ppo_cls = _get_sb3()
+
         try:
             if self.algorithm == "ppo":
-                self.model = PPO.load(path)
+                self.model = ppo_cls.load(path)
             elif self.algorithm == "dqn":
-                self.model = DQN.load(path)
+                self.model = dqn_cls.load(path)
             else:
                 raise ModelError(f"Unsupported algorithm type in metadata: {self.algorithm}")
         except Exception as e:

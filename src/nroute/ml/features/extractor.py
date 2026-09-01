@@ -7,11 +7,6 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-try:
-    import torch
-except ImportError:
-    torch = None  # type: ignore[assignment]
-
 if TYPE_CHECKING:
     from nroute.core.topology import Topology
 from nroute.ml.graph.bundle import GraphTensorBundle
@@ -92,10 +87,15 @@ class DefaultGraphFeatureExtractor(BaseFeatureExtractor):
         edge_features_val: Any = edge_features_arr
 
         # Convert to PyTorch tensors if requested
-        if self.use_pytorch and torch is not None:
-            node_features_val = torch.from_numpy(node_features_val)
-            edge_index_val = torch.from_numpy(edge_index_val)
-            edge_features_val = torch.from_numpy(edge_features_val)
+        if self.use_pytorch:
+            try:
+                import torch
+
+                node_features_val = torch.from_numpy(node_features_val)
+                edge_index_val = torch.from_numpy(edge_index_val)
+                edge_features_val = torch.from_numpy(edge_features_val)
+            except ImportError:
+                pass
 
         return GraphTensorBundle(
             node_features=node_features_val,

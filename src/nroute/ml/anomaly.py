@@ -3,43 +3,61 @@
 from __future__ import annotations
 
 import os
-from typing import Any, cast
+from typing import Any
 
 import joblib
 import numpy as np
 import pandas as pd
-import torch
-import torch.nn as nn
-import torch.optim as optim
 from sklearn.ensemble import IsolationForest
-from torch.utils.data import DataLoader, TensorDataset
 
 from nroute.exceptions import ModelError
 
 
-class AutoencoderNet(nn.Module):
-    """PyTorch Autoencoder network for anomaly detection."""
+def _get_torch() -> tuple[Any, Any, Any, Any, Any]:
+    try:
+        import torch
+        import torch.nn as nn
+        import torch.optim as optim
+        from torch.utils.data import DataLoader, TensorDataset
 
-    def __init__(self, input_dim: int) -> None:
-        super().__init__()
-        # Encoder
-        self.encoder = nn.Sequential(
-            nn.Linear(input_dim, max(4, input_dim // 2)),
-            nn.ReLU(),
-            nn.Linear(max(4, input_dim // 2), 2),
-            nn.ReLU(),
-        )
-        # Decoder
-        self.decoder = nn.Sequential(
-            nn.Linear(2, max(4, input_dim // 2)),
-            nn.ReLU(),
-            nn.Linear(max(4, input_dim // 2), input_dim),
-        )
+        return torch, nn, optim, DataLoader, TensorDataset
+    except ImportError as e:
+        raise ModelError(
+            "Optional dependency 'torch' is required for Autoencoder models. "
+            "Install with 'pip install nroute[torch]'."
+        ) from e
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        latent = self.encoder(x)
-        reconstructed = self.decoder(latent)
-        return cast("torch.Tensor", reconstructed)
+
+def _get_autoencoder_class() -> type[Any]:
+    _, nn, _, _, _ = _get_torch()
+
+    class _AutoencoderNet(nn.Module):
+        """PyTorch Autoencoder network for anomaly detection."""
+
+        def __init__(self, input_dim: int) -> None:
+            super().__init__()
+            self.encoder = nn.Sequential(
+                nn.Linear(input_dim, max(4, input_dim // 2)),
+                nn.ReLU(),
+                nn.Linear(max(4, input_dim // 2), 2),
+                nn.ReLU(),
+            )
+            self.decoder = nn.Sequential(
+                nn.Linear(2, max(4, input_dim // 2)),
+                nn.ReLU(),
+                nn.Linear(max(4, input_dim // 2), input_dim),
+            )
+
+        def forward(self, x: Any) -> Any:
+            latent = self.encoder(x)
+            return self.decoder(latent)
+
+    return _AutoencoderNet
+
+
+def AutoencoderNet(input_dim: int) -> Any:  # noqa: N802
+    cls = _get_autoencoder_class()
+    return cls(input_dim)
 
 
 class AnomalyDetector:
@@ -87,6 +105,7 @@ class AnomalyDetector:
                 n_estimators=100,
             )
         elif self.model_type == "autoencoder":
+            _get_torch()
             # Actual network is initialized during fit() when input dimension is known
             self.model = None
         elif self.model_type == "custom":
@@ -134,6 +153,7 @@ class AnomalyDetector:
             self.is_trained = True
 
         elif self.model_type == "autoencoder":
+            torch, nn, optim, data_loader_cls, tensor_dataset_cls = _get_torch()
             input_dim = x_data.shape[1]
             self.model = AutoencoderNet(input_dim)
 
@@ -141,8 +161,8 @@ class AnomalyDetector:
             x_norm = self._normalize(x_data, train=True)
 
             x_tensor = torch.tensor(x_norm, dtype=torch.float32)
-            dataset = TensorDataset(x_tensor)
-            dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+            dataset = tensor_dataset_cls(x_tensor)
+            dataloader = data_loader_cls(dataset, batch_size=batch_size, shuffle=True)
 
             optimizer = optim.Adam(self.model.parameters(), lr=0.005)
             criterion = nn.MSELoss()
@@ -215,6 +235,7 @@ class AnomalyDetector:
             is_anomaly = preds == -1
 
         elif self.model_type == "autoencoder":
+            torch, _, _, _, _ = _get_torch()
             self.model.eval()
             x_norm = self._normalize(x_data, train=False)
             x_tensor = torch.tensor(x_norm, dtype=torch.float32)
@@ -255,6 +276,9 @@ class AnomalyDetector:
             else:
                 is_anomaly = anomaly_scores >= 0.5
 
+        else:
+            raise ModelError(f"Unsupported model_type for detection: {self.model_type}")
+
         # Classify anomaly types using heuristics
         anomaly_types = []
         for idx in range(len(features)):
@@ -289,13 +313,15 @@ class AnomalyDetector:
         )
 
     def save(self, path: str) -> None:
-        """Save model configuration and weights."""
+        """
+        Save trained model configuration and weights.
+
+        Args:
+            path: Target file path.
+        """
         if not self.is_trained:
             raise ModelError("Cannot save an untrained model.")
 
-        dirname = os.path.dirname(path)
-        if dirname:
-            os.makedirs(dirname, exist_ok=True)
         if os.path.dirname(path):
             os.makedirs(os.path.dirname(path), exist_ok=True)
 
@@ -311,6 +337,7 @@ class AnomalyDetector:
             save_dict["model"] = self.model
             joblib.dump(save_dict, path)
         elif self.model_type == "autoencoder":
+            torch, _, _, _, _ = _get_torch()
             save_dict["reconstruction_threshold"] = self.reconstruction_threshold
             save_dict["state_dict"] = self.model.state_dict()
             save_dict["input_dim"] = (
@@ -341,6 +368,7 @@ class AnomalyDetector:
 
         try:
             if path.endswith(".pt") or path.endswith(".pth"):
+                torch, _, _, _, _ = _get_torch()
                 try:
                     load_dict = torch.load(
                         path,
