@@ -39,6 +39,11 @@ def test_bench_route_metrics_from_path(benchmark: Any) -> None:
 def test_bench_metrics_to_dataframe(benchmark: Any) -> None:
     from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
 
+    results = [
+        SimulationMetrics(
+            tick=i,
+            timestamp=float(i),
+            throughput=100.0,
     metrics_list = [
         SimulationMetrics(
             tick=i,
@@ -50,6 +55,14 @@ def test_bench_metrics_to_dataframe(benchmark: Any) -> None:
             reroute_count=0,
             active_flows=10,
         )
+        for i in range(10000)
+    ]
+    mc = MetricsCollectionResult(results=results)
+
+    def run_to_dataframe() -> None:
+        mc.to_dataframe()
+
+    benchmark(run_to_dataframe)
         for i in range(1000)
     ]
     coll = MetricsCollectionResult(results=metrics_list)

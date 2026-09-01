@@ -99,9 +99,17 @@ def export_cmd(type: str, format: str, input: str, output: str) -> None:
             MetricsExporter.to_json(metrics_col, output_path)
             console.print(
                 f"[green]+[/green] Successfully exported metrics to JSON: [bold]{output_path}[/bold] {records_summary}"
+        metrics_summary = f"({len(metrics_col.results)} metric records)"
+        if format == "json":
+            MetricsExporter.to_json(metrics_col, output_path)
+            console.print(
+                f"[green]+[/green] Successfully exported metrics to JSON: "
+                f"[bold]{output_path}[/bold] {metrics_summary}"
             )
         elif format == "csv":
             MetricsExporter.to_csv(metrics_col, output_path)
             console.print(
                 f"[green]+[/green] Successfully exported metrics to CSV: [bold]{output_path}[/bold] {records_summary}"
+                f"[green]+[/green] Successfully exported metrics to CSV: "
+                f"[bold]{output_path}[/bold] {metrics_summary}"
             )

@@ -230,6 +230,45 @@ class DigitalTwinEngine:
 
             return result
 
+    def validate_change(
+        self,
+        change: ConfigChange | dict[str, Any] | str | Path,
+        *,
+        policy: Any = None,
+        weight: str = "latency",
+    ) -> Any:
+        """Run pre-flight validation on a proposed change against a declarative safety policy.
+
+        Args:
+            change: A ``ConfigChange`` object, dictionary, or path to a change YAML/JSON.
+            policy: A ``PolicyGateConfig``, dictionary, or path to policy YAML/JSON.
+            weight: Edge weight attribute for path computation.
+
+        Returns:
+            A ``ValidationResult`` report.
+        """
+        from nroute.simulation.validator import PreFlightValidator
+
+        with self._lock:
+            result = PreFlightValidator.validate(
+                self.topology, change=change, policy=policy, weight=weight
+            )
+
+            self._audit.record(
+                AuditAction.CONFIG_CHANGE,
+                actor="system",
+                details=result.to_dict(),
+                explanation=(
+                    f"Pre-flight validation verdict: {result.verdict.value}. "
+                    f"{result.summary} "
+                    f"Computed in {result.execution_duration_ms:.1f} ms."
+                ),
+                counterfactual=result.summary,
+                counterfactual_data=result.to_dict(),
+            )
+
+            return result
+
     # ── Root-cause analysis ──────────────────────────────
 
     def diagnose(

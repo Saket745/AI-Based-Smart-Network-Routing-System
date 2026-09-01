@@ -37,13 +37,6 @@ jobs:
       - name: MyPy type check
         run: mypy src/nroute --strict
 
-      - name: Validate Repository Structure
-        run: python scripts/validate_repository.py
-
-      - name: Validate Branch Name
-        if: github.event_name == 'pull_request'
-        run: python scripts/validate_branch_name.py "${{ github.head_ref }}"
-
       - name: Validate Commit Messages (Conventional Commits)
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then

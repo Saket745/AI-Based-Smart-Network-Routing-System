@@ -156,6 +156,23 @@ def test_gcn_load_invalid_path_raises_model_error() -> None:
 def test_gcn_load_corrupted_file_raises_model_error() -> None:
     """Test loading GCN model with corrupted file raises ModelError."""
     model = GCNModel(8, 4)
+def test_gcn_model_load_invalid_path() -> None:
+    """Test that loading from a non-existent or invalid path raises appropriate error."""
+    model = GCNModel(8, 4)
+
+    # Missing file should raise ValidationError via validate_file_path
+    with pytest.raises(ValidationError, match="does not exist"):
+        model.load("non_existent_gcn_model.pt")
+
+    # Path traversal with null bytes or empty path should fail validation
+    with pytest.raises(ValidationError, match="empty"):
+        model.load("")
+
+
+def test_gcn_model_load_corrupt_file() -> None:
+    """Test that loading a corrupted checkpoint raises ModelError."""
+    model = GCNModel(8, 4)
+
     with tempfile.TemporaryDirectory() as tmpdir:
         corrupt_path = Path(tmpdir) / "corrupt.pt"
         corrupt_path.write_bytes(b"invalid binary model data")

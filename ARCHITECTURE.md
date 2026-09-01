@@ -45,17 +45,21 @@ AI-Based-Smart-Network-Routing-System/
 ├── configs/                 # Config files for topologies, models, tests
 ├── data/                    # Datasets (NetFlow CSVs, traffic logs)
 ├── docs/                    # Architectural plans, specs, templates
-├── experiments/             # Research sandboxes, notebooks, prototypes
-├── models/                  # Saved ML/RL models (joblibs, weights)
-├── scripts/                 # Utility and repository validation scripts
+│   └── archive/             # Archived historical specs (PRD, TRD)
+├── models/                  # Checkpointed ML/RL models and metadata
+├── scripts/                 # Utility scripts (traffic generator, baseline trainers)
 ├── src/
 │   └── nroute/
-│       ├── cli/             # CLI command definitions
-│       ├── core/            # Topology, traffic representation, generators
-│       ├── ingestion/       # CSV, SNMP, PCAP data parsers
-│       ├── routing/         # Dijkstra, ECMP, RL routers
-│       └── utils/           # Shared utility tools
-└── tests/                   # pytest unit/integration test suite
+│       ├── api/             # FastAPI REST server & auth middleware
+│       ├── audit/           # Audit trail & structured logging
+│       ├── cli/             # CLI commands (topology, route, simulate, detect)
+│       ├── core/            # Topology, flow/traffic representation, generators
+│       ├── ingestion/       # CSV, SNMP, NetFlow/PCAP data parsers
+│       ├── ml/              # Congestion predictor, anomaly detector, RL env
+│       ├── routing/         # Dijkstra, ECMP, Bellman-Ford, RL router
+│       ├── simulation/      # SimulationEngine, FailureInjector, TrafficGenerator
+│       └── utils/           # Shared logging, metrics, loaders
+└── tests/                   # pytest unit, integration, and benchmark test suites
 ```
 
 ---
@@ -63,21 +67,31 @@ AI-Based-Smart-Network-Routing-System/
 ## 🧠 Core Modules
 
 ### 1. Core Graph Layer (`src/nroute/core/`)
-* **`Topology`**: Built on NetworkX, represents nodes (routers) and directed edges (links) with capacity, latency, status (up/down), and current load attributes.
-* **`TrafficMatrix`**: Dictates the communication requirements (source, destination, volume) between nodes for discrete time steps.
-* **`Generators`**: Produces synthetic topologies (Grid, Fat-Tree, Erdős-Rényi) and synthetic traffic distribution profiles.
+* **`Topology`**: Built on NetworkX, represents nodes (routers, switches, hosts) and directed edges (links) with capacity, latency, status (up/down), packet loss, and utilization attributes with O(1) down-tracking.
+* **`FlowRecord`**: Encapsulates packet flow characteristics (source, destination, volume, protocol, timestamps).
+* **`TopologyGenerator`**: Generates synthetic topologies (Fat-Tree, Random, Scale-Free, Small-World).
 
 ### 2. Routing Engine (`src/nroute/routing/`)
-All routers inherit from [BaseRouter](file:///c:/Users/mssak/OneDrive/Desktop/Network%20Route%20Optimizer/AI-Based-Smart-Network-Routing-System/src/nroute/routing/base.py):
+All routers inherit from `BaseRouter`:
 * **`DijkstraRouter`**: Finds shortest routes based on link weight/latency attributes.
 * **`ECMPRouter`**: Distributes traffic across paths of equal cost to balance utilization.
-* **`FallbackRouter`**: Chains multiple routers (e.g., trying an AI-based router first, falling back to Dijkstra if it fails).
+* **`BellmanFordRouter`**: Distributed distance-vector shortest-path routing.
+* **`RLRouter`**: Deep reinforcement learning routing agent using trained policies.
+* **`AIRouter`**: High-level AI router unifying anomaly detection, congestion forecasting, and adaptive rerouting.
 
-### 3. Simulation Engine (`src/nroute/core/`)
-* **`Simulator`**: Runs discrete-event loops. Applies a routing strategy to a given topology and traffic matrix over time, injecting link failures or traffic spikes to calculate packet loss, throughput, and link utilization.
+### 3. Simulation Engine (`src/nroute/simulation/`)
+* **`SimulationEngine`**: Runs discrete-event simulation ticks, forwards flows, tracks packet loss, latency, and link saturation.
+* **`FailureInjector`**: Schedules link and node failures/recoveries dynamically during simulation runs.
+* **`TrafficGenerator`**: Produces configurable traffic matrices (uniform, gravity, hotspot, bimodal).
 
 ### 4. Data Ingestion Engine (`src/nroute/ingestion/`)
-* Standardizes network metadata inputs (NetFlow, PCAP, SNMP) into the internal `Topology` and `TrafficMatrix` representations.
+* Standardizes network telemetry inputs (NetFlow, PCAP, SNMP) into the internal `Topology` and `FlowRecord` formats.
+
+### 5. Machine Learning Layer (`src/nroute/ml/`)
+* **`CongestionPredictor`**: XGBoost & LSTM time-series link congestion predictors.
+* **`AnomalyDetector`**: Isolation Forest & Autoencoder traffic anomaly detectors.
+* **`NetworkRoutingEnv`**: Gymnasium-compatible RL environment for training routing agents.
+* **`ModelStore`**: Checkpointed model store with cryptographic SHA-256 integrity verification.
 
 ---
 
@@ -86,30 +100,29 @@ All routers inherit from [BaseRouter](file:///c:/Users/mssak/OneDrive/Desktop/Ne
 The system is designed with **Dependency Inversion** at its core.
 
 ### Adding a New Routing Algorithm
-To add a custom routing algorithm (e.g., an ML-based path selector):
+To add a custom routing algorithm:
 1. Inherit from `BaseRouter` in `src/nroute/routing/base.py`.
 2. Implement the `compute_path` method.
-3. Hook the new router into the CLI options.
+3. Register using `@register_router("name")` or load via `nroute.yaml` configuration.
 
-Example template:
+Example:
 ```python
-from nroute.routing.base import BaseRouter
 from nroute.core.topology import Topology
+from nroute.routing.base import BaseRouter, register_router
 
 
-class MLPredictiveRouter(BaseRouter):
-    def __init__(self, model_path: str):
-        # Load your model weights
-        pass
-
+@register_router("custom-latency")
+class CustomLatencyRouter(BaseRouter):
     def compute_path(
-        self, topology: Topology, source: str, destination: str, weight=None
+        self,
+        topology: Topology,
+        source: str,
+        destination: str,
+        weight: str | None = "latency",
     ) -> list[str]:
-        # Implement path choice using graph attributes + model predictions
-        pass
-```
+        # Implement custom routing logic
+        import networkx as nx
 
-### ML/RL Model Integration Boundaries
-* **State Space:** Provided by the active sub-graph view in `BaseRouter._get_active_subgraph(topology)`.
-* **Action Space:** Paths selected or link metrics/weights assigned.
-* **Model Serialization:** Serialized models reside in `models/` (excluded from git if large via `.gitignore`) and configuration parameters reside in `configs/`.
+        subgraph = self._get_active_subgraph(topology)
+        return list(nx.shortest_path(subgraph, source, destination, weight=weight))
+```

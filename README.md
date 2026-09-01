@@ -38,13 +38,19 @@ Traditional routing algorithms (Dijkstra, OSPF, BGP) are **reactive** — they c
 ## 📦 Installation
 
 ```bash
-# From source (development)
+# Base installation (Core Routing, Simulation, Ingestion, Classical ML, CLI & API)
+pip install nroute
+
+# Optional capability extras:
+pip install "nroute[torch]"   # Deep Learning & GNN features (PyTorch)
+pip install "nroute[rl]"      # Reinforcement Learning router (Gymnasium + Stable-Baselines3 + PyTorch)
+pip install "nroute[pcap]"    # Binary PCAP packet capture ingestion (Scapy)
+pip install "nroute[all]"     # Complete ML/RL/PCAP stack
+
+# From source (development with all test tooling and extras)
 git clone https://github.com/Saket745/AI-Based-Smart-Network-Routing-System.git
 cd AI-Based-Smart-Network-Routing-System
 pip install -e ".[dev]"
-
-# From PyPI (coming soon)
-# pip install nroute
 ```
 
 **Requirements:** Python 3.10+
@@ -157,11 +163,12 @@ Performance is measured using automated benchmarks under `tests/benchmarks/`.
 
 ## 📄 Documentation
 
-- [Quickstart CLI Guide](docs/quickstart.md)
+- [Quickstart Guide](docs/quickstart.md)
 - [API Reference](docs/api_reference.md)
-- [Product Requirements Document (PRD)](docs/PRD.md)
-- [Technical Requirements Document (TRD)](docs/TRD.md)
-- [Implementation Plan](docs/Implementation_Plan.md)
+- [CLI Reference](docs/cli_reference.md)
+- [Custom Extensions](docs/custom_extensions.md)
+- [Deployment Guide](docs/deployment.md)
+- [Archived Specs](docs/archive/)
 
 ---
 

@@ -36,12 +36,12 @@ You can load, generate, and inspect network topologies.
 
 * **Generate a random topology** (e.g., 50 nodes):
   ```bash
-  nroute topology generate --nodes 50 --edge-prob 0.1 --output data/generated_topology.json
+  nroute topology generate --type random --num-nodes 50 --edge-probability 0.1 --output data/generated_topology.json
   ```
 
 * **Inspect summary statistics** of a topology file:
   ```bash
-  nroute topology info --topology data/sample_topology.json
+  nroute topology show --file data/sample_topology.json
   ```
 
 ---
@@ -51,12 +51,12 @@ Calculate paths through your network using traditional routing algorithms.
 
 * **Calculate a path using Dijkstra's shortest path**:
   ```bash
-  nroute route compute --topology data/sample_topology.json --src "0" --dst "9" --algorithm dijkstra
+  nroute route compute --topology data/sample_topology.json --source "0" --destination "9" --algorithm dijkstra
   ```
 
 * **Calculate a path using Bellman-Ford or ECMP**:
   ```bash
-  nroute route compute --topology data/sample_topology.json --src "0" --dst "9" --algorithm bellman-ford
+  nroute route compute --topology data/sample_topology.json --source "0" --destination "9" --algorithm bellman-ford
   ```
 
 ---
@@ -131,17 +131,17 @@ Train XGBoost, Isolation Forest, GNNs, and RL agents on network topologies.
 * **Predict Congestion** on links:
   ```bash
   nroute predict congestion \
+    --topology data/sample_topology.json \
     --model models/congestion_xgb_v1.joblib \
-    --allow-unsafe \
-    --features-csv data/sample_traffic.csv
+    --allow-unsafe
   ```
 
-* **Detect Traffic Anomalies**:
+* **Detect Traffic Anomalies** (from raw traffic or feature CSVs):
   ```bash
   nroute detect anomalies \
+    --traffic data/sample_traffic.csv \
     --model models/anomaly_iforest_v1.joblib \
-    --allow-unsafe \
-    --features-csv data/sample_netflow.csv
+    --allow-unsafe
   ```
 
 ---
@@ -161,9 +161,15 @@ Export topology stats, routing paths, or simulation metrics to CSV, JSON, or Gra
 
 ---
 
-### Step 2.7: Launching a Digital Twin
-Deploy a simulated twin network environment that mirrors the active topology.
+### Step 2.7: Digital Twin & Health Diagnostics
+Compute pairwise reachability or launch the FastAPI digital twin server.
 
-```bash
-nroute twin start --topology data/sample_topology.json --sync-interval 5
-```
+* **Compute Pairwise Reachability**:
+  ```bash
+  nroute twin reachability --topology data/sample_topology.json
+  ```
+
+* **Start the Digital Twin API Server**:
+  ```bash
+  nroute api start --host 127.0.0.1 --port 8000
+  ```

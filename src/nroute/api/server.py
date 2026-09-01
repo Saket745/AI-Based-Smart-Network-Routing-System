@@ -31,7 +31,9 @@ from pydantic import BaseModel, Field
 
 from nroute.core.config import load_config
 from nroute.core.openconfig import ConfigChange
+from nroute.exceptions import ValidationError
 from nroute.simulation.digital_twin import DigitalTwinEngine
+from nroute.utils.validators import validate_file_path
 
 # ── Security & Authentication ────────────────────────────────
 
@@ -174,6 +176,12 @@ class ImpactRequest(BaseModel):
     weight: str = "latency"
 
 
+class ValidateRequest(BaseModel):
+    change: dict[str, Any]
+    policy: dict[str, Any] | None = None
+    weight: str = "latency"
+
+
 class NetworkEventInput(BaseModel):
     """Pydantic schema for a single network event in the RCA endpoint.
 
@@ -219,7 +227,11 @@ async def health() -> dict[str, Any]:
 async def load_topology(req: TopologyLoadRequest) -> dict[str, Any]:
     """Load a topology from a file path."""
     engine = get_engine()
-    p = Path(req.path).resolve()
+
+    try:
+        p = validate_file_path(req.path, must_exist=False).resolve()
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     # Path traversal protection: restrict to allowed directories
     allowed_dirs = [Path.cwd().resolve(), Path(tempfile.gettempdir()).resolve()]
@@ -314,6 +326,27 @@ async def simulate_impact(req: ImpactRequest) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/twin/validate")
+@app.post("/api/validate")
+async def validate_change(req: ValidateRequest) -> dict[str, Any]:
+    """Validate a proposed network change against a declarative safety policy."""
+    engine = get_engine()
+    try:
+        result = await _run_in_executor(
+            engine.validate_change,
+            change=req.change,
+            policy=req.policy,
+            weight=req.weight,
+        )
+        return cast("dict[str, Any]", result.to_dict())
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail=f"Validation error: {exc}") from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Internal validation error: {exc}") from exc
 
 
 @app.post("/api/rca")

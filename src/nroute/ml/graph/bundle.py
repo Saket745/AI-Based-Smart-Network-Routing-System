@@ -6,10 +6,7 @@ from typing import Any
 
 import numpy as np
 
-try:
-    import torch
-except ImportError:
-    torch = None  # type: ignore[assignment]
+from nroute.exceptions import ModelError
 
 
 class GraphTensorBundle:
@@ -46,7 +43,9 @@ class GraphTensorBundle:
 
     def to_tensors(self) -> GraphTensorBundle:
         """Convert numpy arrays inside the bundle to PyTorch tensors."""
-        if torch is None:
+        try:
+            import torch
+        except ImportError:
             return self
 
         node_feats = self.node_features
@@ -75,8 +74,13 @@ def collate_graph_batch(batches: list[GraphTensorBundle]) -> dict[str, Any]:
     Collate a list of GraphTensorBundle objects into a single batched representation
     using disjoint union representation (diagonal adjacency/edge_index concatenation).
     """
-    if torch is None:
-        raise ImportError("PyTorch is required for GNN batch collation.")
+    try:
+        import torch
+    except ImportError as e:
+        raise ModelError(
+            "Optional dependency 'torch' is required for GNN batch collation. "
+            "Install with 'pip install nroute[torch]'."
+        ) from e
 
     node_features_list: list[torch.Tensor] = []
     edge_index_list: list[torch.Tensor] = []

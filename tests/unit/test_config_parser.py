@@ -74,6 +74,18 @@ def test_load_device_configs_devices_key(tmp_path: Path) -> None:
 
 def test_load_device_configs_not_found() -> None:
     """Test load_device_configs with non-existent file."""
+    with pytest.raises(IngestionError, match="Invalid config file path"):
+        ConfigParser.load_device_configs("non_existent.json")
+
+
+def test_load_device_configs_path_validation_failures() -> None:
+    """Test load_device_configs with empty path or null bytes."""
+    with pytest.raises(IngestionError, match="File path cannot be empty"):
+        ConfigParser.load_device_configs("")
+
+    with pytest.raises(IngestionError, match="null bytes are not allowed"):
+        ConfigParser.load_device_configs("file\0path.json")
+
     with pytest.raises(IngestionError, match="does not exist"):
         ConfigParser.load_device_configs("non_existent.json")
 
@@ -156,6 +168,18 @@ def test_load_change_valid(tmp_path: Path) -> None:
 
 def test_load_change_not_found() -> None:
     """Test load_change with non-existent file."""
+    with pytest.raises(IngestionError, match="Invalid change file path"):
+        ConfigParser.load_change("non_existent.json")
+
+
+def test_load_change_path_validation_failures() -> None:
+    """Test load_change with empty path or null bytes."""
+    with pytest.raises(IngestionError, match="File path cannot be empty"):
+        ConfigParser.load_change("")
+
+    with pytest.raises(IngestionError, match="null bytes are not allowed"):
+        ConfigParser.load_change("file\0path.yaml")
+
     with pytest.raises(IngestionError, match="does not exist"):
         ConfigParser.load_change("non_existent.json")
 

@@ -1,0 +1,356 @@
+{
+  "total_unmerged_branches": 214,
+  "total_unique_commits": 745,
+  "commit_details": [
+    {
+      "sha": "9390c1494738ae14b14db60af204dfb458fe5e31",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-21 08:54:39 +0000",
+      "subject": "test(simulation): add unit tests for metrics and CLI",
+      "branch_example": "agent/add-metrics-collector-tests-6887529673480347509"
+    },
+    {
+      "sha": "b8a8db5b596b215409cc9cdfe5ea06e27ecaf593",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-20 18:01:32 +0000",
+      "subject": "test: add route_cmd unit tests and fix CI security blocks",
+      "branch_example": "agent/add-route-cmd-tests-18260399310306426636"
+    },
+    {
+      "sha": "ccbfc544156c774c0b05f9aac6eeddd29424e3cd",
+      "author": "SAKET MAURYA",
+      "date": "2026-08-04 21:18:49 +0530",
+      "subject": "Merge branch 'main' into agent/add-traffic-tests-18123321163979622943",
+      "branch_example": "agent/add-traffic-tests-18123321163979622943"
+    },
+    {
+      "sha": "3fcbee984f47f105a35435028097825342d70b45",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-20 17:24:54 +0000",
+      "subject": "test(core): add traffic unit tests and fix anomaly CLI",
+      "branch_example": "agent/add-traffic-tests-18123321163979622943"
+    },
+    {
+      "sha": "c5fac569ea1872d9d4d747603a63b0c9eff86e6a",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-20 17:14:24 +0000",
+      "subject": "test(core): add unit tests for traffic data models and fix lint",
+      "branch_example": "agent/add-traffic-tests-18123321163979622943"
+    },
+    {
+      "sha": "e63fb90b650c153ff3ef94065df66d6df233c151",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-20 17:10:28 +0000",
+      "subject": "test(core): add unit tests for traffic data models",
+      "branch_example": "agent/add-traffic-tests-18123321163979622943"
+    },
+    {
+      "sha": "ad1c102920bcd0a7fbecca82fa48b430c0251e04",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-20 17:45:33 +0000",
+      "subject": "test(routing): add unit tests for BaseRouter and FallbackRouter",
+      "branch_example": "agent/fix-missing-base-router-tests-961398932280433040"
+    },
+    {
+      "sha": "03f7b6087496c7305b54339038e1c62a7d689ea3",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-20 17:28:48 +0000",
+      "subject": "test: add BaseRouter tests and fix CI model loading issues",
+      "branch_example": "agent/fix-missing-base-router-tests-961398932280433040"
+    },
+    {
+      "sha": "c4f798b77aff2f6692f0b70c345de745617d67ae",
+      "author": "SAKET MAURYA",
+      "date": "2026-06-20 22:52:02 +0530",
+      "subject": "Merge branch 'main' into agent/fix-missing-base-router-tests-961398932280433040",
+      "branch_example": "agent/fix-missing-base-router-tests-961398932280433040"
+    },
+    {
+      "sha": "fc917705b81751ab92fb80c43fa254261b5366f1",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-20 17:15:36 +0000",
+      "subject": "test: add unit tests for BaseRouter and FallbackRouter",
+      "branch_example": "agent/fix-missing-base-router-tests-961398932280433040"
+    },
+    {
+      "sha": "4b0790da774f974a2e78b89682de65cdf971feaa",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-20 17:09:50 +0000",
+      "subject": "test: add unit tests for BaseRouter and FallbackRouter",
+      "branch_example": "agent/fix-missing-base-router-tests-961398932280433040"
+    },
+    {
+      "sha": "469d8ed001d6a2245ebd4e3d41b6cdf980bcae61",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-20 19:53:31 +0000",
+      "subject": "test: fix CI linting (SIM105, F401, I001) in governance security tests",
+      "branch_example": "agent/fix-missing-base-router-tests-961398932280433040-17185283363020988255"
+    },
+    {
+      "sha": "4561bfb89190a7e858d6e0abb4ac3124c135ed80",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-08-17 05:09:05 +0000",
+      "subject": "\ud83c\udfa8 Palette: Add keyboard shortcut hint to live console header",
+      "branch_example": "agent/keyboard-shortcut-hint-live-console-8065980483548628141"
+    },
+    {
+      "sha": "422acd90a056e77cb931780e172531037483e842",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-08-17 04:55:19 +0000",
+      "subject": "\ud83c\udfa8 Palette: Add keyboard shortcut hint to live console header",
+      "branch_example": "agent/keyboard-shortcut-hint-live-console-8065980483548628141"
+    },
+    {
+      "sha": "c6c4af02d8da9778aa66186346321980a209d3af",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-08-23 05:34:08 +0000",
+      "subject": "perf(routing): optimize path validation and simulation metrics hot path",
+      "branch_example": "bolt-optimize-path-validation-12629477543917929321"
+    },
+    {
+      "sha": "6c2dd4e6fc4ddb191b074db076cd4dc7be27b093",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-08-23 05:28:59 +0000",
+      "subject": "perf(routing): optimize path validation and simulation metrics hot path",
+      "branch_example": "bolt-optimize-path-validation-12629477543917929321"
+    },
+    {
+      "sha": "38e2626693dfa775cbfa66e6f2290943240aa4be",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-08-23 05:23:30 +0000",
+      "subject": "perf(routing): optimize path validation and simulation metrics hot path",
+      "branch_example": "bolt-optimize-path-validation-12629477543917929321"
+    },
+    {
+      "sha": "494cab9ea126b1c387f2b072a5985f19d75bad92",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-08-23 05:18:08 +0000",
+      "subject": "perf(routing): optimize path validation and simulation metrics hot path",
+      "branch_example": "bolt-optimize-path-validation-12629477543917929321"
+    },
+    {
+      "sha": "b2f5dbf233c373471f6c132dc015f33a89d71bed",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-08-09 05:03:36 +0000",
+      "subject": "chore: remove unused from_adjacency_matrix",
+      "branch_example": "chore/remove-unused-from-adjacency-matrix-4475991073649604374"
+    },
+    {
+      "sha": "601046dee578d3551389521d8a2e729dc4557279",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-07-18 07:40:00 +0000",
+      "subject": "refactor: extract helper methods in DijkstraRouter to resolve long function",
+      "branch_example": "code-health-dijkstra-long-function-12292392963092268586"
+    },
+    {
+      "sha": "41c564070c53b5247924741b7ede285f321dce86",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-07-18 07:34:10 +0000",
+      "subject": "refactor: extract helper methods in DijkstraRouter to resolve long function",
+      "branch_example": "code-health-dijkstra-long-function-12292392963092268586"
+    },
+    {
+      "sha": "80ee854bb894c84ecc712aca234872a8949147bf",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-07-18 07:25:23 +0000",
+      "subject": "refactor: extract helper methods in DijkstraRouter to resolve long function",
+      "branch_example": "code-health-dijkstra-long-function-12292392963092268586"
+    },
+    {
+      "sha": "8b6d422de6c6a31c3273414756788abf9fa95e1a",
+      "author": "SAKET MAURYA",
+      "date": "2026-08-04 20:13:36 +0530",
+      "subject": "Merge branch 'main' into code-health-reduce-params-16866976949220762403",
+      "branch_example": "code-health-reduce-params-16866976949220762403"
+    },
+    {
+      "sha": "532543c7622bf6473fd51fdf6676ccf1483eb8d5",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-27 06:27:49 +0000",
+      "subject": "chore: refactor CLI commands to reduce parameter counts",
+      "branch_example": "code-health-reduce-params-16866976949220762403"
+    },
+    {
+      "sha": "2e2ee16421f9fbbfbea338330e6fc74f832e4f2a",
+      "author": "SAKET MAURYA",
+      "date": "2026-08-05 00:06:50 +0530",
+      "subject": "Merge branch 'main' into code-health-refactor-compare-5766830935572259872",
+      "branch_example": "code-health-refactor-compare-5766830935572259872"
+    },
+    {
+      "sha": "6142e630b029883fca173cf69cf0965039746dd4",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-08-04 17:39:16 +0000",
+      "subject": "refactor(cli): simplify compare function in simulate_cmd",
+      "branch_example": "code-health-refactor-compare-5766830935572259872"
+    },
+    {
+      "sha": "137e95d5c2f4ea03fb770e9be81f9251a5219f07",
+      "author": "SAKET MAURYA",
+      "date": "2026-08-03 22:44:46 +0530",
+      "subject": "Merge branch 'main' into code-health-refactor-detect-cmd-11973029776926186168",
+      "branch_example": "code-health-refactor-detect-cmd-11973029776926186168"
+    },
+    {
+      "sha": "bc634669ade5e4d518644dab98f3f9a098cb7c4b",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-27 07:05:19 +0000",
+      "subject": "refactor: split long anomalies function into smaller helpers in detect_cmd.py",
+      "branch_example": "code-health-refactor-detect-cmd-11973029776926186168"
+    },
+    {
+      "sha": "25cf8839c3bbd4755579ac3ab10563f787d0b35d",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-27 06:49:59 +0000",
+      "subject": "refactor: split long anomalies function into smaller helpers in detect_cmd.py",
+      "branch_example": "code-health-refactor-detect-cmd-11973029776926186168"
+    },
+    {
+      "sha": "74c1883627b98695a47da28ec02726f87a7e362c",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-27 06:24:03 +0000",
+      "subject": "\ud83e\uddf9 refactor(cli): resolve too many parameters in simulate_cmd and fix formatting",
+      "branch_example": "code-health-simulate-cmd-params-refactor-2110266771015551248"
+    },
+    {
+      "sha": "24181cd96a0478740fb39d25b6d01f24cf6b12d7",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-27 06:19:11 +0000",
+      "subject": "\ud83e\uddf9 refactor(cli): resolve too many parameters in simulate_cmd",
+      "branch_example": "code-health-simulate-cmd-params-refactor-2110266771015551248"
+    },
+    {
+      "sha": "bff6f82139a283640257506a28f70d9bc71fba42",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-08-03 17:09:35 +0000",
+      "subject": "refactor: address too many parameters in simulate CLI commands",
+      "branch_example": "code-health-simulate-cmd-refactor-13636937848459819699"
+    },
+    {
+      "sha": "01585c93a9d0e7fbdcca0b85b786976099aacd4c",
+      "author": "SAKET MAURYA",
+      "date": "2026-08-03 22:32:22 +0530",
+      "subject": "Merge branch 'main' into code-health-simulate-cmd-refactor-13636937848459819699",
+      "branch_example": "code-health-simulate-cmd-refactor-13636937848459819699"
+    },
+    {
+      "sha": "d22dc8e1ddb9c08e043965d05337fa3a6d0e51bb",
+      "author": "SAKET MAURYA",
+      "date": "2026-08-03 22:27:17 +0530",
+      "subject": "Merge branch 'main' into code-health-simulate-cmd-refactor-13636937848459819699",
+      "branch_example": "code-health-simulate-cmd-refactor-13636937848459819699"
+    },
+    {
+      "sha": "ef6106ec3fe4529375c64324844446947de42b65",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-27 07:08:46 +0000",
+      "subject": "refactor: address too many parameters in simulate CLI commands",
+      "branch_example": "code-health-simulate-cmd-refactor-13636937848459819699"
+    },
+    {
+      "sha": "fe838c36c27683ce45eabf292d02c0508e029f35",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-27 06:50:59 +0000",
+      "subject": "refactor: address too many parameters in simulate CLI commands",
+      "branch_example": "code-health-simulate-cmd-refactor-13636937848459819699"
+    },
+    {
+      "sha": "e6ff741e885d1b16bfa66a114e66524d981236dd",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-07-05 04:58:20 +0000",
+      "subject": "chore: refactor simulate commands and fix CI governance/typing",
+      "branch_example": "code-health-simulate-cmd-refactor-5574309417461466811"
+    },
+    {
+      "sha": "8bfe4584dfaadef5e50d41c5a587ab42a9fea29d",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-07-05 04:53:30 +0000",
+      "subject": "chore: refactor simulate commands and fix project-wide linting",
+      "branch_example": "code-health-simulate-cmd-refactor-5574309417461466811"
+    },
+    {
+      "sha": "3ddaa8067448d5cc2e6ee1df531f04b00787542a",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-07-05 04:44:37 +0000",
+      "subject": "chore: refactor simulate commands and fix linting issues",
+      "branch_example": "code-health-simulate-cmd-refactor-5574309417461466811"
+    },
+    {
+      "sha": "6f0943d3d9c7850f41e97202d6e35227fe615b78",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-07-05 04:37:49 +0000",
+      "subject": "chore: refactor simulate commands for improved maintainability",
+      "branch_example": "code-health-simulate-cmd-refactor-5574309417461466811"
+    },
+    {
+      "sha": "b9bd6fb45ecd9cf681502db51ed197f50ba81495",
+      "author": "SAKET MAURYA",
+      "date": "2026-08-04 20:18:45 +0530",
+      "subject": "Merge branch 'main' into code-health-topology-params-17598311518903828175",
+      "branch_example": "code-health-topology-params-17598311518903828175"
+    },
+    {
+      "sha": "4026d4d465277cf2b58aad225096bf0234b3ec23",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-27 06:23:45 +0000",
+      "subject": "chore: refactor topology generate command and fix CI issues",
+      "branch_example": "code-health-topology-params-17598311518903828175"
+    },
+    {
+      "sha": "445853681670a8789462c023b1e339b955bcecdb",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-27 06:19:31 +0000",
+      "subject": "chore: refactor topology generate command and fix CI issues",
+      "branch_example": "code-health-topology-params-17598311518903828175"
+    },
+    {
+      "sha": "24c3f73eea80a1e4d5685675ed25aec8ef7fafc6",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-27 06:15:42 +0000",
+      "subject": "chore: refactor topology generate command and fix formatting",
+      "branch_example": "code-health-topology-params-17598311518903828175"
+    },
+    {
+      "sha": "922fc3e9ccbeee9236114257745dfd6d9941d5e1",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-27 06:11:54 +0000",
+      "subject": "chore: refactor topology generate command to reduce parameter count",
+      "branch_example": "code-health-topology-params-17598311518903828175"
+    },
+    {
+      "sha": "d5dfcfe26fae83c8dcf6be006df51db131af9754",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-08-03 11:28:03 +0000",
+      "subject": "refactor: resolve long function in ECMPRouter and fix unused/redefined imports in route_cmd.py",
+      "branch_example": "ecmp-refactoring-code-health-268294023064339394"
+    },
+    {
+      "sha": "4dd0b02a7a8ed48449cd603880ec90858d89c482",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-20 17:19:28 +0000",
+      "subject": "feat: add unit tests for train_cmd CLI and fix model loading security in tests",
+      "branch_example": "feat/add-train-cmd-unit-tests-375217910205039542"
+    },
+    {
+      "sha": "3845ef754e4609ff85e5b8de4f988a47eed0fd10",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-20 17:02:53 +0000",
+      "subject": "feat: add unit tests for train_cmd CLI",
+      "branch_example": "feat/add-train-cmd-unit-tests-375217910205039542"
+    },
+    {
+      "sha": "0646614a0f4bc7b0f97ad1b7e88219bd9de7e95c",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-20 16:59:39 +0000",
+      "subject": "feat: add unit tests for train_cmd CLI",
+      "branch_example": "feat/add-train-cmd-unit-tests-375217910205039542"
+    },
+    {
+      "sha": "6b23fa67d809306c0872b68c0291aed9746ab0cd",
+      "author": "google-labs-jules[bot]",
+      "date": "2026-06-20 16:54:52 +0000",
+      "subject": "feat: add unit tests for train_cmd CLI",
+      "branch_example": "feat/add-train-cmd-unit-tests-375217910205039542"
+    }
+  ]
+}

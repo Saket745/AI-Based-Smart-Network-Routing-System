@@ -1,0 +1,16 @@
+{
+  "change_id": "CHG-BLOCK-003",
+  "description": "Partition graph by isolating edge1",
+  "link_changes": [
+    {
+      "src": "core0",
+      "dst": "edge1",
+      "status": "down"
+    },
+    {
+      "src": "core1",
+      "dst": "edge1",
+      "status": "down"
+    }
+  ]
+}

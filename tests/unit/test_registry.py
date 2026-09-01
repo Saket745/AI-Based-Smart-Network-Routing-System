@@ -1,4 +1,4 @@
-"""Unit tests for nroute extensibility registries and custom model support."""
+"""Unit tests for nroute extensibility registries, custom model support, and fallback mechanisms."""
 
 from __future__ import annotations
 
@@ -6,11 +6,16 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import pytest
 
+import nroute.core.config
 from nroute import BaseRouter, get_router, register_router
+from nroute.core.config import NRouteConfig
 from nroute.core.topology import Topology
 from nroute.ml.anomaly import AnomalyDetector
 from nroute.ml.congestion import CongestionPredictor
+from nroute.routing.dijkstra import DijkstraRouter
+from nroute.utils.logging import configure_logging
 
 # ── Test Router Registry ──────────────────────────────────────────────────────
 
@@ -45,6 +50,39 @@ def test_router_registration() -> None:
     assert router_with_topo.topology is topo
 
 
+def test_get_router_logs_exception_on_invalid_custom_router(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Verify that get_router logs an exception when a custom router fails to load."""
+    configure_logging()
+    cfg = NRouteConfig()
+    cfg.custom_routers["invalid-router"] = "nonexistent.module:NonexistentClass"
+
+    monkeypatch.setattr(nroute.core.config, "load_config", lambda *args, **kwargs: cfg)
+
+    with pytest.raises(ValueError, match="Unknown router name"):
+        get_router("invalid-router")
+
+    assert "Failed to load custom router from configuration" in caplog.text
+    assert "invalid-router" in caplog.text
+
+
+def test_get_router_fallback_after_failed_custom_load(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Verify that get_router falls back to default if custom router load fails."""
+    configure_logging()
+    cfg = NRouteConfig()
+    cfg.custom_routers["dijkstra"] = "invalid.module:InvalidClass"
+
+    monkeypatch.setattr(nroute.core.config, "load_config", lambda *args, **kwargs: cfg)
+
+    router = get_router("dijkstra")
+
+    assert isinstance(router, DijkstraRouter)
+    assert "Failed to load custom router from configuration" in caplog.text
+
+
 # ── Test Custom ML Predictor Support ──────────────────────────────────────────
 
 
@@ -58,7 +96,6 @@ class DummyScikitPredictor:
         self.fitted = True
 
     def predict_proba(self, x: Any) -> np.ndarray:
-        # Return probability matrix
         return np.array([[0.1, 0.9] for _ in range(len(x))])
 
 
@@ -85,7 +122,7 @@ def test_custom_congestion_predictor() -> None:
     assert len(preds) == 2
     assert "congested" in preds
     assert "probability" in preds
-    assert preds["congested"].iloc[0]  # 0.9 probability
+    assert preds["congested"].iloc[0]
 
 
 # ── Test Custom Anomaly Detector Support ──────────────────────────────────────
@@ -101,11 +138,10 @@ class DummyAnomalyModel:
         self.fitted = True
 
     def decision_function(self, x: Any) -> np.ndarray:
-        # returns anomaly scores
-        return np.array([0.1, -0.4])  # 0.1 (normal), -0.4 (anomalous)
+        return np.array([0.1, -0.4])
 
     def predict(self, x: Any) -> np.ndarray:
-        return np.array([1, -1])  # 1 (normal), -1 (anomaly)
+        return np.array([1, -1])
 
 
 def test_custom_anomaly_detector() -> None:

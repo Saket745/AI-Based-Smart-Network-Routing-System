@@ -1,0 +1,202 @@
+{
+  "nodes": [
+    {
+      "id": "core0",
+      "capacity": 1000.0,
+      "status": "up",
+      "type": "router"
+    },
+    {
+      "id": "core1",
+      "capacity": 1000.0,
+      "status": "up",
+      "type": "router"
+    },
+    {
+      "id": "agg0",
+      "capacity": 1000.0,
+      "status": "up",
+      "type": "router"
+    },
+    {
+      "id": "agg1",
+      "capacity": 1000.0,
+      "status": "up",
+      "type": "router"
+    },
+    {
+      "id": "edge0",
+      "capacity": 1000.0,
+      "status": "up",
+      "type": "router"
+    },
+    {
+      "id": "edge1",
+      "capacity": 1000.0,
+      "status": "up",
+      "type": "router"
+    }
+  ],
+  "edges": [
+    {
+      "source": "core0",
+      "target": "agg0",
+      "bandwidth": 1000.0,
+      "latency": 5.0,
+      "utilization": 0.1,
+      "packet_loss": 0.0,
+      "status": "up",
+      "weight": 5.0
+    },
+    {
+      "source": "core0",
+      "target": "agg1",
+      "bandwidth": 1000.0,
+      "latency": 10.0,
+      "utilization": 0.1,
+      "packet_loss": 0.0,
+      "status": "up",
+      "weight": 10.0
+    },
+    {
+      "source": "core0",
+      "target": "edge1",
+      "bandwidth": 1000.0,
+      "latency": 5.0,
+      "utilization": 0.1,
+      "packet_loss": 0.0,
+      "status": "up",
+      "weight": 5.0
+    },
+    {
+      "source": "core1",
+      "target": "agg0",
+      "bandwidth": 1000.0,
+      "latency": 10.0,
+      "utilization": 0.1,
+      "packet_loss": 0.0,
+      "status": "up",
+      "weight": 10.0
+    },
+    {
+      "source": "core1",
+      "target": "agg1",
+      "bandwidth": 1000.0,
+      "latency": 5.0,
+      "utilization": 0.1,
+      "packet_loss": 0.0,
+      "status": "up",
+      "weight": 5.0
+    },
+    {
+      "source": "core1",
+      "target": "edge1",
+      "bandwidth": 1000.0,
+      "latency": 5.0,
+      "utilization": 0.1,
+      "packet_loss": 0.0,
+      "status": "up",
+      "weight": 5.0
+    },
+    {
+      "source": "agg0",
+      "target": "edge0",
+      "bandwidth": 1000.0,
+      "latency": 2.0,
+      "utilization": 0.1,
+      "packet_loss": 0.0,
+      "status": "up",
+      "weight": 2.0
+    },
+    {
+      "source": "agg0",
+      "target": "core0",
+      "bandwidth": 1000.0,
+      "latency": 5.0,
+      "utilization": 0.1,
+      "packet_loss": 0.0,
+      "status": "up",
+      "weight": 5.0
+    },
+    {
+      "source": "agg0",
+      "target": "core1",
+      "bandwidth": 1000.0,
+      "latency": 10.0,
+      "utilization": 0.1,
+      "packet_loss": 0.0,
+      "status": "up",
+      "weight": 10.0
+    },
+    {
+      "source": "agg1",
+      "target": "edge0",
+      "bandwidth": 1000.0,
+      "latency": 2.0,
+      "utilization": 0.1,
+      "packet_loss": 0.0,
+      "status": "up",
+      "weight": 2.0
+    },
+    {
+      "source": "agg1",
+      "target": "core0",
+      "bandwidth": 1000.0,
+      "latency": 10.0,
+      "utilization": 0.1,
+      "packet_loss": 0.0,
+      "status": "up",
+      "weight": 10.0
+    },
+    {
+      "source": "agg1",
+      "target": "core1",
+      "bandwidth": 1000.0,
+      "latency": 5.0,
+      "utilization": 0.1,
+      "packet_loss": 0.0,
+      "status": "up",
+      "weight": 5.0
+    },
+    {
+      "source": "edge0",
+      "target": "agg0",
+      "bandwidth": 1000.0,
+      "latency": 2.0,
+      "utilization": 0.1,
+      "packet_loss": 0.0,
+      "status": "up",
+      "weight": 2.0
+    },
+    {
+      "source": "edge0",
+      "target": "agg1",
+      "bandwidth": 1000.0,
+      "latency": 2.0,
+      "utilization": 0.1,
+      "packet_loss": 0.0,
+      "status": "up",
+      "weight": 2.0
+    },
+    {
+      "source": "edge1",
+      "target": "core0",
+      "bandwidth": 1000.0,
+      "latency": 5.0,
+      "utilization": 0.1,
+      "packet_loss": 0.0,
+      "status": "up",
+      "weight": 5.0
+    },
+    {
+      "source": "edge1",
+      "target": "core1",
+      "bandwidth": 1000.0,
+      "latency": 5.0,
+      "utilization": 0.1,
+      "packet_loss": 0.0,
+      "status": "up",
+      "weight": 5.0
+    }
+  ]
+}

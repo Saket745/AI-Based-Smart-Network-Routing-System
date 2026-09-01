@@ -9,6 +9,14 @@ from nroute.core.traffic import FlowRecord, TrafficMatrix
 from nroute.exceptions import IngestionError
 
 
+def _get_field(mapping: dict[str, Any], *keys: str) -> Any:
+    """Retrieve the first matching key from mapping where value is not None."""
+    for key in keys:
+        if key in mapping and mapping[key] is not None:
+            return mapping[key]
+    return None
+
+
 class Normalizer:
     """
     Normalizes and validates raw data into core nroute classes (Topology, TrafficMatrix).
@@ -35,7 +43,7 @@ class Normalizer:
 
         # 1. Normalize and add nodes
         for idx, node in enumerate(raw_nodes):
-            node_id = node.get("id") or node.get("name")
+            node_id = _get_field(node, "id", "name")
             if node_id is None:
                 raise IngestionError(f"Node at index {idx} is missing 'id' or 'name'.")
 
@@ -53,8 +61,8 @@ class Normalizer:
 
         # 2. Normalize and add edges
         for idx, edge in enumerate(raw_edges):
-            src = edge.get("source") or edge.get("src") or edge.get("from")
-            dst = edge.get("destination") or edge.get("dst") or edge.get("to") or edge.get("target")
+            src = _get_field(edge, "source", "src", "from")
+            dst = _get_field(edge, "destination", "dst", "to", "target")
 
             if src is None or dst is None:
                 raise IngestionError(
@@ -108,28 +116,13 @@ class Normalizer:
         flows = []
         for idx, record in enumerate(raw_records):
             # Map common alternate field names
-            source = (
-                record.get("source")
-                or record.get("src")
-                or record.get("src_ip")
-                or record.get("src_addr")
-            )
-            destination = (
-                record.get("destination")
-                or record.get("dst")
-                or record.get("dst_ip")
-                or record.get("dst_addr")
-            )
-            num_bytes = record.get("bytes") or record.get("octets") or record.get("dOctets")
-            packets = record.get("packets") or record.get("pkts") or record.get("dPkts")
-            duration = record.get("duration")
-            protocol = record.get("protocol") or record.get("proto")
-            timestamp = (
-                record.get("timestamp")
-                or record.get("time")
-                or record.get("first_switched")
-                or record.get("last_switched")
-            )
+            source = _get_field(record, "source", "src", "src_ip", "src_addr")
+            destination = _get_field(record, "destination", "dst", "dst_ip", "dst_addr")
+            num_bytes = _get_field(record, "bytes", "octets", "doctets", "dOctets")
+            packets = _get_field(record, "packets", "pkts", "dpkts", "dPkts")
+            duration = _get_field(record, "duration")
+            protocol = _get_field(record, "protocol", "proto")
+            timestamp = _get_field(record, "timestamp", "time", "first_switched", "last_switched")
 
             if (
                 source is None

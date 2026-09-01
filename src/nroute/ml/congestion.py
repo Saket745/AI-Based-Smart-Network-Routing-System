@@ -7,41 +7,83 @@ import json
 import os
 import tempfile
 import zipfile
-from typing import Any, cast
+from typing import Any
 
 import joblib
+import joblib.numpy_pickle
 import numpy as np
 import pandas as pd
-import torch
-import torch.nn as nn
-import torch.optim as optim
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-from torch.utils.data import DataLoader, TensorDataset
 
 from nroute.exceptions import ModelError
 
+# Monkeypatch joblib to prevent Remote Code Execution via insecure deserialization
+_original_find_class = joblib.numpy_pickle.NumpyUnpickler.find_class
 
-class PyTorchLSTM(nn.Module):
-    """PyTorch LSTM model for link congestion time-series forecasting."""
 
-    def __init__(self, input_dim: int = 1, hidden_dim: int = 32, num_layers: int = 2) -> None:
-        super().__init__()
-        self.lstm = nn.LSTM(
-            input_size=input_dim,
-            hidden_size=hidden_dim,
-            num_layers=num_layers,
-            batch_first=True,
-            dropout=0.2 if num_layers > 1 else 0.0,
-        )
-        self.fc = nn.Linear(hidden_dim, 1)
+def _secure_find_class(self: Any, module: str, name: str) -> Any:
+    safe_prefixes = (
+        "numpy",
+        "sklearn",
+        "xgboost",
+        "joblib",
+        "collections",
+        "pandas",
+        "scipy",
+        "nroute",
+    )
+    if module == "builtins" or any(
+        module == p or module.startswith(p + ".") for p in safe_prefixes
+    ):
+        return _original_find_class(self, module, name)
+    raise ValueError(f"Unsafe deserialization attempt detected: module '{module}', class '{name}'")
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x shape: (batch, seq_len, input_dim)
-        out, _ = self.lstm(x)
-        # Take the output from the last time step
-        last_out = out[:, -1, :]
-        logits = self.fc(last_out)
-        return cast("torch.Tensor", logits)
+
+joblib.numpy_pickle.NumpyUnpickler.find_class = _secure_find_class
+
+
+def _get_torch() -> tuple[Any, Any, Any, Any, Any]:
+    try:
+        import torch
+        import torch.nn as nn
+        import torch.optim as optim
+        from torch.utils.data import DataLoader, TensorDataset
+
+        return torch, nn, optim, DataLoader, TensorDataset
+    except ImportError as e:
+        raise ModelError(
+            "Optional dependency 'torch' is required for LSTM models. "
+            "Install with 'pip install nroute[torch]'."
+        ) from e
+
+
+def _get_lstm_class() -> type[Any]:
+    _, nn, _, _, _ = _get_torch()
+
+    class _PyTorchLSTM(nn.Module):  # type: ignore[name-defined,misc]
+        """PyTorch LSTM model for link congestion time-series forecasting."""
+
+        def __init__(self, input_dim: int = 1, hidden_dim: int = 32, num_layers: int = 2) -> None:
+            super().__init__()
+            self.lstm = nn.LSTM(
+                input_size=input_dim,
+                hidden_size=hidden_dim,
+                num_layers=num_layers,
+                batch_first=True,
+                dropout=0.2 if num_layers > 1 else 0.0,
+            )
+            self.fc = nn.Linear(hidden_dim, 1)
+
+        def forward(self, x: Any) -> Any:
+            out, _ = self.lstm(x)
+            return self.fc(out[:, -1, :])
+
+    return _PyTorchLSTM
+
+
+def PyTorchLSTM(input_dim: int = 1, hidden_dim: int = 32, num_layers: int = 2) -> Any:  # noqa: N802
+    cls = _get_lstm_class()
+    return cls(input_dim, hidden_dim, num_layers)
 
 
 class CongestionPredictor:
@@ -79,6 +121,7 @@ class CongestionPredictor:
                 eval_metric="logloss",
             )
         elif self.model_type == "lstm":
+            _get_torch()
             self.model = PyTorchLSTM(input_dim=1, hidden_dim=32, num_layers=2)
         elif self.model_type == "custom":
             if custom_model is None:
@@ -91,8 +134,9 @@ class CongestionPredictor:
                 f"Unknown model_type '{model_type}'. Supported: xgboost, lstm, custom."
             )
 
-    def _prepare_lstm_data(self, features: pd.DataFrame) -> torch.Tensor:
+    def _prepare_lstm_data(self, features: pd.DataFrame) -> Any:
         """Extract lag utilization features and shape into (batch, seq_len, 1)."""
+        torch, _, _, _, _ = _get_torch()
         # Look for utilization columns: utilization_t, utilization_t_1, etc.
         util_cols = ["utilization_t"]
         for col in features.columns:
@@ -143,11 +187,12 @@ class CongestionPredictor:
             probs = self.model.predict_proba(train_features)[:, 1]
 
         elif self.model_type == "lstm":
+            torch, nn, optim, data_loader_cls, tensor_dataset_cls = _get_torch()
             x_tensor = self._prepare_lstm_data(features)
             y_tensor = torch.tensor(labels, dtype=torch.float32).unsqueeze(1)
 
-            dataset = TensorDataset(x_tensor, y_tensor)
-            dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+            dataset = tensor_dataset_cls(x_tensor, y_tensor)
+            dataloader = data_loader_cls(dataset, batch_size=batch_size, shuffle=True)
 
             optimizer = optim.Adam(self.model.parameters(), lr=0.001)
             criterion = nn.BCEWithLogitsLoss()
@@ -226,6 +271,7 @@ class CongestionPredictor:
             congested = self.model.predict(train_features).astype(bool)
 
         elif self.model_type == "lstm":
+            torch, _, _, _, _ = _get_torch()
             self.model.eval()
             x_tensor = self._prepare_lstm_data(features)
             with torch.no_grad():
@@ -290,6 +336,7 @@ class CongestionPredictor:
                     zf.write(model_path, "model.json")
 
         elif self.model_type == "lstm":
+            torch, _, _, _, _ = _get_torch()
             # torch.load(..., weights_only=True) allows state_dict and basic types
             save_dict = {
                 "metadata": metadata,
@@ -326,6 +373,7 @@ class CongestionPredictor:
         # Attempt to detect if it's a new format (zip for xgboost/legacy-compatible, or pt)
         try:
             if path.endswith(".pt") or path.endswith(".pth"):
+                torch, _, _, _, _ = _get_torch()
                 # Use weights_only=True for PyTorch to prevent arbitrary code execution
                 try:
                     load_dict = torch.load(

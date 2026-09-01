@@ -3,44 +3,87 @@
 from __future__ import annotations
 
 import os
-from typing import Any, cast
+from typing import Any
 
 import joblib
+import joblib.numpy_pickle
 import numpy as np
 import pandas as pd
-import torch
-import torch.nn as nn
-import torch.optim as optim
 from sklearn.ensemble import IsolationForest
-from torch.utils.data import DataLoader, TensorDataset
 
 from nroute.exceptions import ModelError, ValidationError
 from nroute.utils.validators import validate_file_path
 
+# Monkeypatch joblib to prevent Remote Code Execution via insecure deserialization
+_original_find_class = joblib.numpy_pickle.NumpyUnpickler.find_class
 
-class AutoencoderNet(nn.Module):
-    """PyTorch Autoencoder network for anomaly detection."""
 
-    def __init__(self, input_dim: int) -> None:
-        super().__init__()
-        # Encoder
-        self.encoder = nn.Sequential(
-            nn.Linear(input_dim, max(4, input_dim // 2)),
-            nn.ReLU(),
-            nn.Linear(max(4, input_dim // 2), 2),
-            nn.ReLU(),
-        )
-        # Decoder
-        self.decoder = nn.Sequential(
-            nn.Linear(2, max(4, input_dim // 2)),
-            nn.ReLU(),
-            nn.Linear(max(4, input_dim // 2), input_dim),
-        )
+def _secure_find_class(self: Any, module: str, name: str) -> Any:
+    safe_prefixes = (
+        "numpy",
+        "sklearn",
+        "xgboost",
+        "joblib",
+        "collections",
+        "pandas",
+        "scipy",
+        "nroute",
+    )
+    if module == "builtins" or any(
+        module == p or module.startswith(p + ".") for p in safe_prefixes
+    ):
+        return _original_find_class(self, module, name)
+    raise ValueError(f"Unsafe deserialization attempt detected: module '{module}', class '{name}'")
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        latent = self.encoder(x)
-        reconstructed = self.decoder(latent)
-        return cast("torch.Tensor", reconstructed)
+
+joblib.numpy_pickle.NumpyUnpickler.find_class = _secure_find_class
+
+
+def _get_torch() -> tuple[Any, Any, Any, Any, Any]:
+    try:
+        import torch
+        import torch.nn as nn
+        import torch.optim as optim
+        from torch.utils.data import DataLoader, TensorDataset
+
+        return torch, nn, optim, DataLoader, TensorDataset
+    except ImportError as e:
+        raise ModelError(
+            "Optional dependency 'torch' is required for Autoencoder models. "
+            "Install with 'pip install nroute[torch]'."
+        ) from e
+
+
+def _get_autoencoder_class() -> type[Any]:
+    _, nn, _, _, _ = _get_torch()
+
+    class _AutoencoderNet(nn.Module):  # type: ignore[name-defined,misc]
+        """PyTorch Autoencoder network for anomaly detection."""
+
+        def __init__(self, input_dim: int) -> None:
+            super().__init__()
+            self.encoder = nn.Sequential(
+                nn.Linear(input_dim, max(4, input_dim // 2)),
+                nn.ReLU(),
+                nn.Linear(max(4, input_dim // 2), 2),
+                nn.ReLU(),
+            )
+            self.decoder = nn.Sequential(
+                nn.Linear(2, max(4, input_dim // 2)),
+                nn.ReLU(),
+                nn.Linear(max(4, input_dim // 2), input_dim),
+            )
+
+        def forward(self, x: Any) -> Any:
+            latent = self.encoder(x)
+            return self.decoder(latent)
+
+    return _AutoencoderNet
+
+
+def AutoencoderNet(input_dim: int) -> Any:  # noqa: N802
+    cls = _get_autoencoder_class()
+    return cls(input_dim)
 
 
 class AnomalyDetector:
@@ -88,6 +131,7 @@ class AnomalyDetector:
                 n_estimators=100,
             )
         elif self.model_type == "autoencoder":
+            _get_torch()
             # Actual network is initialized during fit() when input dimension is known
             self.model = None
         elif self.model_type == "custom":
@@ -135,6 +179,7 @@ class AnomalyDetector:
             self.is_trained = True
 
         elif self.model_type == "autoencoder":
+            torch, nn, optim, data_loader_cls, tensor_dataset_cls = _get_torch()
             input_dim = x_data.shape[1]
             self.model = AutoencoderNet(input_dim)
 
@@ -142,8 +187,8 @@ class AnomalyDetector:
             x_norm = self._normalize(x_data, train=True)
 
             x_tensor = torch.tensor(x_norm, dtype=torch.float32)
-            dataset = TensorDataset(x_tensor)
-            dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+            dataset = tensor_dataset_cls(x_tensor)
+            dataloader = data_loader_cls(dataset, batch_size=batch_size, shuffle=True)
 
             optimizer = optim.Adam(self.model.parameters(), lr=0.005)
             criterion = nn.MSELoss()
@@ -207,7 +252,27 @@ class AnomalyDetector:
         if self.model_type == "isolation_forest":
             anomaly_scores, is_anomaly = self._detect_isolation_forest(x_data)
         elif self.model_type == "autoencoder":
+<<<<<<< HEAD
+            torch, _, _, _, _ = _get_torch()
+            self.model.eval()
+            x_norm = self._normalize(x_data, train=False)
+            x_tensor = torch.tensor(x_norm, dtype=torch.float32)
+
+            with torch.no_grad():
+                reconstructed = self.model(x_tensor)
+                # Compute reconstruction error per sample
+                mse_errors = torch.mean((reconstructed - x_tensor) ** 2, dim=1).numpy()
+
+            # Map error to score: scale relative to threshold
+            # E.g., if error is threshold, score is 0.5. Clamp to [0, 1]
+            anomaly_scores = np.clip(
+                (mse_errors / (self.reconstruction_threshold + 1e-6)) * 0.5, 0.0, 1.0
+            )
+            is_anomaly = mse_errors > self.reconstruction_threshold
+
+=======
             anomaly_scores, is_anomaly = self._detect_autoencoder(x_data)
+>>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144
         elif self.model_type == "custom":
             res = self._detect_custom(features, x_data)
             if isinstance(res, pd.DataFrame):
@@ -225,6 +290,11 @@ class AnomalyDetector:
             index=features.index,
         )
 
+<<<<<<< HEAD
+        else:
+            raise ModelError(f"Unsupported model_type for detection: {self.model_type}")
+
+=======
     def _detect_isolation_forest(self, x_data: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         # decision_function outputs values in [-0.5, 0.5] (lower means more anomalous)
         raw_scores = self.model.decision_function(x_data)
@@ -284,6 +354,7 @@ class AnomalyDetector:
         return anomaly_scores, is_anomaly
 
     def _classify_anomaly_types(self, features: pd.DataFrame, is_anomaly: np.ndarray) -> list[str]:
+>>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144
         # Classify anomaly types using heuristics
         anomaly_types = []
         for idx in range(len(features)):
@@ -311,13 +382,15 @@ class AnomalyDetector:
         return anomaly_types
 
     def save(self, path: str) -> None:
-        """Save model configuration and weights."""
+        """
+        Save trained model configuration and weights.
+
+        Args:
+            path: Target file path.
+        """
         if not self.is_trained:
             raise ModelError("Cannot save an untrained model.")
 
-        dirname = os.path.dirname(path)
-        if dirname:
-            os.makedirs(dirname, exist_ok=True)
         if os.path.dirname(path):
             os.makedirs(os.path.dirname(path), exist_ok=True)
 
@@ -333,6 +406,7 @@ class AnomalyDetector:
             save_dict["model"] = self.model
             joblib.dump(save_dict, path)
         elif self.model_type == "autoencoder":
+            torch, _, _, _, _ = _get_torch()
             save_dict["reconstruction_threshold"] = self.reconstruction_threshold
             save_dict["state_dict"] = self.model.state_dict()
             save_dict["input_dim"] = (
@@ -366,6 +440,7 @@ class AnomalyDetector:
 
         try:
             if path.endswith(".pt") or path.endswith(".pth"):
+                torch, _, _, _, _ = _get_torch()
                 try:
                     load_dict = torch.load(
                         path,

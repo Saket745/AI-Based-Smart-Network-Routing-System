@@ -3,20 +3,28 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
-import gymnasium as gym
 import networkx as nx
 import numpy as np
-from gymnasium import spaces
 
-from nroute.exceptions import TopologyError
+try:
+    import gymnasium as gym
+    from gymnasium import spaces
+
+    _HAS_GYMNASIUM = True
+    _EnvBase: type[Any] = gym.Env[np.ndarray, int]
+except ImportError:
+    _HAS_GYMNASIUM = False
+    _EnvBase = object
+
+from nroute.exceptions import ModelError, TopologyError
 
 if TYPE_CHECKING:
     from nroute.core.topology import Topology
 
 
-class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
+class NetworkRoutingEnv(_EnvBase):  # type: ignore[misc]
     """
     Gymnasium environment that models a network topology for routing.
 
@@ -50,6 +58,11 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             training_mode: If True, randomize edge attributes on each reset
                 to expose the agent to varied congestion states.
         """
+        if not _HAS_GYMNASIUM:
+            raise ModelError(
+                "Optional dependency 'gymnasium' is required for NetworkRoutingEnv. "
+                "Install with 'pip install nroute[rl]'."
+            )
         super().__init__()
         self.topology = topology.copy()
         self.max_hops = max_hops
@@ -85,7 +98,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
             self.max_out_degree = 1
 
         # Action space: select neighbor index from sorted successor list
-        self.action_space = spaces.Discrete(self.max_out_degree)
+        self.action_space: Any = spaces.Discrete(self.max_out_degree)
 
         # Observation space size:
         # - current_node (one-hot, size num_nodes)
@@ -369,7 +382,7 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
 
     def _get_obs(self) -> np.ndarray:
         """Construct the 1D state observation array."""
-        obs = []
+        obs: list[np.ndarray] = []
 
         # 1. Current node index (one-hot)
         curr_idx = self.node_to_idx[self.current_node]
@@ -418,4 +431,4 @@ class NetworkRoutingEnv(gym.Env[np.ndarray, int]):
         obs.append(np.array(edge_stats, dtype=np.float32))
 
         # Flatten list of arrays into a single float32 vector
-        return np.concatenate(obs).astype(np.float32)
+        return cast("np.ndarray", np.concatenate(obs).astype(np.float32))

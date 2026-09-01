@@ -3,10 +3,6 @@
 Ingests YAML / JSON device configurations conforming to the OpenConfig-inspired
 schemas defined in ``nroute.core.openconfig`` and translates them into
 ``Topology`` node/edge attribute updates.
-
-Phase 1 supports structured inputs only (YAML, JSON, OpenConfig JSON/YAML).
-Vendor-specific CLI config parsers (Cisco IOS, Arista EOS, Juniper JunOS)
-are planned for Phase 2.
 """
 
 from __future__ import annotations
@@ -49,6 +45,7 @@ class ConfigParser:
         try:
             p = validate_file_path(path, must_exist=True)
         except ValidationError as exc:
+            raise IngestionError(f"Invalid config file path '{path}': {exc}") from exc
             raise IngestionError(str(exc)) from exc
 
         try:
@@ -76,6 +73,7 @@ class ConfigParser:
         try:
             p = validate_file_path(path, must_exist=True)
         except ValidationError as exc:
+            raise IngestionError(f"Invalid change file path '{path}': {exc}") from exc
             raise IngestionError(str(exc)) from exc
 
         try:

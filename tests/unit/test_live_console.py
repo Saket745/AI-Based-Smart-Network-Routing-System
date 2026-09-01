@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from rich.layout import Layout
 
-from nroute.core.metrics import SimulationMetrics
+from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
 from nroute.core.topology import Topology
 from nroute.exceptions import TopologyError
 from nroute.routing.dijkstra import DijkstraRouter
@@ -28,6 +28,7 @@ def test_plotext_renderable() -> None:
     options.height = 10
 
     with patch("nroute.visualization.live_console.plt.build", return_value="\x1b[31mRedPlot\x1b[0m") as mock_build:
+    with patch("nroute.visualization.live_console.plt.build", return_value="\x1b[31mRedPlot\x1b[0m"):
         segments = list(renderable.__rich_console__(MagicMock(), options))
         assert len(segments) > 0
         plain_text = "".join(s.plain for s in segments)
@@ -117,6 +118,7 @@ def test_live_console_error_handling() -> None:
 
     # Mock get_edge and get_node to raise TopologyError
     with (
+        patch("nroute.visualization.live_console.logger") as mock_logger,
         patch.object(engine.topology, "get_edge", side_effect=TopologyError("Edge error")),
         patch.object(engine.topology, "get_node", side_effect=TopologyError("Node error")),
         patch("nroute.visualization.live_console.logger") as mock_logger,

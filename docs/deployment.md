@@ -40,16 +40,11 @@ docker-compose up --build
 
 ---
 
-## 3. Kubernetes Orchestration
+## 3. Production Resource Allocation
 
-For cloud-scale batch simulation runs and model evaluations, schedule container execution via Kubernetes Jobs.
+For batch simulation runs, digital twin hosting, and model evaluations in production or orchestrators (Kubernetes / ECS / Nomad):
 
-Apply the job template:
-
-```bash
-kubectl apply -f k8s/nroute-deployment.yaml
-```
-
-### Resource Allocation Recommendations
-* **Simulations without ML**: Requires minimal CPU and memory (`1 vCPU` and `1-2Gi` memory).
-* **AI Router / LSTM congestion models**: Requires at least `2 vCPUs` and `4Gi` memory to prevent OOM errors during neural network backpropagation or Gym/Gymnasium RL rollouts.
+### Sizing Recommendations
+* **Core Simulations / Routing (Base)**: Requires minimal CPU and memory (`1 vCPU` and `1-2Gi` memory).
+* **Digital Twin API Server**: Requires `1-2 vCPUs` and `2Gi` memory to support concurrent reachability and blast-radius queries.
+* **AI Router / LSTM / GNN / RL training**: Requires at least `2-4 vCPUs` and `4-8Gi` memory for PyTorch tensor backpropagation and Gymnasium RL rollouts.

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import tempfile
+from unittest.mock import patch
 
+import joblib
 import numpy as np
 import pandas as pd
 import pytest
@@ -72,18 +75,15 @@ def test_anomaly_detector_isolation_forest(
     detector.fit(normal_traffic_data)
     assert detector.is_trained
 
-    # Detect normal data: mostly false
     normal_results = detector.detect(normal_traffic_data)
     assert len(normal_results) == 50
-    assert normal_results["is_anomaly"].sum() < 10  # few false positives allowed
+    assert normal_results["is_anomaly"].sum() < 10
 
-    # Detect anomalous data: both flagged
     anomaly_results = detector.detect(anomalous_traffic_data)
     assert len(anomaly_results) == 2
     assert anomaly_results["is_anomaly"].all()
     assert list(anomaly_results["anomaly_type"]) == ["DDoS", "black_hole"]
 
-    # Save/load round-trip
     with tempfile.TemporaryDirectory() as tmpdir:
         model_path = os.path.join(tmpdir, "forest_model.joblib")
         detector.save(model_path)
@@ -129,16 +129,13 @@ def test_anomaly_detector_autoencoder(
     assert detector.is_trained
     assert detector.reconstruction_threshold > 0.0
 
-    # Detect normal data
     normal_results = detector.detect(normal_traffic_data)
     assert len(normal_results) == 50
 
-    # Detect anomalies
     anomaly_results = detector.detect(anomalous_traffic_data)
     assert len(anomaly_results) == 2
     assert anomaly_results["is_anomaly"].all()
 
-    # Save/load round-trip
     with tempfile.TemporaryDirectory() as tmpdir:
         model_path = os.path.join(tmpdir, "ae_model.pt")
         detector.save(model_path)
@@ -151,3 +148,38 @@ def test_anomaly_detector_autoencoder(
 
         new_results = new_detector.detect(anomalous_traffic_data)
         pd.testing.assert_frame_equal(anomaly_results, new_results)
+
+
+def test_anomaly_detector_secure_loading_enforcement() -> None:
+    """Verify that AnomalyDetector blocks insecure files by default."""
+    detector = AnomalyDetector(model_type="isolation_forest")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, "insecure.joblib")
+        joblib.dump({"some": "data"}, path)
+
+        with pytest.raises(ModelError, match="Insecure model file detected"):
+            detector.load(path, allow_unsafe=False)
+
+        with contextlib.suppress(ModelError, KeyError):
+            detector.load(path, allow_unsafe=True)
+
+
+def test_anomaly_detector_pytorch_secure_loading_failure() -> None:
+    """Verify that AnomalyDetector handles PyTorch secure loading failures."""
+    detector = AnomalyDetector(model_type="autoencoder")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, "model.pt")
+        with open(path, "wb") as f:
+            f.write(b"dummy")
+
+        with patch("torch.load", side_effect=RuntimeError("Security breach!")):
+            with pytest.raises(ModelError) as excinfo:
+                detector.load(path, allow_unsafe=False)
+            assert "Failed to load PyTorch model securely" in str(excinfo.value)
+            assert "Security breach!" in str(excinfo.value)
+
+            with pytest.raises(ModelError) as excinfo:
+                detector.load(path, allow_unsafe=True)
+            assert f"Failed to load model from {path}" in str(excinfo.value)
+            assert "Security breach!" in str(excinfo.value)

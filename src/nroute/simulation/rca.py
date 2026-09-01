@@ -162,6 +162,19 @@ _TYPE_RULES: list[tuple[list[str], EventCategory, EventSeverity]] = [
     (["syslog_warning"], EventCategory.SYSLOG, EventSeverity.WARNING),
 ]
 
+_FLATTENED_RULES: list[tuple[tuple[str, ...], EventCategory, EventSeverity]] = [
+    (tuple(keywords), category, severity) for keywords, category, severity in _TYPE_RULES
+]
+
+
+@functools.lru_cache(maxsize=256)
+def _classify_type_string(et_lower: str) -> tuple[EventCategory, EventSeverity] | None:
+    for keywords, category, severity in _FLATTENED_RULES:
+        for kw in keywords:
+            if kw in et_lower:
+                return category, severity
+    return None
+
 
 def classify_event(event: NetworkEvent) -> NetworkEvent:
     """Set category and severity based on event_type if not already set."""
@@ -169,11 +182,9 @@ def classify_event(event: NetworkEvent) -> NetworkEvent:
         return event
 
     et_lower = event.event_type.lower().strip()
-    for keywords, category, severity in _TYPE_RULES:
-        if any(kw in et_lower for kw in keywords):
-            event.category = category
-            event.severity = severity
-            return event
+    res = _classify_type_string(et_lower)
+    if res is not None:
+        event.category, event.severity = res
 
     return event
 
@@ -204,11 +215,12 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
     try:
         p = validate_file_path(path, must_exist=True)
     except ValidationError as exc:
+        raise SimulationError(f"Invalid events file path '{path}': {exc}") from exc
         raise SimulationError(str(exc)) from exc
 
     try:
         stat = p.stat()
-        raw = _load_raw_file_cached(str(p.resolve()), stat.st_mtime, stat.st_size)
+        raw = _load_raw_file_cached(str(p), stat.st_mtime, stat.st_size)
     except Exception as exc:
         if isinstance(exc, SimulationError):
             raise

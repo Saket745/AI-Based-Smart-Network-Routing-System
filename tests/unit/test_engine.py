@@ -1,13 +1,16 @@
-"""Unit tests for the SimulationEngine focused on edge cases and error handling."""
+"""Unit tests for the SimulationEngine and Simulator facade."""
 
 from __future__ import annotations
 
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+from nroute import Simulator
 from nroute.core.topology import Topology
 from nroute.core.traffic import FlowRecord
+from nroute.routing.dijkstra import DijkstraRouter
 from nroute.simulation.engine import SimulationEngine
+from nroute.simulation.failure_injector import FailureInjector
 from nroute.simulation.traffic_gen import TrafficGenerator
 
 
@@ -31,6 +34,75 @@ def _get_topo(small_graph_data: dict[str, Any]) -> Topology:
     return Topology.from_dict(data)
 
 
+def test_simulation_engine_basic_run(small_graph_data: dict[str, Any]) -> None:
+    """Test that the simulation engine runs successfully and aggregates metrics."""
+    topo = _get_topo(small_graph_data)
+    router = DijkstraRouter()
+    traffic = TrafficGenerator(model="uniform", n_flows_per_tick=3, seed=42)
+    engine = SimulationEngine(topo, router, traffic)
+
+    results = engine.run(duration_ticks=10, seed=42)
+
+    assert len(results.results) == 10
+    assert results.total_throughput() >= 0.0
+    assert results.mean_latency() >= 0.0
+    assert 0.0 <= results.peak_utilization() <= 1.0
+
+
+def test_simulator_facade(small_graph_data: dict[str, Any]) -> None:
+    """Test the Simulator package-level facade class."""
+    topo = _get_topo(small_graph_data)
+    router = DijkstraRouter()
+    sim = Simulator(topology=topo, algorithm=router, duration=5)
+
+    results = sim.run(seed=10)
+    assert len(results.results) == 5
+
+    sim_str = Simulator(topology=topo, algorithm="dijkstra", duration=5)
+    assert isinstance(sim_str.router, DijkstraRouter)
+    results_str = sim_str.run(seed=10)
+    assert len(results_str.results) == 5
+
+
+def test_simulation_failure_injection_reroute(small_graph_data: dict[str, Any]) -> None:
+    """Test failure injection triggers flow rerouting and increments metrics."""
+    topo = _get_topo(small_graph_data)
+    router = DijkstraRouter()
+
+    class FixedTrafficGenerator(TrafficGenerator):
+        def generate(self, topology: Topology, tick: int = 0) -> list[Any]:
+            if tick == 0:
+                return [self._create_flow("A", "D", tick)]
+            return []
+
+    traffic = FixedTrafficGenerator(model="uniform", n_flows_per_tick=1, seed=42)
+
+    injector = FailureInjector()
+    injector.schedule_link_failure("B", "D", tick=1)
+
+    engine = SimulationEngine(topo, router, traffic, failure_injector=injector)
+    results = engine.run(duration_ticks=5, seed=42)
+
+    total_reroutes = sum(tick_metric.reroute_count for tick_metric in results.results)
+    assert total_reroutes >= 1
+
+
+def test_simulation_packet_loss_drop(small_graph_data: dict[str, Any]) -> None:
+    """Test flows are dropped probabilistically when packet loss is present."""
+    topo = _get_topo(small_graph_data)
+    router = DijkstraRouter()
+
+    for u, v in topo.edges:
+        topo.update_edge(u, v, packet_loss=0.8)
+
+    traffic = TrafficGenerator(model="uniform", n_flows_per_tick=10, seed=42)
+    engine = SimulationEngine(topo, router, traffic)
+    results = engine.run(duration_ticks=5, seed=42)
+
+    total_loss_rate = sum(m.packet_loss_rate for m in results.results) / len(results.results)
+    assert total_loss_rate > 0.0
+
+
 def test_engine_custom_config(small_graph_data: dict[str, Any]) -> None:
     """Test engine with custom configuration (tick_duration)."""
     topo = _get_topo(small_graph_data)
@@ -39,7 +111,6 @@ def test_engine_custom_config(small_graph_data: dict[str, Any]) -> None:
     traffic.generate.return_value = []
     traffic.model = "mock"
 
-    # Mock NRouteConfig-like object
     config = MagicMock()
     config.simulation.tick_duration = 2.5
 
@@ -91,7 +162,6 @@ def test_engine_ingress_routing_failure(small_graph_data: dict[str, Any]) -> Non
     engine = SimulationEngine(topo, router, traffic)
     results = engine.run(duration_ticks=1, show_progress=False)
 
-    # Flow should be dropped
     assert results.results[0].packet_loss_rate == 1.0
     assert any("routing_failed_ingress" in reason for _, reason in engine.last_tick_dropped_flows)
 
@@ -100,10 +170,9 @@ def test_engine_midflow_reroute_failure(small_graph_data: dict[str, Any]) -> Non
     """Test engine when rerouting fails mid-flow."""
     topo = _get_topo(small_graph_data)
     router = MagicMock()
-    # Initial path: A -> B -> D
     router.compute_path.side_effect = [
-        ["A", "B", "D"],  # Initial
-        Exception("Reroute failed"),  # Reroute attempt
+        ["A", "B", "D"],
+        Exception("Reroute failed"),
     ]
 
     flow = FlowRecord(
@@ -123,12 +192,10 @@ def test_engine_midflow_reroute_failure(small_graph_data: dict[str, Any]) -> Non
 
     def callback(tick, eng):
         if tick == 0:
-            # Force link B->D down for the next tick
             eng.topology.update_edge("B", "D", status="down")
 
     results = engine.run(duration_ticks=2, show_progress=False, callback=callback)
 
-    # Tick 1: B->D is down. Detects B->D down. Tries reroute from B to D. Fails.
     assert results.results[1].packet_loss_rate == 1.0
     assert any("rerouting_failed_midflow" in reason for _, reason in engine.last_tick_dropped_flows)
 
@@ -154,7 +221,6 @@ def test_engine_topology_exceptions(small_graph_data: dict[str, Any]) -> None:
 
     engine = SimulationEngine(topo, router, traffic)
 
-    # Mock get_edge and get_node to raise exception during Tick 0 forwarding
     original_get_edge = topo.get_edge
 
     def mock_get_edge(u, v):
@@ -173,18 +239,14 @@ def test_engine_topology_exceptions(small_graph_data: dict[str, Any]) -> None:
         patch.object(Topology, "get_edge", side_effect=mock_get_edge),
         patch.object(Topology, "get_node", side_effect=mock_get_node),
     ):
-        # Tick 0: Route A->B->D. Forward A->B.
-        # Edge u=A, v=B. get_edge(A, B) fails -> edge_down=True.
-        # Reroute attempt from A to D. Let's make reroute succeed to avoid drop.
         router.compute_path.side_effect = [["A", "B", "D"], ["A", "C", "E", "D"]]
-
         results = engine.run(duration_ticks=1, show_progress=False)
 
     assert results.results[0].reroute_count >= 1
 
 
 def test_engine_forwarding_exception(small_graph_data: dict[str, Any]) -> None:
-    """Test engine handling exceptions during forwarding (lines 205-207)."""
+    """Test engine handling exceptions during forwarding."""
     topo = _get_topo(small_graph_data)
     router = MagicMock()
     router.compute_path.return_value = ["A", "B", "D"]
@@ -204,26 +266,22 @@ def test_engine_forwarding_exception(small_graph_data: dict[str, Any]) -> None:
 
     engine = SimulationEngine(topo, router, traffic)
 
-    # We want edge_down/node_down to be False, but line 202 to fail.
-    # get_edge is called at 172 and 202.
     call_count = 0
     original_get_edge = topo.get_edge
 
     def mock_get_edge(u, v):
         nonlocal call_count
         call_count += 1
-        if call_count == 2:  # Second call for A->B in tick 0
+        if call_count == 2:
             raise Exception("Fail at line 202")
         return original_get_edge(u, v)
 
     with patch.object(Topology, "get_edge", side_effect=mock_get_edge):
         engine.run(duration_ticks=1, show_progress=False)
 
-    # Should hit lines 206-207 and continue
-
 
 def test_engine_link_utilization_exception(small_graph_data: dict[str, Any]) -> None:
-    """Test engine handling exceptions during link utilization update (lines 297-298)."""
+    """Test engine handling exceptions during link utilization update."""
     topo = _get_topo(small_graph_data)
     router = MagicMock()
     router.compute_path.return_value = ["A", "B", "D"]
@@ -243,11 +301,8 @@ def test_engine_link_utilization_exception(small_graph_data: dict[str, Any]) -> 
 
     engine = SimulationEngine(topo, router, traffic)
 
-    # Tick 0: flow added to active_flows.
-    # Tick 1: _update_link_utilizations will process the flow.
     with patch.object(Topology, "update_edge", side_effect=Exception("Update failed")):
         engine.run(duration_ticks=2, show_progress=False)
-    # Should complete without raising
 
 
 def test_engine_already_completed_flow_handling(small_graph_data: dict[str, Any]) -> None:
@@ -256,24 +311,14 @@ def test_engine_already_completed_flow_handling(small_graph_data: dict[str, Any]
     router = MagicMock()
     router.compute_path.return_value = ["A", "B"]
 
-    flow = FlowRecord(
-        source="A",
-        destination="B",
-        bytes=1000,
-        packets=10,
-        duration=0.1,
-        protocol="TCP",
-        timestamp=0.0,
-    )
     traffic = MagicMock(spec=TrafficGenerator)
-    traffic.generate.side_effect = lambda t, tick: [flow] if tick == 0 else []
+    traffic.generate.return_value = []
     traffic.model = "mock"
 
     engine = SimulationEngine(topo, router, traffic)
 
     def callback(tick, eng):
         if tick == 0:
-            # Add a flow that is already at destination
             eng.active_flows.append(
                 {
                     "flow": FlowRecord(

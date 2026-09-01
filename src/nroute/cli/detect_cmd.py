@@ -53,7 +53,7 @@ def anomalies(
     from nroute.ml.anomaly import AnomalyDetector
 
     try:
-        features = pd.read_csv(traffic_path)
+        raw_df = pd.read_csv(traffic_path)
     except Exception as e:
         if is_json:
             import json
@@ -62,6 +62,35 @@ def anomalies(
             raise SystemExit(1) from e
         console.print(f"[red]x Failed to load traffic data:[/red] {e}")
         raise SystemExit(1) from e
+
+    # Detect if input is raw traffic matrix data or pre-computed feature matrix
+    cols_lower = {str(c).lower().strip() for c in raw_df.columns}
+    is_raw_traffic = (
+        any(c in cols_lower for c in ("source", "src", "src_addr", "from"))
+        and any(c in cols_lower for c in ("destination", "dst", "dst_addr", "to"))
+        and any(c in cols_lower for c in ("bytes", "octets", "doctets"))
+    )
+
+    if is_raw_traffic:
+        from nroute.ingestion.normalizer import Normalizer
+        from nroute.ml.feature_eng import extract_anomaly_features
+
+        try:
+            tm = Normalizer.normalize_traffic(raw_df.to_dict(orient="records"))
+            features = extract_anomaly_features(tm)
+        except Exception as e:
+            if is_json:
+                import json
+
+                click.echo(
+                    json.dumps({"error": f"Failed to extract anomaly features: {e}"}),
+                    err=True,
+                )
+                raise SystemExit(1) from e
+            console.print(f"[red]x Failed to extract anomaly features:[/red] {e}")
+            raise SystemExit(1) from e
+    else:
+        features = raw_df
 
     try:
         detector = AnomalyDetector()
@@ -133,7 +162,7 @@ def anomalies(
         atype = str(row["anomaly_type"])
 
         score_style = "red" if score > 0.5 else "green"
-        anom_icon = "[bold red]YES[/bold red]" if is_anom else "[green]NO[/green]"
+        anom_icon = "🔴 [bold red]YES[/bold red]" if is_anom else "🟢 [green]NO[/green]"
         type_style = anomaly_type_colors.get(atype, "white")
 
         table.add_row(

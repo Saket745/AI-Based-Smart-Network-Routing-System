@@ -1,0 +1,9 @@
+{
+  "merged_cleanly": 92,
+  "open_pr_associated": 28,
+  "abandoned_bot_agent": 125,
+  "abandoned_perf_refactor": 15,
+  "abandoned_security_fix": 6,
+  "abandoned_test_experiment": 22,
+  "other": 18
+}

@@ -148,6 +148,17 @@ def test_rca_result_to_dict_with_cause() -> None:
 
 def test_load_events_not_found() -> None:
     """Should raise SimulationError if file doesn't exist."""
+    with pytest.raises(SimulationError, match="Invalid events file path"):
+        load_events("non_existent_file_path_12345.json")
+
+
+def test_load_events_path_validation_failures() -> None:
+    """Should raise SimulationError if file path is empty or contains null bytes."""
+    with pytest.raises(SimulationError, match="File path cannot be empty"):
+        load_events("")
+
+    with pytest.raises(SimulationError, match="null bytes are not allowed"):
+        load_events("events\0path.json")
     with pytest.raises(SimulationError, match="does not exist"):
         load_events("non_existent_file_path_12345.json")
 
