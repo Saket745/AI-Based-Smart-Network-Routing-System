@@ -6,6 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from nroute.exceptions import ModelError
+
 
 class GraphTensorBundle:
     """
@@ -75,8 +77,9 @@ def collate_graph_batch(batches: list[GraphTensorBundle]) -> dict[str, Any]:
     try:
         import torch
     except ImportError as e:
-        raise ImportError(
-            "PyTorch is required for GNN batch collation. Install with 'pip install nroute[torch]'."
+        raise ModelError(
+            "Optional dependency 'torch' is required for GNN batch collation. "
+            "Install with 'pip install nroute[torch]'."
         ) from e
 
     node_features_list: list[torch.Tensor] = []

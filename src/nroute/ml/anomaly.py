@@ -31,7 +31,7 @@ def _get_torch() -> tuple[Any, Any, Any, Any, Any]:
 def _get_autoencoder_class() -> type[Any]:
     _, nn, _, _, _ = _get_torch()
 
-    class _AutoencoderNet(nn.Module):
+    class _AutoencoderNet(nn.Module):  # type: ignore[name-defined,misc]
         """PyTorch Autoencoder network for anomaly detection."""
 
         def __init__(self, input_dim: int) -> None:

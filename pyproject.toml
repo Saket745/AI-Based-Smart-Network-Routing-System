@@ -135,6 +135,11 @@ check_untyped_defs = true
 no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
+disallow_any_generics = false
+
+[[tool.mypy.overrides]]
+module = "nroute.*"
+disallow_any_generics = false
 
 [[tool.mypy.overrides]]
 module = [

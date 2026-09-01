@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import networkx as nx
 import numpy as np
@@ -24,20 +24,7 @@ if TYPE_CHECKING:
     from nroute.core.topology import Topology
 
 
-def _get_gym() -> tuple[Any, Any]:
-    try:
-        import gymnasium as gym
-        from gymnasium import spaces
-
-        return gym, spaces
-    except ImportError as e:
-        raise ModelError(
-            "Optional dependency 'gymnasium' is required for NetworkRoutingEnv. "
-            "Install with 'pip install nroute[rl]'."
-        ) from e
-
-
-class NetworkRoutingEnv(_EnvBase):
+class NetworkRoutingEnv(_EnvBase):  # type: ignore[misc]
     """
     Gymnasium environment that models a network topology for routing.
 
@@ -111,7 +98,7 @@ class NetworkRoutingEnv(_EnvBase):
             self.max_out_degree = 1
 
         # Action space: select neighbor index from sorted successor list
-        self.action_space = spaces.Discrete(self.max_out_degree)
+        self.action_space: Any = spaces.Discrete(self.max_out_degree)
 
         # Observation space size:
         # - current_node (one-hot, size num_nodes)
@@ -395,7 +382,7 @@ class NetworkRoutingEnv(_EnvBase):
 
     def _get_obs(self) -> np.ndarray:
         """Construct the 1D state observation array."""
-        obs = []
+        obs: list[np.ndarray] = []
 
         # 1. Current node index (one-hot)
         curr_idx = self.node_to_idx[self.current_node]
@@ -444,4 +431,4 @@ class NetworkRoutingEnv(_EnvBase):
         obs.append(np.array(edge_stats, dtype=np.float32))
 
         # Flatten list of arrays into a single float32 vector
-        return np.concatenate(obs).astype(np.float32)
+        return cast("np.ndarray", np.concatenate(obs).astype(np.float32))

@@ -18,7 +18,8 @@ from nroute.ml.anomaly import AnomalyDetector
 from nroute.ml.anomaly import _get_torch as _get_anomaly_torch
 from nroute.ml.congestion import CongestionPredictor
 from nroute.ml.congestion import _get_torch as _get_congestion_torch
-from nroute.ml.rl_env import _get_gym
+from nroute.ml.graph.bundle import collate_graph_batch
+from nroute.ml.rl_env import NetworkRoutingEnv
 from nroute.routing.rl_router import RLRouter, _get_sb3
 
 
@@ -79,6 +80,16 @@ def test_congestion_get_torch_missing_import_error() -> None:
         _get_congestion_torch()
 
 
+def test_collate_graph_batch_missing_torch_raises_model_error() -> None:
+    """Verify collate_graph_batch raises clear ModelError referencing nroute[torch] when torch is missing."""
+    with (
+        patch.dict(sys.modules, {"torch": None}),
+        patch("builtins.__import__", side_effect=ImportError("No module named torch")),
+        pytest.raises(ModelError, match=r"pip install nroute\[torch\]"),
+    ):
+        collate_graph_batch([])
+
+
 def test_rl_router_missing_sb3_raises_model_error() -> None:
     """Verify RLRouter raises clear ModelError when stable_baselines3 is missing."""
     topo = Topology.generate("random", num_nodes=5, seed=42)
@@ -110,17 +121,14 @@ def test_rl_get_sb3_missing_import_error() -> None:
         _get_sb3()
 
 
-def test_gym_missing_import_error() -> None:
-    """Verify _get_gym helper raises ModelError on ImportError."""
+def test_network_routing_env_missing_gym_raises_model_error() -> None:
+    """Verify NetworkRoutingEnv raises clear ModelError when gymnasium is missing."""
+    topo = Topology.generate("random", num_nodes=5, seed=42)
     with (
-        patch.dict(sys.modules, {"gymnasium": None}),
-        patch(
-            "builtins.__import__",
-            side_effect=ImportError("No module named gymnasium"),
-        ),
+        patch("nroute.ml.rl_env._HAS_GYMNASIUM", False),
         pytest.raises(ModelError, match=r"pip install nroute\[rl\]"),
     ):
-        _get_gym()
+        NetworkRoutingEnv(topology=topo)
 
 
 def test_pcap_missing_scapy_raises_ingestion_error(tmp_path: Path) -> None:

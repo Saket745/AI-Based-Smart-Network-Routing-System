@@ -35,7 +35,7 @@ def _get_torch() -> tuple[Any, Any, Any, Any, Any]:
 def _get_lstm_class() -> type[Any]:
     _, nn, _, _, _ = _get_torch()
 
-    class _PyTorchLSTM(nn.Module):
+    class _PyTorchLSTM(nn.Module):  # type: ignore[name-defined,misc]
         """PyTorch LSTM model for link congestion time-series forecasting."""
 
         def __init__(self, input_dim: int = 1, hidden_dim: int = 32, num_layers: int = 2) -> None:

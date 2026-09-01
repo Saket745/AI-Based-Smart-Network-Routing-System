@@ -213,3 +213,92 @@ class TestDetectAnomaliesCLI:
         data = json.loads(result.output)
         assert "error" in data
         assert "Failed to load traffic data" in data["error"]
+
+    @patch("nroute.ml.anomaly.AnomalyDetector")
+    def test_anomalies_raw_traffic_csv_transformed(
+        self,
+        mock_detector_cls: MagicMock,
+        runner: CliRunner,
+        tmp_path,
+    ) -> None:
+        """Test that raw traffic CSV with flow records is automatically transformed into feature matrix."""
+        raw_traffic = tmp_path / "raw_traffic.csv"
+        raw_traffic.write_text(
+            "source,destination,bytes,packets,duration,protocol,timestamp\n"
+            "node_1,node_2,50000000,10000,1.0,TCP,100.0\n"
+            "node_2,node_3,100,2,0.1,UDP,100.5\n"
+        )
+        model_file = tmp_path / "model.joblib"
+        model_file.write_text("dummy")
+        model_path = str(model_file)
+
+        mock_df = pd.DataFrame(
+            {
+                "anomaly_score": [0.85],
+                "is_anomaly": [True],
+                "anomaly_type": ["DDoS"],
+            }
+        )
+        mock_detector = mock_detector_cls.return_value
+        mock_detector.detect.return_value = mock_df
+
+        result = runner.invoke(
+            detect_cmd,
+            ["anomalies", "--traffic", str(raw_traffic), "--model", model_path],
+        )
+
+        assert result.exit_code == 0
+        assert "Anomaly Detection Results" in result.output
+        assert "DDoS" in result.output
+        mock_detector.detect.assert_called_once()
+        # Verify passed features contain the 8 statistical feature columns
+        passed_features = mock_detector.detect.call_args[0][0]
+        assert "bytes_per_second" in passed_features.columns
+        assert "src_ip_entropy" in passed_features.columns
+
+    @patch("nroute.ml.anomaly.AnomalyDetector")
+    def test_anomalies_prepared_features_csv_direct(
+        self,
+        mock_detector_cls: MagicMock,
+        runner: CliRunner,
+        tmp_path,
+    ) -> None:
+        """Test that pre-computed feature CSV is passed directly to the detector."""
+        feature_file = tmp_path / "features.csv"
+        feature_file.write_text(
+            "bytes_per_second,packets_per_second,flow_count,avg_packet_size,src_ip_entropy,dst_ip_entropy,protocol_entropy,bytes_std\n"
+            "5000.0,100.0,10,50.0,1.5,1.5,0.8,200.0\n"
+        )
+        model_file = tmp_path / "model2.joblib"
+        model_file.write_text("dummy")
+        model_path = str(model_file)
+
+        mock_df = pd.DataFrame(
+            {
+                "anomaly_score": [0.1],
+                "is_anomaly": [False],
+                "anomaly_type": ["normal"],
+            }
+        )
+        mock_detector = mock_detector_cls.return_value
+        mock_detector.detect.return_value = mock_df
+
+        result = runner.invoke(
+            detect_cmd,
+            ["anomalies", "--traffic", str(feature_file), "--model", model_path],
+        )
+
+        assert result.exit_code == 0
+        assert "0 anomalies detected" in result.output
+        mock_detector.detect.assert_called_once()
+        passed_features = mock_detector.detect.call_args[0][0]
+        assert list(passed_features.columns) == [
+            "bytes_per_second",
+            "packets_per_second",
+            "flow_count",
+            "avg_packet_size",
+            "src_ip_entropy",
+            "dst_ip_entropy",
+            "protocol_entropy",
+            "bytes_std",
+        ]
