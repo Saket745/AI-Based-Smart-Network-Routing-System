@@ -13,9 +13,9 @@ from nroute.routing.rl_router import RLRouter
 
 @pytest.mark.benchmark
 @pytest.mark.parametrize("scale", [50, 100, 500])
-@pytest.mark.parametrize("algo", ["dijkstra", "bellman-ford", "ecmp"])
+@pytest.mark.parametrize("algo", ["dijkstra", "bellman-ford", "ecmp", "negotiation"])
 def test_bench_routing_algorithms(scale: int, algo: str, benchmark: Any) -> None:
-    """Benchmark traditional routing algorithms (Dijkstra, Bellman-Ford, ECMP)."""
+    """Benchmark traditional and multi-agent routing algorithms."""
     # Generate topology
     topo = TopologyGenerator.random(n_nodes=scale, edge_prob=0.1, seed=42)
 
