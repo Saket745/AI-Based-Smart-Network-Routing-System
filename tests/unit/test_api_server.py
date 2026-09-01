@@ -1,3 +1,4 @@
+"""Unit tests for the FastAPI API server endpoints, focusing on security and path traversal."""
 """Unit tests for the FastAPI API server endpoints, focusing on security (authentication and path traversal)."""
 
 from __future__ import annotations
@@ -9,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import nroute.api.server
+from nroute.api.server import app
 from nroute.api.server import _FALLBACK_TOKEN, app
 from nroute.core.topology import Topology
 
@@ -88,6 +90,9 @@ def test_api_endpoints_succeed_with_configured_config_token(
 
 def test_fallback_token_usage(client: TestClient) -> None:
     """If no custom token is configured, the server falls back to _FALLBACK_TOKEN."""
+    # Since _FALLBACK_TOKEN is generated on startup and we did not set env/config,
+    # providing _FALLBACK_TOKEN must succeed.
+    headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     response = client.get("/api/health", headers=headers)
     assert response.status_code == 200
@@ -122,6 +127,12 @@ def test_api_load_topology_success_cwd(client: TestClient) -> None:
 
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     try:
+        headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
+        response = client.post(
+            "/api/topology/load",
+            json={"path": str(temp_file)},
+            headers=headers,
+        )
     try:
     try:
     try:
@@ -155,6 +166,12 @@ def test_api_load_topology_success_temp(client: TestClient) -> None:
         topo.save(temp_path)
     try:
         topo.save(temp_path)
+        headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
+        response = client.post(
+            "/api/topology/load",
+            json={"path": str(temp_path)},
+            headers=headers,
+        )
     try:
         topo.save(temp_path)
     try:
@@ -195,6 +212,10 @@ def test_api_load_topology_success_temp(client: TestClient) -> None:
 def test_api_load_topology_not_found(client: TestClient) -> None:
     """Test loading a non-existent file inside the allowed directory returns 404."""
     headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
+    response = client.post(
+        "/api/topology/load",
+        json={"path": "nonexistent_topo_file_123.json"},
+        headers=headers,
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     response = client.post(
         "/api/topology/load", json={"path": "non_existent_file_xyz.json"}, headers=headers
@@ -206,6 +227,11 @@ def test_api_load_topology_not_found(client: TestClient) -> None:
 def test_api_load_topology_outside_cwd_relative(client: TestClient) -> None:
     """Test relative path traversal outside the allowed directories returns 403."""
     headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
+    response = client.post(
+        "/api/topology/load",
+        json={"path": "../../../etc/passwd"},
+        headers=headers,
+    )
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     response = client.post("/api/topology/load", json={"path": "../../etc/passwd"}, headers=headers)
     assert response.status_code == 403
@@ -215,6 +241,11 @@ def test_api_load_topology_outside_cwd_relative(client: TestClient) -> None:
 def test_api_load_topology_outside_cwd_absolute(client: TestClient) -> None:
     """Test absolute path traversal outside the allowed directories returns 403."""
     headers = {"Authorization": f"Bearer {nroute.api.server._FALLBACK_TOKEN}"}
+    response = client.post(
+        "/api/topology/load",
+        json={"path": "/etc/passwd"},
+        headers=headers,
+    )
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     response = client.post("/api/topology/load", json={"path": "/etc/passwd"}, headers=headers)
     assert response.status_code == 403
