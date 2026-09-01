@@ -90,16 +90,17 @@ class TrafficGenerator:
 
     def _generate_uniform(self, topology: Topology, tick: int) -> list[FlowRecord]:
         """Generate flows where endpoints are chosen uniformly at random."""
-        flows = []
         nodes = topology.nodes
+        if len(nodes) < 2:
+            return []
 
+        flows = []
         for _ in range(self.n_flows_per_tick):
             src = self.rng.choice(nodes)
-            # Ensure destination is different from source
-            possible_dsts = [n for n in nodes if n != src]
-            if not possible_dsts:
-                continue
-            dst = self.rng.choice(possible_dsts)
+            # Re-sample dst in O(1) expected time until dst != src, avoiding O(V) list allocations per flow.
+            dst = self.rng.choice(nodes)
+            while dst == src:
+                dst = self.rng.choice(nodes)
             flows.append(self._create_flow(src, dst, tick))
 
         return flows
@@ -110,41 +111,43 @@ class TrafficGenerator:
         to Capacity(u) * Capacity(v).
         """
         nodes = topology.nodes
-        capacities = {}
-        for node in nodes:
-            try:
-                cap = topology.get_node(node).get("capacity", 1000.0)
-            except Exception:
-                cap = 1000.0
-            capacities[node] = max(1.0, float(cap))
-
-        pairs = []
-        weights = []
-        for src in nodes:
-            for dst in nodes:
-                if src == dst:
-                    continue
-                pairs.append((src, dst))
-                weights.append(capacities[src] * capacities[dst])
-
-        if not pairs:
+        if len(nodes) < 2:
             return []
 
-        chosen_pairs = self.rng.choices(pairs, weights=weights, k=self.n_flows_per_tick)
-        return [self._create_flow(src, dst, tick) for src, dst in chosen_pairs]
+        # Access topology.graph.nodes directly to avoid O(V) dict copying overhead per node.
+        g_nodes = topology.graph.nodes
+        node_weights = [max(1.0, float(g_nodes[node].get("capacity", 1000.0))) for node in nodes]
+
+        flows = []
+        # Joint pair rejection sampling: sample src and dst independently weighted by capacity
+        # and reject when src == dst. This preserves the exact joint probability distribution
+        # P(src=u, dst=v) proportional to C_u * C_v while avoiding generating O(V^2) pairs per tick.
+        for _ in range(self.n_flows_per_tick):
+            while True:
+                src = self.rng.choices(nodes, weights=node_weights, k=1)[0]
+                dst = self.rng.choices(nodes, weights=node_weights, k=1)[0]
+                if src != dst:
+                    break
+            flows.append(self._create_flow(src, dst, tick))
+
+        return flows
 
     def _generate_hotspot(self, topology: Topology, tick: int) -> list[FlowRecord]:
         """
         Generate flows where 80% of traffic targets a set of hotspot nodes.
         """
         nodes = topology.nodes
+        if len(nodes) < 2:
+            return []
+
         hotspots: list[str] = self.kwargs.get("hotspot_nodes", [])
 
         # If no hotspots specified, select top 20% capacity nodes as hotspots
         if not hotspots:
+            g_nodes = topology.graph.nodes
             sorted_nodes = sorted(
                 nodes,
-                key=lambda n: float(topology.get_node(n).get("capacity", 1000.0)),
+                key=lambda n: float(g_nodes[n].get("capacity", 1000.0)),
                 reverse=True,
             )
             k = max(1, len(nodes) // 5)
@@ -163,11 +166,10 @@ class TrafficGenerator:
             else:
                 dst = self.rng.choice(non_hotspots)
 
-            # Choose source from remaining nodes
-            possible_srcs = [n for n in nodes if n != dst]
-            if not possible_srcs:
-                continue
-            src = self.rng.choice(possible_srcs)
+            # Re-sample src in O(1) expected time until src != dst, avoiding O(V) list allocations per flow.
+            src = self.rng.choice(nodes)
+            while src == dst:
+                src = self.rng.choice(nodes)
             flows.append(self._create_flow(src, dst, tick))
 
         return flows
@@ -176,6 +178,10 @@ class TrafficGenerator:
         """
         Generate traffic that periodically spikes in count and size.
         """
+        nodes = topology.nodes
+        if len(nodes) < 2:
+            return []
+
         burst_prob = float(self.kwargs.get("burst_prob", 0.15))
         burst_multiplier = float(self.kwargs.get("burst_multiplier", 5.0))
 
@@ -184,13 +190,12 @@ class TrafficGenerator:
         bytes_mult = self.rng.uniform(2.0, 8.0) if is_burst else 1.0
 
         flows = []
-        nodes = topology.nodes
         for _ in range(count):
             src = self.rng.choice(nodes)
-            possible_dsts = [n for n in nodes if n != src]
-            if not possible_dsts:
-                continue
-            dst = self.rng.choice(possible_dsts)
+            # Re-sample dst in O(1) expected time until dst != src, avoiding O(V) list allocations per flow.
+            dst = self.rng.choice(nodes)
+            while dst == src:
+                dst = self.rng.choice(nodes)
             flows.append(self._create_flow(src, dst, tick, bytes_multiplier=bytes_mult))
 
         return flows

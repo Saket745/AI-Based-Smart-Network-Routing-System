@@ -24,6 +24,7 @@ class NegotiationContext:
     subgraph: nx.DiGraph
     destination: str
     weight_func: Callable[[str, str, dict[str, Any]], float] | None = None
+    distances: dict[str, float] | None = None
 
 
 logger = get_logger(__name__)
@@ -86,6 +87,10 @@ class NegotiationRouter(BaseRouter):
         """
         if v == context.destination:
             return 0.0
+
+        if context.distances is not None:
+            rem_dist = context.distances.get(v)
+            return float(rem_dist) if rem_dist is not None else None
 
         rem_weight = context.weight_func or self._resolve_edge_weight
 
@@ -168,11 +173,23 @@ class NegotiationRouter(BaseRouter):
 
                 weight_func = weight_func_callable
 
+        rem_weight = weight_func or self._resolve_edge_weight
+        rev_subgraph = subgraph.reverse(copy=False)
+        try:
+            distances = nx.single_source_dijkstra_path_length(
+                rev_subgraph,
+                destination,
+                weight=lambda u_rev, v_rev, d: rem_weight(v_rev, u_rev, d),
+            )
+        except (nx.NetworkXNoPath, nx.NodeNotFound):
+            distances = {}
+
         # Hop-by-hop contract-net negotiation with backtracking
         context = NegotiationContext(
             subgraph=subgraph,
             destination=destination,
             weight_func=weight_func,
+            distances=distances,
         )
 
         def negotiate_path(
