@@ -215,6 +215,7 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
     try:
         p = validate_file_path(path, must_exist=True)
     except ValidationError as exc:
+        raise SimulationError(f"Invalid events file path '{path}': {exc}") from exc
         raise SimulationError(str(exc)) from exc
 
     try:

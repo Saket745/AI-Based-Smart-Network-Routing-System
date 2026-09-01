@@ -49,6 +49,7 @@ class ConfigParser:
         try:
             p = validate_file_path(path, must_exist=True)
         except ValidationError as exc:
+            raise IngestionError(f"Invalid config file path '{path}': {exc}") from exc
             raise IngestionError(str(exc)) from exc
 
         try:
@@ -76,6 +77,7 @@ class ConfigParser:
         try:
             p = validate_file_path(path, must_exist=True)
         except ValidationError as exc:
+            raise IngestionError(f"Invalid change file path '{path}': {exc}") from exc
             raise IngestionError(str(exc)) from exc
 
         try:
