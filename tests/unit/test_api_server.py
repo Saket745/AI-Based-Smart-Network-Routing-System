@@ -144,14 +144,6 @@ def test_api_load_topology_success_temp(client: TestClient) -> None:
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     try:
         topo.save(temp_path)
-    try:
-        topo.save(temp_path)
-    try:
-        topo.save(temp_path)
-        headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
-    try:
-        topo.save(temp_path)
-        headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
         response = client.post("/api/topology/load", json={"path": str(temp_path)}, headers=headers)
         assert response.status_code == 200
         data = response.json()
