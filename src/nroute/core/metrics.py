@@ -160,6 +160,18 @@ class MetricsCollectionResult(BaseModel):
                     "active_flows",
                 ]
             )
+        results = self.results
+        # Optimize conversion by constructing columnar dict directly instead of using list of model_dump() dicts
+        return pd.DataFrame(
+            {
+                "tick": [m.tick for m in results],
+                "timestamp": [m.timestamp for m in results],
+                "throughput": [m.throughput for m in results],
+                "avg_latency": [m.avg_latency for m in results],
+                "packet_loss_rate": [m.packet_loss_rate for m in results],
+                "avg_utilization": [m.avg_utilization for m in results],
+                "reroute_count": [m.reroute_count for m in results],
+                "active_flows": [m.active_flows for m in results],
         # Fast path: direct column-wise dict construction avoids model_dump() overhead (~3.1x faster)
         return pd.DataFrame(
             {
