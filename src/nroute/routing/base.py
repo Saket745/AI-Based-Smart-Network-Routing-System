@@ -113,12 +113,20 @@ class BaseRouter(ABC):
                 f"Path destination '{path[-1]}' does not match expected destination '{destination}'."
             )
 
-        # Access underlying NetworkX DiGraph directly to avoid creating list[str] and
-        # list[tuple[str, str]] allocations via topology.nodes and topology.edges properties
         graph = topology.graph
         down_nodes: set[str] = getattr(topology, "_down_nodes", set())
         down_edges: set[tuple[str, str]] = getattr(topology, "_down_edges", set())
 
+        for node in path:
+            if node not in graph:
+                raise RoutingError(f"Node '{node}' in path does not exist in topology.")
+            if node in down_nodes or graph.nodes[node].get("status") == "down":
+                raise RoutingError(f"Node '{node}' in path is down.")
+
+        for u, v in itertools.pairwise(path):
+            if not graph.has_edge(u, v):
+                raise RoutingError(f"Edge '{u}->{v}' in path does not exist in topology.")
+            if (u, v) in down_edges or graph.edges[u, v].get("status") == "down":
         graph_nodes = graph.nodes
         for node in path:
             if node not in graph_nodes:
