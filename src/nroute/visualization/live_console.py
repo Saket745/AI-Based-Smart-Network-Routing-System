@@ -312,6 +312,7 @@ class LiveSimulationConsole:
                     show_progress=False,  # Turn off standard progress bar
                 )
                 self.log_event("[bold green]Simulation completed[/bold green]")
+                self.status = "Completed"
                 if self.engine.collector.results:
                     last_metric = self.engine.collector.results[-1]
                     self._update_layout(
@@ -321,6 +322,7 @@ class LiveSimulationConsole:
             self.status = "Completed"
             return result
         except KeyboardInterrupt:
+            self.status = "Completed"
             self.console.print(
                 "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
             )
