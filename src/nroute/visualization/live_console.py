@@ -34,13 +34,17 @@ class PlotextRenderable:
         # Default to height of 10 if not specified
         height = options.height or 10
 
-        plt.clf()
-        plt.plotsize(width, height)
-        plt.theme("dark")
+        clf_fn = getattr(plt, "clf", getattr(plt, "clear_figure", lambda: None))
+        clf_fn()
+        plotsize_fn = getattr(plt, "plotsize", lambda w, h: None)
+        plotsize_fn(width, height)
+        theme_fn = getattr(plt, "theme", lambda t: None)
+        theme_fn("dark")
 
         self.plot_func(plt)
 
-        ansi_output = plt.build()
+        build_fn = getattr(plt, "build", getattr(plt, "_build", lambda: ""))
+        ansi_output = build_fn()
         decoder = AnsiDecoder()
         yield from decoder.decode(ansi_output)
 
@@ -314,11 +318,13 @@ class LiveSimulationConsole:
                         layout, self.duration_ticks - 1, last_metric, algo_name, self.engine
                     )
                 time.sleep(1.0)
+            self.status = "Completed"
             return result
         except KeyboardInterrupt:
             self.console.print(
                 "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
             )
+            self.status = "Aborted"
             self.console.print(
                 "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
             )

@@ -197,13 +197,13 @@ def _print_congestion_console(edge_ids: list[str], probs: list[Any], threshold: 
         p = float(prob) if not isinstance(prob, (int, float)) else prob
         if p >= threshold:
             prob_style = "bold red"
-            status = "[bold red]CONGESTED[/bold red]"
+            status = "🔴 [bold red]CONGESTED[/bold red]"
         elif p >= threshold * 0.7:
             prob_style = "yellow"
-            status = "[yellow]AT RISK[/yellow]"
+            status = "🟡 [yellow]AT RISK[/yellow]"
         else:
             prob_style = "green"
-            status = "[green]NORMAL[/green]"
+            status = "🟢 [green]NORMAL[/green]"
 
         table.add_row(edge_id, f"[{prob_style}]{p:.3f}[/{prob_style}]", status)
 
@@ -410,14 +410,14 @@ def _print_gnn_console(
 
         if prob >= args.threshold:
             prob_style = "bold red"
-            status = "[bold red]CONGESTED[/bold red]"
+            status = "🔴 [bold red]CONGESTED[/bold red]"
             congested_count += 1
         elif prob >= args.threshold * 0.7:
             prob_style = "yellow"
-            status = "[yellow]AT RISK[/yellow]"
+            status = "🟡 [yellow]AT RISK[/yellow]"
         else:
             prob_style = "green"
-            status = "[green]NORMAL[/green]"
+            status = "🟢 [green]NORMAL[/green]"
 
         table.add_row(
             f"{u} -> {v}",

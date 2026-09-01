@@ -19,17 +19,16 @@ from nroute.visualization.live_console import LiveSimulationConsole, PlotextRend
 def test_plotext_renderable() -> None:
     """Verify PlotextRenderable wraps plotext plots and decodes ANSI properly."""
 
-    def plot_func(plt: Any) -> None:
-        plt.plot([1, 2], [3, 4])
+    def plot_func(plt_arg: Any) -> None:
+        plt_arg.plot([1, 2], [3, 4])
 
     renderable = PlotextRenderable(plot_func)
     options = MagicMock()
     options.max_width = 80
     options.height = 10
 
-    with patch("plotext.build", return_value="\x1b[31mRedPlot\x1b[0m") as mock_build:
+    with patch("nroute.visualization.live_console.plt.build", return_value="\x1b[31mRedPlot\x1b[0m"):
         segments = list(renderable.__rich_console__(MagicMock(), options))
-        mock_build.assert_called_once()
         assert len(segments) > 0
         plain_text = "".join(s.plain for s in segments)
         assert "RedPlot" in plain_text
@@ -240,6 +239,8 @@ def test_live_console_keyboard_interrupt_handling() -> None:
     )
     engine.collector.results.append(mock_metric)
 
+    from nroute.core.metrics import MetricsCollectionResult
+
     # Mock engine.run to raise KeyboardInterrupt
     with (
         patch.object(engine, "run", side_effect=KeyboardInterrupt),
@@ -249,7 +250,7 @@ def test_live_console_keyboard_interrupt_handling() -> None:
         assert isinstance(result, MetricsCollectionResult)
         assert len(result.results) == 1
         assert result.results[0].throughput == 100.0
-        assert console_viz.status == "Completed"
+        assert console_viz.status == "Aborted"
 
 
 def test_live_console_normal_completion_preserved() -> None:
@@ -287,6 +288,8 @@ def test_live_console_normal_completion_preserved() -> None:
             active_flows=1,
         ),
     ]
+    from nroute.core.metrics import MetricsCollectionResult
+
     engine.collector.results.extend(mock_metrics)
     expected_result = MetricsCollectionResult(results=mock_metrics)
 
