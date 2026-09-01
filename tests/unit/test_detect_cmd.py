@@ -70,6 +70,8 @@ class TestDetectAnomaliesCLI:
         assert result.exit_code == 0
         assert "Anomaly Detection Results" in result.output
         assert "DDoS" in result.output
+        assert "🟢" in result.output or "NO" in result.output
+        assert "🔴" in result.output or "YES" in result.output
         assert "1 anomalies detected out of 2 samples" in result.output
         assert "Anomaly Type" in result.output
         assert "Breakdown" in result.output

@@ -89,8 +89,26 @@ def test_csv_topology_importer_invalid(tmp_path: Path) -> None:
         CSVTopologyImporter.load(csv_file)
 
     # Missing file
-    with pytest.raises(IngestionError, match="Topology CSV file not found"):
+    with pytest.raises(IngestionError, match="Invalid topology CSV file path"):
         CSVTopologyImporter.load(tmp_path / "non_existent.csv")
+
+
+def test_importer_path_validation_security() -> None:
+    """Test path validation security enforcement across CSV, JSON, and PCAP importers."""
+    invalid_paths = ["", "   ", "non_existent_path.csv", "\0nullbyte.json"]
+
+    for path in invalid_paths:
+        with pytest.raises(IngestionError, match="Invalid topology CSV file path"):
+            CSVTopologyImporter.load(path)
+
+        with pytest.raises(IngestionError, match="Invalid topology JSON file path"):
+            JSONTopologyImporter.load(path)
+
+        with pytest.raises(IngestionError, match="Invalid traffic CSV file path"):
+            CSVTrafficImporter.load(path)
+
+        with pytest.raises(IngestionError, match="Invalid PCAP file path"):
+            PcapParser.parse(path)
 
 
 def test_json_topology_importer_valid(tmp_path: Path) -> None:
@@ -196,6 +214,21 @@ def test_pcap_parser(mock_pcap_reader_cls: MagicMock, tmp_path: Path) -> None:
     assert any(f.protocol == "UDP" for f in tm.flows)
     assert any(f.protocol == "ICMP" for f in tm.flows)
     assert any(f.protocol == "PROTO_99" for f in tm.flows)
+
+
+def test_pcap_parser_security_path_validation(tmp_path: Path) -> None:
+    """Test PCAP parser input validation against missing, empty, or invalid file paths."""
+    # 1. Non-existent file path
+    with pytest.raises(IngestionError, match="Invalid PCAP file path"):
+        PcapParser.parse(tmp_path / "non_existent.pcap")
+
+    # 2. Empty string path
+    with pytest.raises(IngestionError, match="Invalid PCAP file path"):
+        PcapParser.parse("")
+
+    # 3. Null bytes in path
+    with pytest.raises(IngestionError, match="Invalid PCAP file path"):
+        PcapParser.parse("test\0.pcap")
 
 
 def test_unified_ingest_explicit_and_auto_detect(tmp_path: Path) -> None:

@@ -159,6 +159,17 @@ def test_load_events_path_validation_failures() -> None:
 
     with pytest.raises(SimulationError, match="null bytes are not allowed"):
         load_events("events\0path.json")
+    with pytest.raises(SimulationError, match="does not exist"):
+        load_events("non_existent_file_path_12345.json")
+
+
+def test_load_events_path_traversal_and_invalid_path() -> None:
+    """Should raise SimulationError for null bytes or empty path."""
+    with pytest.raises(SimulationError, match="cannot be empty"):
+        load_events("")
+
+    with pytest.raises(SimulationError, match="null bytes are not allowed"):
+        load_events("events\0.json")
 
 
 def test_load_events_unsupported_suffix(tmp_path: Path) -> None:

@@ -86,6 +86,18 @@ def test_load_device_configs_path_validation_failures() -> None:
     with pytest.raises(IngestionError, match="null bytes are not allowed"):
         ConfigParser.load_device_configs("file\0path.json")
 
+    with pytest.raises(IngestionError, match="does not exist"):
+        ConfigParser.load_device_configs("non_existent.json")
+
+
+def test_load_device_configs_invalid_path_traversal() -> None:
+    """Test load_device_configs with null bytes and invalid path format."""
+    with pytest.raises(IngestionError, match="Invalid path format"):
+        ConfigParser.load_device_configs("config\0file.json")
+
+    with pytest.raises(IngestionError, match="File path cannot be empty"):
+        ConfigParser.load_device_configs("")
+
 
 def test_load_device_configs_unsupported_extension(tmp_path: Path) -> None:
     """Test load_device_configs with unsupported extension."""
@@ -167,6 +179,18 @@ def test_load_change_path_validation_failures() -> None:
 
     with pytest.raises(IngestionError, match="null bytes are not allowed"):
         ConfigParser.load_change("file\0path.yaml")
+
+    with pytest.raises(IngestionError, match="does not exist"):
+        ConfigParser.load_change("non_existent.json")
+
+
+def test_load_change_invalid_path_traversal() -> None:
+    """Test load_change with null bytes and invalid path format."""
+    with pytest.raises(IngestionError, match="Invalid path format"):
+        ConfigParser.load_change("change\0file.json")
+
+    with pytest.raises(IngestionError, match="File path cannot be empty"):
+        ConfigParser.load_change("")
 
 
 def test_load_change_unsupported_extension(tmp_path: Path) -> None:
