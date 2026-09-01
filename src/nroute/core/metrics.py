@@ -37,24 +37,33 @@ class RouteMetrics(BaseModel):
         """
         Compute RouteMetrics for a given path and topology.
         """
-        total_latency = 0.0
         total_hops = len(path) - 1
+        if total_hops <= 0:
+            return cls(
+                path=path,
+                total_latency=0.0,
+                total_hops=0,
+                bottleneck_bandwidth=float("inf"),
+                bottleneck_utilization=0.0,
+            )
+
+        total_latency = 0.0
         bottleneck_bw = inf_val = float("inf")
         bottleneck_util = 0.0
 
         adj = topology._graph._adj
-        graph = topology.graph
-        adj = graph._adj
-        for i in range(total_hops):
-            u, v = path[i], path[i + 1]
-            u_edges = adj.get(u)
-            if u_edges is not None and v in u_edges:
-                edge = u_edges[v]
-                total_latency += float(edge.get("latency", 0.0))
-                bw = float(edge.get("bandwidth", inf_val))
-                if bw < bottleneck_bw:
-                    bottleneck_bw = bw
-                    bottleneck_util = float(edge.get("utilization", 0.0))
+        u = path[0]
+        for v in path[1:]:
+            if u in adj:
+                u_edges = adj[u]
+                if v in u_edges:
+                    edge = u_edges[v]
+                    total_latency += edge.get("latency", 0.0)
+                    bw = edge.get("bandwidth", inf_val)
+                    if bw < bottleneck_bw:
+                        bottleneck_bw = bw
+                        bottleneck_util = edge.get("utilization", 0.0)
+            u = v
 
         return cls(
             path=path,
