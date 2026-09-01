@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable  # noqa: TC003
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -46,9 +46,6 @@ def test_ecmp_equal_cost_paths() -> None:
         topo, source="A", destination="D", weight="weight"
     )
     assert paths_compat == paths
-
-=======
-=======
     assert ["A", "B", "D"] in paths
     assert ["A", "C", "D"] in paths
 

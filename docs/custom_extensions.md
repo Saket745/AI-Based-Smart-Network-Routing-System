@@ -28,10 +28,10 @@ class RandomWalkRouter(BaseRouter):
     ) -> list[str]:
         # Filter active graph view
         subgraph = self._get_active_subgraph(topology)
-        
+
         if source not in subgraph or destination not in subgraph:
             raise RoutingError("Source or destination node is down/missing.")
-            
+
         path = [source]
         current = source
         visited = {source}
@@ -40,15 +40,15 @@ class RandomWalkRouter(BaseRouter):
         while current != destination:
             if len(path) > max_hops:
                 raise RoutingError("Random walk exceeded max hop limit.")
-            
+
             neighbors = list(subgraph.neighbors(current))
             if not neighbors:
                 raise RoutingError(f"Dead end reached at node '{current}'.")
-                
+
             # Prefer unvisited neighbors to prevent trivial loops
             unvisited = [n for n in neighbors if n not in visited]
             next_node = random.choice(unvisited if unvisited else neighbors)
-            
+
             path.append(next_node)
             visited.add(next_node)
             current = next_node

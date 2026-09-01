@@ -44,3 +44,19 @@ def test_congestion_predictor_secure_loading_enforcement() -> None:
 
         with pytest.raises(ModelError, match="Insecure model file detected"):
             predictor.load(path, allow_unsafe=False)
+
+
+class UnsafeTestClass:
+    pass
+
+
+def test_joblib_deserialization_strict_package_allowlist() -> None:
+    """Verify that the joblib monkeypatch blocks deserialization of unsafe classes."""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, "unsafe_test.joblib")
+        joblib.dump(UnsafeTestClass(), path)
+
+        # Deserializing it should raise a ValueError due to the strict find_class allowlist
+        with pytest.raises(ValueError, match="Unsafe deserialization attempt detected"):
+            joblib.load(path)
