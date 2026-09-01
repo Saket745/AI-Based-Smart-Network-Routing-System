@@ -19,6 +19,16 @@ from nroute.cli.simulate_cmd import simulate_cmd as simulate_group
 from nroute.cli.topology_cmd import topology_cmd as topology_group
 from nroute.cli.train_cmd import train_cmd as train_group
 from nroute.cli.twin_cmd import twin_cmd as twin_group
+import nroute.cli.api_cmd as api_cmd_mod
+import nroute.cli.configs_cmd as configs_cmd_mod
+import nroute.cli.detect_cmd as detect_cmd_mod
+import nroute.cli.export_cmd as export_cmd_mod
+import nroute.cli.predict_cmd as predict_cmd_mod
+import nroute.cli.route_cmd as route_cmd_mod
+import nroute.cli.simulate_cmd as simulate_cmd_mod
+import nroute.cli.topology_cmd as topology_cmd_mod
+import nroute.cli.train_cmd as train_cmd_mod
+import nroute.cli.twin_cmd as twin_cmd_mod
 
 
 @click.group(
@@ -130,6 +140,16 @@ cli.add_command(twin_group, "twin")
 cli.add_command(export_group, "export")
 cli.add_command(api_group, "api")
 cli.add_command(config_group, "config")
+cli.add_command(topology_cmd_mod.topology_cmd, "topology")
+cli.add_command(route_cmd_mod.route_cmd, "route")
+cli.add_command(simulate_cmd_mod.simulate_cmd, "simulate")
+cli.add_command(train_cmd_mod.train_cmd, "train")
+cli.add_command(predict_cmd_mod.predict_cmd, "predict")
+cli.add_command(detect_cmd_mod.detect_cmd, "detect")
+cli.add_command(twin_cmd_mod.twin_cmd, "twin")
+cli.add_command(export_cmd_mod.export_cmd, "export")
+cli.add_command(api_cmd_mod.api_cmd, "api")
+cli.add_command(configs_cmd_mod.config_cmd, "config")
 
 
 # ── Shell Completion Subcommand ─────────────────────────────

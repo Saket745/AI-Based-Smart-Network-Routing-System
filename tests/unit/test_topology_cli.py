@@ -114,6 +114,7 @@ class TestTopologyGenerateCLI:
 
         assert result.exit_code == 0
         assert "Topology saved to" in result.output
+        assert str(out_file.name) in result.output
         assert out_file.name in result.output
         mock_topology.save.assert_called_once_with(str(out_file))
 
@@ -148,6 +149,7 @@ class TestTopologyShowCLI:
 
         assert result.exit_code == 0
         assert "Topology" in result.output
+        assert "Topology:" in result.output
         assert "Nodes" in result.output
         assert "10" in result.output
         mock_load.assert_called_once_with(topo_file)
