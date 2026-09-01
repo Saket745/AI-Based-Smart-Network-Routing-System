@@ -228,12 +228,12 @@ class SimulationEngine:
                     dropped_flows.append((flow, f"rerouting_failed_midflow: {e}"))
                     continue
 
-            # Forward across edge u -> v
+            # Forward across edge u -> v (access graph dict directly to avoid copying)
             try:
-                edge_data = self.topology.get_edge(u, v)
+                edge_data = self.topology.graph.edges[u, v]
                 loss_prob = float(edge_data.get("packet_loss", 0.0))
                 edge_latency = float(edge_data.get("latency", 5.0))
-            except Exception:
+            except KeyError:
                 loss_prob = 0.0
                 edge_latency = 5.0
 
@@ -259,24 +259,33 @@ class SimulationEngine:
 
     def _is_path_obstructed(self, u: str, v: str) -> bool:
         """Check if the edge u->v or node v is currently down."""
-        edge_down = False
-        try:
-            edge_data = self.topology.get_edge(u, v)
-            edge_down = edge_data.get("status", "up") == "down"
-        except Exception:
-            edge_down = True
-
-        if edge_down:
+        g = self.topology.graph
+        if not g.has_edge(u, v):
             return True
 
-        node_down = False
+        down_edges: set[tuple[str, str]] = getattr(self.topology, "_down_edges", set())
+        if (u, v) in down_edges:
+            return True
+
+        down_nodes: set[str] = getattr(self.topology, "_down_nodes", set())
+        if v in down_nodes:
+            return True
+
+        try:
+            edge_data = self.topology.get_edge(u, v)
+            if edge_data.get("status", "up") == "down":
+                return True
+        except Exception:
+            return True
+
         try:
             node_data = self.topology.get_node(v)
-            node_down = node_data.get("status", "up") == "down"
+            if node_data.get("status", "up") == "down":
+                return True
         except Exception:
-            node_down = True
+            return True
 
-        return node_down
+        return False
 
     def _update_link_utilizations(self) -> None:
         """
