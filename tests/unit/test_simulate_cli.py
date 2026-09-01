@@ -374,6 +374,7 @@ class TestSimulateCompareCLI:
 
         assert result.exit_code == 0
         assert "Comparison saved to" in result.output
+        assert output_file.name in result.output
         assert output_file.exists()
 
         data = json.loads(output_file.read_text())

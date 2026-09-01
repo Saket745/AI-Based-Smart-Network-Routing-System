@@ -21,12 +21,29 @@ class SNMPParser:
 
     @staticmethod
     def _load_raw_data(p: Path) -> list[dict[str, Any]]:
+        if not p.is_file():
+            raise IngestionError(f"SNMP export file not found: {p}")
+
         """Load raw record dicts from JSON or CSV file path."""
         try:
             if p.suffix.lower() == ".json":
                 with open(p, encoding="utf-8") as f:
                     loaded = json.load(f)
                     if isinstance(loaded, list):
+                        return list(loaded)
+                    if (
+                        isinstance(loaded, dict)
+                        and "interfaces" in loaded
+                        and isinstance(loaded["interfaces"], list)
+                    ):
+                        return list(loaded["interfaces"])
+                    raise IngestionError(
+                        "JSON SNMP data must be a list or contain 'interfaces' key."
+                    )
+            else:
+                df = pd.read_csv(p)
+                records: list[dict[str, Any]] = df.to_dict(orient="records")
+                return records
                         return cast("list[dict[str, Any]]", loaded)
                     if isinstance(loaded, dict) and "interfaces" in loaded:
                         return cast("list[dict[str, Any]]", loaded["interfaces"])
@@ -42,6 +59,11 @@ class SNMPParser:
             raise IngestionError(f"Failed to read SNMP export file {p}: {e}") from e
 
     @staticmethod
+    def _extract_endpoints(clean_row: dict[str, Any], idx: int) -> tuple[str, str]:
+        if "interface_id" not in clean_row:
+            raise IngestionError(f"SNMP record at index {idx} is missing 'interface_id'.")
+
+        if_id = str(clean_row["interface_id"])
     def _extract_endpoints(if_id: str, idx: int) -> tuple[str, str]:
         """Extract source and destination node IDs from interface_id."""
         src, dst = None, None
@@ -100,6 +122,7 @@ class SNMPParser:
         return in_octets, out_octets
 
     @staticmethod
+    def _calculate_utilization(in_octets: float, out_octets: float, bandwidth: float) -> float:
     def _calculate_utilization(bandwidth: float, in_octets: float, out_octets: float) -> float:
         """Derive utilization clamped to [0.0, 1.0]."""
         if bandwidth <= 0:
@@ -123,6 +146,8 @@ class SNMPParser:
         Args:
             path: Path to the SNMP export dump file.
         """
+        p = Path(path)
+        raw_data = SNMPParser._load_raw_data(p)
         try:
             p = validate_file_path(path, must_exist=True)
         except ValidationError as e:
@@ -135,6 +160,22 @@ class SNMPParser:
 
         for idx, row in enumerate(raw_data):
             clean_row = {k.lower().strip(): v for k, v in row.items()}
+            src, dst = SNMPParser._extract_endpoints(clean_row, idx)
+            bandwidth = SNMPParser._parse_bandwidth(clean_row)
+            status = SNMPParser._parse_status(clean_row)
+            in_octets, out_octets = SNMPParser._parse_octets(clean_row)
+            utilization = SNMPParser._calculate_utilization(in_octets, out_octets, bandwidth)
+
+            edge_attr = {
+                "source": src,
+                "destination": dst,
+                "bandwidth": bandwidth,
+                "status": status,
+                "utilization": utilization,
+                "in_octets": in_octets,
+                "out_octets": out_octets,
+            }
+            raw_edges.append(edge_attr)
 
             if "interface_id" not in clean_row:
                 raise IngestionError(f"SNMP record at index {idx} is missing 'interface_id'.")
