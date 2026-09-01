@@ -215,10 +215,12 @@ class MyCliRouter(BaseRouter):
         """{
         "nodes": [
             {"id": "A", "type": "router", "status": "up"},
+            {"id": "cli-dynamic-hop", "type": "router", "status": "up"},
             {"id": "B", "type": "router", "status": "up"}
         ],
         "edges": [
-            {"source": "A", "target": "B", "status": "up"}
+            {"source": "A", "target": "cli-dynamic-hop", "status": "up"},
+            {"source": "cli-dynamic-hop", "target": "B", "status": "up"}
         ]
     }"""
     )
