@@ -51,6 +51,7 @@ class RouteMetrics(BaseModel):
         bottleneck_bw = inf_val = float("inf")
         bottleneck_util = 0.0
 
+        adj = topology._graph._adj
         adj = topology.graph._adj
         for i in range(total_hops):
             u, v = path[i], path[i + 1]
@@ -60,6 +61,10 @@ class RouteMetrics(BaseModel):
                 # Direct dictionary lookup without redundant float cast overhead
                 total_latency += edge.get("latency", 0.0)
                 bw = edge.get("bandwidth", inf_val)
+                if bw < bottleneck_bw:
+                    bottleneck_bw = bw
+                    # Defer utilization lookup to only when bottleneck bandwidth is updated
+                    bottleneck_util = edge.get("utilization", 0.0)
                 total_latency += float(edge.get("latency", 0.0))
                 bw = float(edge.get("bandwidth", inf_val))
                 if bw < bottleneck_bw:

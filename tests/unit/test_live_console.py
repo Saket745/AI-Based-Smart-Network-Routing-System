@@ -117,6 +117,7 @@ def test_live_console_error_handling() -> None:
 
     # Mock get_edge and get_node to raise TopologyError
     with (
+        patch("nroute.visualization.live_console.logger") as mock_logger,
         patch.object(engine.topology, "get_edge", side_effect=TopologyError("Edge error")),
         patch.object(engine.topology, "get_node", side_effect=TopologyError("Node error")),
         patch("nroute.visualization.live_console.logger") as mock_logger,

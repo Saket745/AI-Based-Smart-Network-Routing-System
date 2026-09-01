@@ -329,3 +329,5 @@ class LiveSimulationConsole:
                 "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
             )
             return MetricsCollectionResult(results=self.engine.collector.results)
+        finally:
+            self.status = "Completed"
