@@ -1,4 +1,5 @@
 # Stage 1: Build & Compile package
+FROM python:3.10-slim@sha256:57a1b347eb451e1ab6307b1fc9e0976f259cf156219963b5dd7a7be0d908d3d4 AS builder
 FROM python:3.10-slim@sha256:a78e4529630cfe8c5199cafd6e0c28ee1579a13f86274396d8b6b2d80367aa3a AS builder
 FROM python:3.10-slim@sha256:57a1b347eb451e1ab6307b1fc9e0976f259cf156219963b5dd7a7be0d908d3d4 AS builder
 FROM python:3.10-slim@sha256:38758a82a44d1acb9bae3dd5f7d2a55452fb44a5ceca7c4589f360f2c4aa3d0c AS builder
@@ -19,6 +20,7 @@ COPY src/ ./src/
 RUN pip install --no-cache-dir build && python -m build
 
 # Stage 2: Minimal runtime image
+FROM python:3.10-slim@sha256:57a1b347eb451e1ab6307b1fc9e0976f259cf156219963b5dd7a7be0d908d3d4
 FROM python:3.10-slim@sha256:a78e4529630cfe8c5199cafd6e0c28ee1579a13f86274396d8b6b2d80367aa3a
 FROM python:3.10-slim@sha256:57a1b347eb451e1ab6307b1fc9e0976f259cf156219963b5dd7a7be0d908d3d4
 FROM python:3.10-slim@sha256:38758a82a44d1acb9bae3dd5f7d2a55452fb44a5ceca7c4589f360f2c4aa3d0c
@@ -43,6 +45,8 @@ COPY --from=builder --chown=nroute:nroute /app/dist/*.whl ./
 # Switch to the non-root user
 USER nroute
 
+# Install the wheel package locally
+RUN pip install --user --no-cache-dir "wheel>=0.46.2" "jaraco.context>=6.1.0" *.whl \
 # Install the wheel package locally and upgrade vulnerable indirect dependencies
 # Install the wheel package locally with updated dependencies to satisfy Trivy security scanner
 RUN pip install --user --no-cache-dir "wheel>=0.46.2" "jaraco.context>=6.1.0" *.whl \
