@@ -44,6 +44,11 @@ def test_bench_metrics_to_dataframe(benchmark: Any) -> None:
             tick=i,
             timestamp=float(i),
             throughput=100.0,
+    metrics_list = [
+        SimulationMetrics(
+            tick=i,
+            timestamp=float(i),
+            throughput=100.0 + i,
             avg_latency=5.0,
             packet_loss_rate=0.01,
             avg_utilization=0.5,
@@ -58,3 +63,34 @@ def test_bench_metrics_to_dataframe(benchmark: Any) -> None:
         mc.to_dataframe()
 
     benchmark(run_to_dataframe)
+        for i in range(1000)
+    ]
+    coll = MetricsCollectionResult(results=metrics_list)
+
+    def run_to_dataframe() -> None:
+        coll.to_dataframe()
+
+    benchmark(run_to_dataframe)
+def test_bench_default_graph_feature_extractor(benchmark: Any) -> None:
+    from nroute.ml.features.extractor import DefaultGraphFeatureExtractor
+
+    topo = Topology.generate("random", n_nodes=300, edge_prob=0.05, seed=42)
+    ext = DefaultGraphFeatureExtractor()
+
+    def run_extractor() -> None:
+        ext.extract_features(topo)
+
+    benchmark(run_extractor)
+
+
+@pytest.mark.benchmark
+def test_bench_feature_builder(benchmark: Any) -> None:
+    from nroute.ml.features.builder import FeatureBuilder
+
+    topo = Topology.generate("random", n_nodes=200, edge_prob=0.05, seed=42)
+    builder = FeatureBuilder()
+
+    def run_builder() -> None:
+        builder.build_features(topo)
+
+    benchmark(run_builder)

@@ -36,6 +36,7 @@ def test_bench_traffic_from_dataframe(num_flows: int, benchmark: Any) -> None:
 @pytest.mark.parametrize("num_flows", [1000, 10000])
 def test_bench_traffic_to_dataframe(num_flows: int, benchmark: Any) -> None:
     """Benchmark exporting a TrafficMatrix to a pandas DataFrame of varying sizes."""
+    """Benchmark converting a TrafficMatrix to a pandas DataFrame of varying sizes."""
     df = pd.DataFrame(
         {
             "source": [f"Node_{i % 10}" for i in range(num_flows)],
