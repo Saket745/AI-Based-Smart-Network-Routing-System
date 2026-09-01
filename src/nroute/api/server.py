@@ -31,7 +31,9 @@ from pydantic import BaseModel, Field
 
 from nroute.core.config import load_config
 from nroute.core.openconfig import ConfigChange
+from nroute.exceptions import ValidationError
 from nroute.simulation.digital_twin import DigitalTwinEngine
+from nroute.utils.validators import validate_file_path
 
 # ── Security & Authentication ────────────────────────────────
 
@@ -219,7 +221,11 @@ async def health() -> dict[str, Any]:
 async def load_topology(req: TopologyLoadRequest) -> dict[str, Any]:
     """Load a topology from a file path."""
     engine = get_engine()
-    p = Path(req.path).resolve()
+
+    try:
+        p = validate_file_path(req.path, must_exist=False).resolve()
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     # Path traversal protection: restrict to allowed directories
     allowed_dirs = [Path.cwd().resolve(), Path(tempfile.gettempdir()).resolve()]

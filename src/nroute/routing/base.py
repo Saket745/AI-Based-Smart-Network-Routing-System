@@ -127,6 +127,19 @@ class BaseRouter(ABC):
             if not graph.has_edge(u, v):
                 raise RoutingError(f"Edge '{u}->{v}' in path does not exist in topology.")
             if (u, v) in down_edges or graph.edges[u, v].get("status") == "down":
+        graph_nodes = graph.nodes
+        for node in path:
+            if node not in graph_nodes:
+                raise RoutingError(f"Node '{node}' in path does not exist in topology.")
+            # If a node is down, the route is invalid
+            if node in down_nodes or graph_nodes[node].get("status") == "down":
+                raise RoutingError(f"Node '{node}' in path is down.")
+
+        graph_edges = graph.edges
+        for u, v in itertools.pairwise(path):
+            if not graph.has_edge(u, v):
+                raise RoutingError(f"Edge '{u}->{v}' in path does not exist in topology.")
+            if (u, v) in down_edges or graph_edges[u, v].get("status") == "down":
                 raise RoutingError(f"Edge '{u}->{v}' in path is down.")
 
         return True
