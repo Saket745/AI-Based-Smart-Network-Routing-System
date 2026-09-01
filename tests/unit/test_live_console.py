@@ -19,17 +19,74 @@ from nroute.visualization.live_console import LiveSimulationConsole, PlotextRend
 def test_plotext_renderable() -> None:
     """Verify PlotextRenderable wraps plotext plots and decodes ANSI properly."""
 
-    def plot_func(plt: Any) -> None:
-        plt.plot([1, 2], [3, 4])
+    def plot_func(plt_arg: Any) -> None:
+        plt_arg.plot([1, 2], [3, 4])
 
     renderable = PlotextRenderable(plot_func)
     options = MagicMock()
     options.max_width = 80
     options.height = 10
 
-    with patch("plotext.build", return_value="\x1b[31mRedPlot\x1b[0m") as mock_build:
+    with patch("nroute.visualization.live_console.plt.build", return_value="\x1b[31mRedPlot\x1b[0m"):
+    with patch("nroute.visualization.live_console.plt") as mock_plt:
+        mock_plt.build.return_value = "\x1b[31mRedPlot\x1b[0m"
         segments = list(renderable.__rich_console__(MagicMock(), options))
-        mock_build.assert_called_once()
+        mock_plt.build.assert_called_once()
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
+    with patch.object(plt, "build", return_value="\x1b[31mRedPlot\x1b[0m", create=True) as mock_build:
+    import plotext as plt
+
+    with patch.object(
+        plt, "build", create=True, return_value="\x1b[31mRedPlot\x1b[0m"
+    mock_plt = MagicMock()
+    mock_plt.build.return_value = "\x1b[31mRedPlot\x1b[0m"
+    with patch("nroute.visualization.live_console.plt", mock_plt):
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
+    with patch("nroute.visualization.live_console.plt") as mock_plt:
+        mock_plt.build.return_value = "\x1b[31mRedPlot\x1b[0m"
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
+    mock_plt = MagicMock()
+    mock_plt.build.return_value = "\x1b[31mRedPlot\x1b[0m"
+    with patch("nroute.visualization.live_console.plt", mock_plt):
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
+    with patch("nroute.visualization.live_console.plt") as mock_plt:
+        mock_plt.build.return_value = "\x1b[31mRedPlot\x1b[0m"
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
+        segments = list(renderable.__rich_console__(MagicMock(), options))
+        mock_plt.build.assert_called_once()
+    mock_plt = MagicMock()
+    mock_plt.build.return_value = "\x1b[31mRedPlot\x1b[0m"
+
+    with patch("nroute.visualization.live_console.plt", mock_plt):
+    with patch(
+        "nroute.visualization.live_console.plt.build", return_value="\x1b[31mRedPlot\x1b[0m"
+    ) as mock_build:
+        segments = list(renderable.__rich_console__(MagicMock(), options))
         assert len(segments) > 0
         plain_text = "".join(s.plain for s in segments)
         assert "RedPlot" in plain_text
