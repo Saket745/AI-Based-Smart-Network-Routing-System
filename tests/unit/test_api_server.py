@@ -129,6 +129,7 @@ def test_api_load_topology_success_cwd(client: TestClient) -> None:
     try:
     try:
     try:
+    try:
         headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
         response = client.post("/api/topology/load", json={"path": str(temp_file)}, headers=headers)
         assert response.status_code == 200
@@ -150,6 +151,8 @@ def test_api_load_topology_success_temp(client: TestClient) -> None:
         temp_path = Path(f.name)
 
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
+    try:
+        topo.save(temp_path)
     try:
         topo.save(temp_path)
     try:
