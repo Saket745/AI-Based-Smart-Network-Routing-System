@@ -30,6 +30,7 @@ def load_custom_class(
         ValueError: If the format is invalid.
         ImportError: If the module or class cannot be loaded.
         TypeError: If the class does not inherit from expected_superclass.
+        PermissionError: If loading from a file is attempted with allow_unsafe=False.
     """
     import_str = import_str.strip()
 
@@ -55,9 +56,10 @@ def load_custom_class(
     # Check if module_part is a path to a local .py file
     if module_part.endswith(".py") or os.path.exists(module_part):
         if not allow_unsafe:
-            raise ImportError(
-                f"Loading custom classes from local files is disallowed for security reasons: '{module_part}'. "
-                "Use 'allow_unsafe=True' or the '--allow-unsafe' CLI flag if you trust the source."
+            raise PermissionError(
+                f"Loading from a local Python file ('{module_part}') is restricted for "
+                "security reasons. Use a standard module path or set allow_unsafe=True "
+                "if you trust the source."
             )
 
         file_path = Path(module_part).resolve()
@@ -67,16 +69,19 @@ def load_custom_class(
         # Construct a unique module name based on file path
         module_name = f"nroute.dynamic.{file_path.stem}_{hash(str(file_path)) & 0xFFFFFFFF}"
 
-        try:
-            spec = importlib.util.spec_from_file_location(module_name, file_path)
-            if spec is None or spec.loader is None:
-                raise ImportError(f"Could not load spec for Python file: {file_path}")
+        if module_name in sys.modules:
+            module = sys.modules[module_name]
+        else:
+            try:
+                spec = importlib.util.spec_from_file_location(module_name, file_path)
+                if spec is None or spec.loader is None:
+                    raise ImportError(f"Could not load spec for Python file: {file_path}")
 
-            module = importlib.util.module_from_spec(spec)
-            sys.modules[module_name] = module
-            spec.loader.exec_module(module)
-        except Exception as e:
-            raise ImportError(f"Failed to execute module from file '{file_path}': {e}") from e
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module
+                spec.loader.exec_module(module)
+            except Exception as e:
+                raise ImportError(f"Failed to execute module from file '{file_path}': {e}") from e
     else:
         # Load as a standard Python module path
         try:

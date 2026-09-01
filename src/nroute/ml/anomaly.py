@@ -15,7 +15,8 @@ import torch.optim as optim
 from sklearn.ensemble import IsolationForest
 from torch.utils.data import DataLoader, TensorDataset
 
-from nroute.exceptions import ModelError
+from nroute.exceptions import ModelError, ValidationError
+from nroute.utils.validators import validate_file_path
 
 # Monkeypatch joblib to prevent Remote Code Execution via insecure deserialization
 _original_find_class = joblib.numpy_pickle.NumpyUnpickler.find_class
@@ -229,57 +230,85 @@ class AnomalyDetector:
         x_data = numeric_features.values
 
         if self.model_type == "isolation_forest":
-            # decision_function outputs values in [-0.5, 0.5] (lower means more anomalous)
-            raw_scores = self.model.decision_function(x_data)
-            # Map score to [0.0, 1.0] where 1.0 is extremely anomalous
-            # Standard mapping: anomaly_score = clamp(0.5 - raw_score)
-            anomaly_scores = np.clip(0.5 - raw_scores, 0.0, 1.0)
-
-            # predict() returns 1 (normal) and -1 (anomaly)
-            preds = self.model.predict(x_data)
-            is_anomaly = preds == -1
-
+            anomaly_scores, is_anomaly = self._detect_isolation_forest(x_data)
         elif self.model_type == "autoencoder":
-            self.model.eval()
-            x_norm = self._normalize(x_data, train=False)
-            x_tensor = torch.tensor(x_norm, dtype=torch.float32)
-
-            with torch.no_grad():
-                reconstructed = self.model(x_tensor)
-                # Compute reconstruction error per sample
-                mse_errors = torch.mean((reconstructed - x_tensor) ** 2, dim=1).numpy()
-
-            # Map error to score: scale relative to threshold
-            # E.g., if error is threshold, score is 0.5. Clamp to [0, 1]
-            anomaly_scores = np.clip(
-                (mse_errors / (self.reconstruction_threshold + 1e-6)) * 0.5, 0.0, 1.0
-            )
-            is_anomaly = mse_errors > self.reconstruction_threshold
-
+            anomaly_scores, is_anomaly = self._detect_autoencoder(x_data)
         elif self.model_type == "custom":
-            x_norm = self._normalize(x_data, train=False)
-            if hasattr(self.model, "detect"):
-                # If custom model implements full detect interface
-                return self.model.detect(features)
+            res = self._detect_custom(features, x_data)
+            if isinstance(res, pd.DataFrame):
+                return res
+            anomaly_scores, is_anomaly = res
 
-            # Fallback score logic
-            if hasattr(self.model, "decision_function"):
-                raw_scores = self.model.decision_function(x_norm)
-                anomaly_scores = np.clip(0.5 - raw_scores, 0.0, 1.0)
-            elif hasattr(self.model, "predict_proba"):
-                probs = self.model.predict_proba(x_norm)
-                if len(probs.shape) > 1 and probs.shape[1] > 1:
-                    probs = probs[:, 1]
-                anomaly_scores = probs
-            else:
-                anomaly_scores = np.zeros(len(features))
+        anomaly_types = self._classify_anomaly_types(features, is_anomaly)
 
-            if hasattr(self.model, "predict"):
-                preds = self.model.predict(x_norm)
-                is_anomaly = (preds == -1) | ((preds == 1) & (anomaly_scores >= 0.5))
-            else:
-                is_anomaly = anomaly_scores >= 0.5
+        return pd.DataFrame(
+            {
+                "anomaly_score": anomaly_scores,
+                "is_anomaly": is_anomaly,
+                "anomaly_type": anomaly_types,
+            },
+            index=features.index,
+        )
 
+    def _detect_isolation_forest(self, x_data: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        # decision_function outputs values in [-0.5, 0.5] (lower means more anomalous)
+        raw_scores = self.model.decision_function(x_data)
+        # Map score to [0.0, 1.0] where 1.0 is extremely anomalous
+        # Standard mapping: anomaly_score = clamp(0.5 - raw_score)
+        anomaly_scores = np.clip(0.5 - raw_scores, 0.0, 1.0)
+
+        # predict() returns 1 (normal) and -1 (anomaly)
+        preds = self.model.predict(x_data)
+        is_anomaly = preds == -1
+        return anomaly_scores, is_anomaly
+
+    def _detect_autoencoder(self, x_data: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        self.model.eval()
+        x_norm = self._normalize(x_data, train=False)
+        x_tensor = torch.tensor(x_norm, dtype=torch.float32)
+
+        with torch.no_grad():
+            reconstructed = self.model(x_tensor)
+            # Compute reconstruction error per sample
+            mse_errors = torch.mean((reconstructed - x_tensor) ** 2, dim=1).numpy()
+
+        # Map error to score: scale relative to threshold
+        # E.g., if error is threshold, score is 0.5. Clamp to [0, 1]
+        anomaly_scores = np.clip(
+            (mse_errors / (self.reconstruction_threshold + 1e-6)) * 0.5, 0.0, 1.0
+        )
+        is_anomaly = mse_errors > self.reconstruction_threshold
+        return anomaly_scores, is_anomaly
+
+    def _detect_custom(
+        self, features: pd.DataFrame, x_data: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray] | pd.DataFrame:
+        x_norm = self._normalize(x_data, train=False)
+        if hasattr(self.model, "detect"):
+            # If custom model implements full detect interface
+            return cast("pd.DataFrame", self.model.detect(features))
+
+        # Fallback score logic
+        if hasattr(self.model, "decision_function"):
+            raw_scores = self.model.decision_function(x_norm)
+            anomaly_scores = np.clip(0.5 - raw_scores, 0.0, 1.0)
+        elif hasattr(self.model, "predict_proba"):
+            probs = self.model.predict_proba(x_norm)
+            if len(probs.shape) > 1 and probs.shape[1] > 1:
+                probs = probs[:, 1]
+            anomaly_scores = probs
+        else:
+            anomaly_scores = np.zeros(len(features))
+
+        if hasattr(self.model, "predict"):
+            preds = self.model.predict(x_norm)
+            is_anomaly = (preds == -1) | ((preds == 1) & (anomaly_scores >= 0.5))
+        else:
+            is_anomaly = anomaly_scores >= 0.5
+
+        return anomaly_scores, is_anomaly
+
+    def _classify_anomaly_types(self, features: pd.DataFrame, is_anomaly: np.ndarray) -> list[str]:
         # Classify anomaly types using heuristics
         anomaly_types = []
         for idx in range(len(features)):
@@ -304,21 +333,18 @@ class AnomalyDetector:
                 # Default fallback type is link_failure / high utilization congestion
                 anomaly_types.append("link_failure")
 
-        return pd.DataFrame(
-            {
-                "anomaly_score": anomaly_scores,
-                "is_anomaly": is_anomaly,
-                "anomaly_type": anomaly_types,
-            },
-            index=features.index,
-        )
+        return anomaly_types
 
     def save(self, path: str) -> None:
         """Save model configuration and weights."""
         if not self.is_trained:
             raise ModelError("Cannot save an untrained model.")
 
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        dirname = os.path.dirname(path)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
+        if os.path.dirname(path):
+            os.makedirs(os.path.dirname(path), exist_ok=True)
 
         save_dict = {
             "model_type": self.model_type,
@@ -357,8 +383,11 @@ class AnomalyDetector:
         Raises:
             ModelError: If loading fails or insecure file is detected with allow_unsafe=False.
         """
-        if not os.path.exists(path):
-            raise ModelError(f"Model file not found: {path}")
+        try:
+            validated_path = validate_file_path(path, must_exist=True)
+            path = str(validated_path)
+        except ValidationError as e:
+            raise ModelError(str(e)) from e
 
         try:
             if path.endswith(".pt") or path.endswith(".pth"):

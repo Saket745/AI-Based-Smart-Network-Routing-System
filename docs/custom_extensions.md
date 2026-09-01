@@ -15,6 +15,7 @@ import random
 from typing import Any
 from nroute import BaseRouter, register_router, Topology
 
+
 @register_router("random-walk")
 class RandomWalkRouter(BaseRouter):
     """A custom router that selects a random path from source to destination."""

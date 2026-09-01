@@ -1,0 +1,63 @@
+{
+  "nodes": [
+    {
+      "id": "0",
+      "type": "router",
+      "capacity": 40000.0,
+      "status": "up",
+      "location": null
+    },
+    {
+      "id": "1",
+      "type": "router",
+      "capacity": 40000.0,
+      "status": "up",
+      "location": null
+    },
+    {
+      "id": "2",
+      "type": "router",
+      "capacity": 40000.0,
+      "status": "up",
+      "location": null
+    },
+    {
+      "id": "3",
+      "type": "router",
+      "capacity": 40000.0,
+      "status": "up",
+      "location": null
+    },
+    {
+      "id": "4",
+      "type": "router",
+      "capacity": 40000.0,
+      "status": "up",
+      "location": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "1",
+      "target": "4",
+      "bandwidth": 1000.0,
+      "latency": 19.8,
+      "jitter": 4.84,
+      "packet_loss": 0.005,
+      "utilization": 0.0,
+      "weight": 19.8,
+      "status": "up"
+    },
+    {
+      "source": "4",
+      "target": "1",
+      "bandwidth": 1000.0,
+      "latency": 40.6,
+      "jitter": 0.91,
+      "packet_loss": 0.0,
+      "utilization": 0.0,
+      "weight": 40.6,
+      "status": "up"
+    }
+  ]
+}

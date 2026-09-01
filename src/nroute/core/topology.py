@@ -37,6 +37,25 @@ class Topology:
     def __init__(self, graph: nx.DiGraph | None = None) -> None:
         """Initialize Topology instance."""
         self._graph = graph if graph is not None else nx.DiGraph()
+        self._down_nodes: set[str] = set()
+        self._down_edges: set[tuple[str, str]] = set()
+        if graph is not None:
+            for node, d in graph.nodes(data=True):
+                if d.get("status") == "down":
+                    self._down_nodes.add(node)
+            for u, v, d in graph.edges(data=True):
+                if d.get("status") == "down":
+                    self._down_edges.add((u, v))
+
+    @property
+    def has_down_nodes(self) -> bool:
+        """Check if there are any down nodes in the topology."""
+        return len(self._down_nodes) > 0
+
+    @property
+    def has_down_edges(self) -> bool:
+        """Check if there are any down edges in the topology."""
+        return len(self._down_edges) > 0
 
     @property
     def graph(self) -> nx.DiGraph:
@@ -112,17 +131,17 @@ class Topology:
         if location is not None and not isinstance(location, str):
             raise ValidationError(f"Node location must be a string, got {type(location).__name__}.")
 
-        validated_attrs = {
-            "type": node_type,
-            "capacity": capacity,
-            "status": status,
-            "location": location,
-        }
+        # Fast in-place updates over attrs to avoid dictionary copying
+        attrs["type"] = node_type
+        attrs["capacity"] = capacity
+        attrs["status"] = status
+        attrs["location"] = location
 
-        # Preserve any extra custom attributes the user passes
-        validated_attrs = {**attrs, **validated_attrs}
-
-        self._graph.add_node(validated_id, **validated_attrs)
+        self._graph.add_node(validated_id, **attrs)
+        if status == "down":
+            self._down_nodes.add(validated_id)
+        else:
+            self._down_nodes.discard(validated_id)
 
     def remove_node(self, node_id: str) -> None:
         """
@@ -137,6 +156,10 @@ class Topology:
         if node_id not in self._graph:
             raise TopologyError(f"Node '{node_id}' does not exist.")
         self._graph.remove_node(node_id)
+        self._down_nodes.discard(node_id)
+        self._down_edges = {
+            edge for edge in self._down_edges if edge[0] != node_id and edge[1] != node_id
+        }
 
     def get_node(self, node_id: str) -> NodeDict:
         """
@@ -186,20 +209,20 @@ class Topology:
                 f"Edge status '{status}' is invalid. Must be one of {self.EDGE_STATUSES}."
             )
 
-        validated_attrs = {
-            "bandwidth": bandwidth,
-            "latency": latency,
-            "jitter": jitter,
-            "packet_loss": packet_loss,
-            "utilization": utilization,
-            "weight": weight,
-            "status": status,
-        }
+        # Fast in-place updates over attrs to avoid dictionary copying
+        attrs["bandwidth"] = bandwidth
+        attrs["latency"] = latency
+        attrs["jitter"] = jitter
+        attrs["packet_loss"] = packet_loss
+        attrs["utilization"] = utilization
+        attrs["weight"] = weight
+        attrs["status"] = status
 
-        # Preserve any extra custom attributes
-        validated_attrs = {**attrs, **validated_attrs}
-
-        self._graph.add_edge(src, dst, **validated_attrs)
+        self._graph.add_edge(src, dst, **attrs)
+        if status == "down":
+            self._down_edges.add((src, dst))
+        else:
+            self._down_edges.discard((src, dst))
 
     def remove_edge(self, src: str, dst: str) -> None:
         """
@@ -215,6 +238,7 @@ class Topology:
         if not self._graph.has_edge(src, dst):
             raise TopologyError(f"Edge from '{src}' to '{dst}' does not exist.")
         self._graph.remove_edge(src, dst)
+        self._down_edges.discard((src, dst))
 
     def get_edge(self, src: str, dst: str) -> EdgeDict:
         """
@@ -275,8 +299,27 @@ class Topology:
                 )
             updated_data["status"] = status
 
-        # Merge other attributes and apply update
-        edge_data.update({**attrs, **updated_data})
+        # Merge other attributes
+        for k, v in attrs.items():
+            if k not in {
+                "bandwidth",
+                "latency",
+                "jitter",
+                "packet_loss",
+                "utilization",
+                "weight",
+                "status",
+            }:
+                updated_data[k] = v
+
+        # Apply update (attrs holds all custom attributes; updated_data holds schema-validated overrides)
+        edge_data.update(attrs)
+        edge_data.update(updated_data)
+        if "status" in updated_data:
+            if updated_data["status"] == "down":
+                self._down_edges.add((src, dst))
+            else:
+                self._down_edges.discard((src, dst))
 
     def set_link_down(self, src: str, dst: str) -> None:
         """Mark a link's status as down."""
@@ -291,6 +334,7 @@ class Topology:
         if node_id not in self._graph:
             raise TopologyError(f"Node '{node_id}' does not exist.")
         self._graph.nodes[node_id]["status"] = "down"
+        self._down_nodes.add(node_id)
 
         # Mark all incoming and outgoing links as down
         for successor in list(self._graph.successors(node_id)):
@@ -303,6 +347,7 @@ class Topology:
         if node_id not in self._graph:
             raise TopologyError(f"Node '{node_id}' does not exist.")
         self._graph.nodes[node_id]["status"] = "up"
+        self._down_nodes.discard(node_id)
 
         # Mark incident links back up
         for successor in list(self._graph.successors(node_id)):
@@ -312,7 +357,10 @@ class Topology:
 
     def copy(self) -> Topology:
         """Create a deep copy of the topology."""
-        return Topology(self._graph.copy())
+        new_topo = Topology(self._graph.copy())
+        new_topo._down_nodes = self._down_nodes.copy()
+        new_topo._down_edges = self._down_edges.copy()
+        return new_topo
 
     def to_dict(self) -> dict[str, Any]:
         """
@@ -433,12 +481,8 @@ class Topology:
         min_util = min(utilizations) if utilizations else 0.0
         max_util = max(utilizations) if utilizations else 0.0
 
-        down_nodes = sum(
-            1 for _, attrs in self._graph.nodes(data=True) if attrs.get("status") == "down"
-        )
-        down_links = sum(
-            1 for _, _, attrs in self._graph.edges(data=True) if attrs.get("status") == "down"
-        )
+        down_nodes = len(self._down_nodes)
+        down_links = len(self._down_edges)
 
         return (
             f"Topology Summary:\n"

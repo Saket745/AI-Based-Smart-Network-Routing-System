@@ -6,15 +6,17 @@ import json
 from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
 from click.testing import CliRunner
 
 from nroute.cli.export_cmd import export_cmd
 from nroute.core.metrics import MetricsCollectionResult, SimulationMetrics
 from nroute.core.topology import Topology
+from nroute.exceptions import SimulationError
 from nroute.visualization.exporters import MetricsExporter, TopologyExporter
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @pytest.fixture
@@ -65,6 +67,15 @@ def test_topology_exporter_json(sample_topology: Topology, tmp_path: Path) -> No
         data = json.load(f)
     assert len(data["nodes"]) == 2
     assert len(data["edges"]) == 1
+
+
+def test_topology_exporter_json_invalid_path(sample_topology: Topology) -> None:
+    """Test exporting topology to JSON with invalid path raises SimulationError."""
+    with pytest.raises(SimulationError, match="Failed to export topology to JSON"):
+        TopologyExporter.to_json(sample_topology, "invalid_path_\0_null.json")
+
+    with pytest.raises(SimulationError, match="Failed to export topology to JSON"):
+        TopologyExporter.to_json(sample_topology, 12345)  # type: ignore[arg-type]
 
 
 def test_topology_exporter_graphml(sample_topology: Topology, tmp_path: Path) -> None:
@@ -150,6 +161,9 @@ def test_cli_export_topology(sample_topology: Topology, tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert "Successfully exported topology to GraphML" in result.output
+    assert out_path.name in result.output
+    assert "2" in result.output
+    assert "1" in result.output
     assert out_path.exists()
 
 
@@ -177,6 +191,8 @@ def test_cli_export_metrics(sample_metrics: MetricsCollectionResult, tmp_path: P
 
     assert result.exit_code == 0
     assert "Successfully exported metrics to CSV" in result.output
+    assert out_path.name in result.output
+    assert "metric records" in result.output
     assert out_path.exists()
 
 

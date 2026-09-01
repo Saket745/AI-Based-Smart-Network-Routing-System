@@ -113,18 +113,47 @@ class BaseRouter(ABC):
                 f"Path destination '{path[-1]}' does not match expected destination '{destination}'."
             )
 
+        graph = topology.graph
         for node in path:
-            if node not in topology.nodes:
+            if node not in graph:
                 raise RoutingError(f"Node '{node}' in path does not exist in topology.")
             # If a node is down, the route is invalid
-            if topology.get_node(node).get("status") == "down":
+            if graph.nodes[node].get("status") == "down":
+
+        for node in path:
+            if node not in graph:
+                raise RoutingError(f"Node '{node}' in path does not exist in topology.")
+            # If a node is down, the route is invalid
+            if graph.nodes[node].get("status") == "down":
+        down_nodes: set[str] = getattr(topology, "_down_nodes", set())
+        down_edges: set[tuple[str, str]] = getattr(topology, "_down_edges", set())
+
+        for node in path:
+            if node not in graph:
+                raise RoutingError(f"Node '{node}' in path does not exist in topology.")
+            if node in down_nodes or graph.nodes[node].get("status") == "down":
                 raise RoutingError(f"Node '{node}' in path is down.")
 
         for u, v in itertools.pairwise(path):
-            if (u, v) not in topology.edges:
+            if not graph.has_edge(u, v):
                 raise RoutingError(f"Edge '{u}->{v}' in path does not exist in topology.")
-            edge_attr = topology.get_edge(u, v)
+            if (u, v) in down_edges or graph.edges[u, v].get("status") == "down":
+        graph_nodes = graph.nodes
+        for node in path:
+            if node not in graph_nodes:
+                raise RoutingError(f"Node '{node}' in path does not exist in topology.")
+            # If a node is down, the route is invalid
+            if node in down_nodes or graph_nodes[node].get("status") == "down":
+                raise RoutingError(f"Node '{node}' in path is down.")
+
+        graph_edges = graph.edges
+        for u, v in itertools.pairwise(path):
+            if not graph.has_edge(u, v):
+                raise RoutingError(f"Edge '{u}->{v}' in path does not exist in topology.")
+            edge_attr = graph.edges[u, v]
             if edge_attr.get("status") == "down":
+            if graph.edges[u, v].get("status") == "down":
+            if (u, v) in down_edges or graph_edges[u, v].get("status") == "down":
                 raise RoutingError(f"Edge '{u}->{v}' in path is down.")
 
         return True
@@ -135,21 +164,37 @@ class BaseRouter(ABC):
         """
         # Performance optimization: if no nodes or edges are down, return the graph directly.
         # This avoids the high overhead of nx.subgraph_view callbacks.
-        has_down_nodes = any(d.get("status") == "down" for n, d in topology.graph.nodes(data=True))
-        has_down_edges = any(
-            d.get("status") == "down" for u, v, d in topology.graph.edges(data=True)
-        )
+        has_down_nodes = getattr(topology, "has_down_nodes", None)
+        if has_down_nodes is None:
+            has_down_nodes = any(
+                d.get("status") == "down" for n, d in topology.graph.nodes(data=True)
+            )
+
+        has_down_edges = getattr(topology, "has_down_edges", None)
+        if has_down_edges is None:
+            has_down_edges = any(
+                d.get("status") == "down" for u, v, d in topology.graph.edges(data=True)
+            )
+
         if not has_down_nodes and not has_down_edges:
             return topology.graph
 
+        graph = topology.graph
+        down_nodes: set[str] = getattr(topology, "_down_nodes", set())
+        down_edges: set[tuple[str, str]] = getattr(topology, "_down_edges", set())
+
         def filter_node(node: str) -> bool:
-            return str(topology.get_node(node).get("status", "up")).lower() != "down"
+            if node in down_nodes:
+                return False
+            return bool(graph.nodes[node].get("status", "up") != "down")
 
         def filter_edge(u: str, v: str) -> bool:
-            return str(topology.get_edge(u, v).get("status", "up")).lower() != "down"
+            if (u, v) in down_edges:
+                return False
+            return bool(graph.edges[u, v].get("status", "up") != "down")
 
         return nx.subgraph_view(
-            topology.graph,
+            graph,
             filter_node=filter_node,
             filter_edge=filter_edge,
         )
