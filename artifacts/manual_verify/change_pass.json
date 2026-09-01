@@ -1,0 +1,11 @@
+{
+  "change_id": "CHG-PASS-001",
+  "description": "Non-disruptive capacity upgrade",
+  "link_changes": [
+    {
+      "src": "agg0",
+      "dst": "core0",
+      "bandwidth": 2000.0
+    }
+  ]
+}

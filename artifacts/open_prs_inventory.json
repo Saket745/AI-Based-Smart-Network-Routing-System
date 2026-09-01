@@ -1,0 +1,434 @@
+{
+  "feat/train-cli-summary-metadata-6000800449336794473": {
+    "pr_number": 308,
+    "title": "feat: enhance train CLI status output with summary metadata",
+    "created_at": "2026-09-01T06:34:34Z",
+    "updated_at": "2026-09-01T06:34:35Z",
+    "author": "Saket745",
+    "head_sha": "2e63d0b2daa24dd676b9499d517ca8e4ec06e9b1",
+    "body_preview": "\ud83c\udfa8 Palette: Enhance train CLI completion status with summary metadata  \ud83d\udca1 What: Updated `nroute train`"
+  },
+  "refactor/loader-class-decomposition-13205477913117966161": {
+    "pr_number": 301,
+    "title": "refactor: decompose load_custom_class in loader utility",
+    "created_at": "2026-09-01T04:53:29Z",
+    "updated_at": "2026-09-01T04:53:30Z",
+    "author": "Saket745",
+    "head_sha": "58958625e7a808160d9ed84b2efa5be259f31aa8",
+    "body_preview": "Decompose `load_custom_class` function in `src/nroute/utils/loader.py` into cohesive private helper "
+  },
+  "jules-13318381829099542261-13b27b09": {
+    "pr_number": 284,
+    "title": "feat: add visual status indicators to simulate CLI results",
+    "created_at": "2026-08-29T05:05:09Z",
+    "updated_at": "2026-08-29T05:42:06Z",
+    "author": "Saket745",
+    "head_sha": "b23317240c0c054c76bcb3f2a2be16968b71752d",
+    "body_preview": "\ud83c\udfa8 Palette: Add visual status indicators to simulation CLI results tables  \ud83d\udca1 **What:** Added color-co"
+  },
+  "fix/audit-syntax-errors-14739201623003880590": {
+    "pr_number": 237,
+    "title": "fix: resolve syntax and parameter errors across routing, cli, and unit tests",
+    "created_at": "2026-08-21T04:49:38Z",
+    "updated_at": "2026-08-21T05:27:41Z",
+    "author": "Saket745",
+    "head_sha": "b0fb3763a0d191d09dc87ce6b81d3c4a26ccefc9",
+    "body_preview": "Fixed duplicate parameter syntax error in ECMPRouter.compute_k_shortest_paths, duplicate return stat"
+  },
+  "fix/test-collection-syntax-errors-1781308033346330010": {
+    "pr_number": 221,
+    "title": "Fix syntax errors and undefined references in unit tests and metrics",
+    "created_at": "2026-08-18T04:50:43Z",
+    "updated_at": "2026-08-18T19:49:22Z",
+    "author": "Saket745",
+    "head_sha": "479a65c27b5bbe7c7aa664d36f5b97f134d148aa",
+    "body_preview": "This PR fixes syntax errors and undefined variable references across unit tests and core modules: - "
+  },
+  "perf/rca-event-loading-optimization-15322213943463426043": {
+    "pr_number": 216,
+    "title": "perf: optimize event category and severity lookups in RCA load_events",
+    "created_at": "2026-08-17T05:37:26Z",
+    "updated_at": "2026-08-17T05:37:27Z",
+    "author": "Saket745",
+    "head_sha": "37c3c18b002de7972398e749abfdd6248a11a46a",
+    "body_preview": "Optimized event loading performance in nroute.simulation.rca by precomputing O(1) set membership loo"
+  },
+  "refactor/loader-class-decomposition-6749640038362227887": {
+    "pr_number": 215,
+    "title": "refactor(loader): decompose load_custom_class into private helpers",
+    "created_at": "2026-08-17T05:12:24Z",
+    "updated_at": "2026-08-17T05:12:26Z",
+    "author": "Saket745",
+    "head_sha": "d47e7cc4422b8f652df1f7dfd7f59b7d167b4c04",
+    "body_preview": "### Daily Technical Debt Reduction Report  #### Target Selected * **Function:** `load_custom_class` "
+  },
+  "agent/keyboard-shortcut-hint-live-console-8065980483548628141": {
+    "pr_number": 213,
+    "title": "\ud83c\udfa8 Palette: Add keyboard shortcut hint to live console header",
+    "created_at": "2026-08-17T04:55:22Z",
+    "updated_at": "2026-08-17T05:09:07Z",
+    "author": "Saket745",
+    "head_sha": "4561bfb89190a7e858d6e0abb4ac3124c135ed80",
+    "body_preview": "\ud83c\udfa8 Palette: Add keyboard shortcut hint to live console header  ### \ud83d\udca1 What Added an explicit, accessib"
+  },
+  "perf/topology-successors-list-removal-16214421993235791999": {
+    "pr_number": 212,
+    "title": "\u26a1 Remove unnecessary list cast in set_node_down successor loop",
+    "created_at": "2026-08-16T09:26:26Z",
+    "updated_at": "2026-08-16T09:26:27Z",
+    "author": "Saket745",
+    "head_sha": "1ef080c59f0de2648a85be84cd9bdd00e14a21e5",
+    "body_preview": "\ud83d\udca1 **What:** Removed unnecessary `list()` cast around `self._graph.successors(node_id)` in `set_node_"
+  },
+  "fix/topology-show-cli-test-portability": {
+    "pr_number": 202,
+    "title": "test: make topology show assertion portable across Rich path truncation",
+    "created_at": "2026-08-16T07:23:10Z",
+    "updated_at": "2026-08-16T07:23:10Z",
+    "author": "Saket745",
+    "head_sha": "40b94d8e5d5d5e8be73c0cad226ed66eba523026",
+    "body_preview": "## Summary - Fix the confirmed cross-platform failure in `TestTopologyShowCLI.test_show_success`. - "
+  },
+  "jules-5714526026652218202-bbf4b75e": {
+    "pr_number": 158,
+    "title": "\ud83d\udee1\ufe0f Sentinel: secure API token verification against timing attacks",
+    "created_at": "2026-08-08T09:13:55Z",
+    "updated_at": "2026-08-08T09:13:56Z",
+    "author": "Saket745",
+    "head_sha": "6a9fe6ceeb524a48f6e1ab4495add6e438df31b0",
+    "body_preview": "This pull request secures the FastAPI bearer token verification mechanism in the digital twin API se"
+  },
+  "jules-13147343454837929955-ab5c6e01": {
+    "pr_number": 154,
+    "title": "\u26a1 Bolt: Optimize BaseRouter._get_active_subgraph and Topology tracking",
+    "created_at": "2026-08-07T19:03:04Z",
+    "updated_at": "2026-08-07T19:03:05Z",
+    "author": "Saket745",
+    "head_sha": "03ff4bf962b571f9a8174b74c01b2a7747a21e2d",
+    "body_preview": "\ud83d\udca1 What: - Implemented O(1) `has_down_nodes` and `has_down_edges` properties on `Topology` class. - U"
+  },
+  "jules-13221377703556872251-8efcca78": {
+    "pr_number": 153,
+    "title": "Systematically Resolve Committed Merge Conflicts Across 41 Files",
+    "created_at": "2026-08-07T18:15:30Z",
+    "updated_at": "2026-08-07T18:15:32Z",
+    "author": "Saket745",
+    "head_sha": "ccfae857bb2bc2c469c60a4e5a538f9483d504ed",
+    "body_preview": "Resolved all committed raw merge conflict markers ('=======') across 41 files in `src/` and `tests/`"
+  },
+  "refactor-configure-logging-13266246033745988163": {
+    "pr_number": 138,
+    "title": "\ud83e\uddf9 Refactor configure_logging to resolve Long Function issue",
+    "created_at": "2026-07-18T07:42:48Z",
+    "updated_at": "2026-07-18T07:59:57Z",
+    "author": "Saket745",
+    "head_sha": "04d76499d5ed782cd85b262f4d8128f7be4aa366",
+    "body_preview": "This PR addresses the Long Function code health issue in `src/nroute/utils/logging.py:17` by refacto"
+  },
+  "jules-3119746985089491443-c24bb8aa": {
+    "pr_number": 136,
+    "title": "\ud83e\uddf9 Refactor get_router factory function to resolve Long Function issue",
+    "created_at": "2026-07-18T07:27:14Z",
+    "updated_at": "2026-07-26T11:04:51Z",
+    "author": "Saket745",
+    "head_sha": "fb651a070bb491290eb28d8ef0734d9a6d947ebb",
+    "body_preview": "This PR resolves the long function issue in get_router in src/nroute/routing/__init__.py by refactor"
+  },
+  "jules-8875260187821936409-7de1cf1c": {
+    "pr_number": 135,
+    "title": "\ud83e\uddea [testing improvement] Add comprehensive tests for RoutingQuery",
+    "created_at": "2026-07-18T07:26:39Z",
+    "updated_at": "2026-07-18T07:39:58Z",
+    "author": "Saket745",
+    "head_sha": "d6fe6066ec6142347c82aeebb5f0325d184b45dc",
+    "body_preview": "### \ud83c\udfaf What Added a comprehensive test suite for the `RoutingQuery` parameter object in `tests/unit/t"
+  },
+  "negotiation-router-refactoring-13075903700741932629": {
+    "pr_number": 133,
+    "title": "\ud83e\uddf9 Refactor complex NegotiationRouter _calculate_bid method",
+    "created_at": "2026-07-18T07:26:08Z",
+    "updated_at": "2026-07-18T07:33:09Z",
+    "author": "Saket745",
+    "head_sha": "8d42649547a0ba1157213dc3de6209a33b0b74f0",
+    "body_preview": "This PR addresses a code health issue where the `_calculate_bid` method in `NegotiationRouter` (`src"
+  },
+  "refactor-get-router-long-function-8266983836231420721": {
+    "pr_number": 132,
+    "title": "\ud83e\uddf9 Refactor long get_router function into modular helpers",
+    "created_at": "2026-07-18T07:25:39Z",
+    "updated_at": "2026-07-18T07:36:42Z",
+    "author": "Saket745",
+    "head_sha": "136b07a4d234cada6bd8895969dde7849ca5e179",
+    "body_preview": "### \ud83c\udfaf **What:** The `get_router` factory function in `src/nroute/routing/__init__.py` was identified"
+  },
+  "code-health-dijkstra-long-function-12292392963092268586": {
+    "pr_number": 130,
+    "title": "\ud83e\uddf9 Refactor DijkstraRouter to resolve long function",
+    "created_at": "2026-07-18T07:25:25Z",
+    "updated_at": "2026-07-18T07:40:02Z",
+    "author": "Saket745",
+    "head_sha": "601046dee578d3551389521d8a2e729dc4557279",
+    "body_preview": "This PR refactors `DijkstraRouter.compute_path` (in `src/nroute/routing/dijkstra.py`) by extracting "
+  },
+  "testing-improvement-normalizer-missing-nodes-16118177456301041713": {
+    "pr_number": 129,
+    "title": "\ud83e\uddea [testing improvement] Cover missing edge nodes error path in Normalizer.normalize_topology",
+    "created_at": "2026-07-18T07:24:59Z",
+    "updated_at": "2026-07-18T07:55:13Z",
+    "author": "Saket745",
+    "head_sha": "b6bb760a06b73c8c0049713d59908029baa0f1ac",
+    "body_preview": "This PR adds missing unit tests in `tests/unit/test_ingestion.py` for testing the `Normalizer.normal"
+  },
+  "refactor-rl-router-train-long-function-11339738853906886562": {
+    "pr_number": 125,
+    "title": "\ud83e\uddf9 Refactor RLRouter.train to decompose long function",
+    "created_at": "2026-07-18T07:22:10Z",
+    "updated_at": "2026-07-18T07:32:07Z",
+    "author": "Saket745",
+    "head_sha": "a786f1bf07d7fa32339ec9b69e31e3979d00a378",
+    "body_preview": "### \ud83e\uddf9 Code Health Improvement: Refactored RLRouter `train` Method  #### \ud83c\udfaf What: The long `train` fun"
+  },
+  "perf/ai-router-prediction-caching-13999959645099328074": {
+    "pr_number": 118,
+    "title": "\u26a1 Optimize AIRouter congestion prediction caching",
+    "created_at": "2026-07-18T06:40:42Z",
+    "updated_at": "2026-08-03T15:52:23Z",
+    "author": "Saket745",
+    "head_sha": "6f419e16c7dea0110d2c013dd95ba9a01483c492",
+    "body_preview": "This performance optimization caches congestion predictions in `AIRouter` using a fast cache key bas"
+  },
+  "jules-2208569953640607074-05df2a53": {
+    "pr_number": 113,
+    "title": "\ud83e\uddf9 Refactor FailureInjector.apply to resolve long function code smell",
+    "created_at": "2026-07-12T03:14:10Z",
+    "updated_at": "2026-07-12T03:24:35Z",
+    "author": "Saket745",
+    "head_sha": "000ad18c5f13dfa244d1e1fb6cb94e34d83e6459",
+    "body_preview": "Refactored the long `apply` method in `FailureInjector` class inside `src/nroute/simulation/failure_"
+  },
+  "refactor-record-tick-16539488902740829502": {
+    "pr_number": 112,
+    "title": "\ud83e\uddf9 Refactor record_tick to use SimulationTickData parameter object",
+    "created_at": "2026-07-12T03:11:42Z",
+    "updated_at": "2026-07-12T03:37:31Z",
+    "author": "Saket745",
+    "head_sha": "a21bdb1020f20d8943216a0e0cc6821cb8759226",
+    "body_preview": "\ud83c\udfaf **What:** Resolved the \"Too many parameters in record_tick\" code health issue in `src/nroute/simul"
+  },
+  "refactor-simulate-cmd-args-7682108688707113379": {
+    "pr_number": 111,
+    "title": "\ud83e\uddf9 Refactor simulate_cmd.py run_sim and compare arguments",
+    "created_at": "2026-07-12T03:11:26Z",
+    "updated_at": "2026-07-12T03:29:40Z",
+    "author": "Saket745",
+    "head_sha": "c26896b78d7a677a0902793d801c8b2789e590b0",
+    "body_preview": "This PR refactors the parameter lists for the `run_sim` and `compare` subcommands in `src/nroute/cli"
+  },
+  "performance/generator-nested-loop-opt-15697056612869873004": {
+    "pr_number": 109,
+    "title": "\u26a1 Optimize nested loops in topology edge/node property assignment",
+    "created_at": "2026-07-12T03:06:37Z",
+    "updated_at": "2026-07-12T03:24:20Z",
+    "author": "Saket745",
+    "head_sha": "564aba2e04fdee487e7f1ea7c4fcf90f313ddc80",
+    "body_preview": "Optimized individual edge and node property updates in network topology generators by leveraging Net"
+  },
+  "refactor-detect-cmd-anomalies-3264217128405726269": {
+    "pr_number": 107,
+    "title": "\ud83e\uddf9 Refactor anomalies CLI subcommand in detect_cmd.py",
+    "created_at": "2026-07-12T03:03:38Z",
+    "updated_at": "2026-07-12T03:32:38Z",
+    "author": "Saket745",
+    "head_sha": "8b1fe85fb72295ccdfe2defdb2c0af6352f5f8a5",
+    "body_preview": "Refactored `anomalies` click subcommand in `src/nroute/cli/detect_cmd.py` to address the long functi"
+  },
+  "perf-opt-topology-generators-1320539421738286221": {
+    "pr_number": 106,
+    "title": "\u26a1 [performance] Optimize network topology generator loops in generators.py",
+    "created_at": "2026-07-12T03:01:55Z",
+    "updated_at": "2026-07-12T03:31:28Z",
+    "author": "Saket745",
+    "head_sha": "21384919c3df4ce13820b8387774da5acbf124e0",
+    "body_preview": "\u26a1 **Performance Optimization in Topology Generators**  \ud83d\udca1 **What:** - Replaced direct lookup of Netwo"
+  },
+  "security/joblib-deserialization-fix-17954464655390362835": {
+    "pr_number": 102,
+    "title": "\ud83d\udd12 Secure joblib deserialization in ML models",
+    "created_at": "2026-07-12T02:51:45Z",
+    "updated_at": "2026-07-12T03:19:38Z",
+    "author": "Saket745",
+    "head_sha": "41d4f1937bfa842f89df687c10ebbdd12f18a8a1",
+    "body_preview": "### \ud83c\udfaf What We have secured the application against Remote Code Execution (RCE) via insecure deserial"
+  },
+  "code-health-simulate-cmd-refactor-5574309417461466811": {
+    "pr_number": 95,
+    "title": "\ud83e\uddf9 Refactor simulate commands in simulate_cmd.py",
+    "created_at": "2026-07-05T04:37:51Z",
+    "updated_at": "2026-07-05T04:58:22Z",
+    "author": "Saket745",
+    "head_sha": "e6ff741e885d1b16bfa66a114e66524d981236dd",
+    "body_preview": "This PR refactors the simulation CLI commands in `src/nroute/cli/simulate_cmd.py` to resolve code he"
+  },
+  "fix/route-cmd-function-length-6632239988430079397": {
+    "pr_number": 91,
+    "title": "refactor: modularize compute function and fix type/formatting issues",
+    "created_at": "2026-06-27T07:58:36Z",
+    "updated_at": "2026-06-27T07:58:36Z",
+    "author": "Saket745",
+    "head_sha": "4aec14d43a0113c9855a6234dee4ea60bd739ac0",
+    "body_preview": "- Refactored `compute` in `route_cmd.py` into smaller helper functions.\r - Fixed Mypy 'Any-return' e"
+  },
+  "refactor-predict-cmd-health-7239118622222106932": {
+    "pr_number": 85,
+    "title": "\ud83e\uddf9 Refactor predict_cmd.py to improve maintainability",
+    "created_at": "2026-06-27T06:48:38Z",
+    "updated_at": "2026-06-27T07:45:56Z",
+    "author": "Saket745",
+    "head_sha": "d6d8b0e14b227302aaea19135207ebf6c2ce027c",
+    "body_preview": "The `congestion` and `predict_gnn` functions in `src/nroute/cli/predict_cmd.py` were refactored to r"
+  },
+  "fix-route-compute-params-11858508918484681655": {
+    "pr_number": 78,
+    "title": "\ud83e\uddf9 Refactor route compute command to reduce parameter count",
+    "created_at": "2026-06-27T06:44:19Z",
+    "updated_at": "2026-06-27T06:55:17Z",
+    "author": "Saket745",
+    "head_sha": "22cac375c803e59a798c76caa84277e205afd756",
+    "body_preview": "This PR refactors the `route compute` CLI command to improve maintainability and resolve a \"Too many"
+  },
+  "test/add-gnn-collator-tests-3899628741593096517": {
+    "pr_number": 77,
+    "title": "test: add unit tests for GNN trainer collator and fix CI linting issues",
+    "created_at": "2026-06-27T06:43:37Z",
+    "updated_at": "2026-06-27T06:43:37Z",
+    "author": "Saket745",
+    "head_sha": "ef1bc52e32bf05873b0454baa0b2e5071616b981",
+    "body_preview": ""
+  },
+  "refactor/airouter-parameter-object-12158172105985414625": {
+    "pr_number": 72,
+    "title": "\ud83e\uddf9 refactor: AIRouter constructor to use Parameter Object",
+    "created_at": "2026-06-27T06:21:19Z",
+    "updated_at": "2026-06-27T07:17:34Z",
+    "author": "Saket745",
+    "head_sha": "61f0c66a940fc2c10b9ffa730f28849f75efbf6d",
+    "body_preview": "\ud83c\udfaf **What:** Introduced `AIRouterConfig` Pydantic model to encapsulate `AIRouter` hyperparameters (`c"
+  },
+  "code-health-simulate-cmd-params-refactor-2110266771015551248": {
+    "pr_number": 71,
+    "title": "\ud83e\uddf9 refactor: resolve too many parameters in simulate_cmd",
+    "created_at": "2026-06-27T06:19:14Z",
+    "updated_at": "2026-06-27T06:24:05Z",
+    "author": "Saket745",
+    "head_sha": "74c1883627b98695a47da28ec02726f87a7e362c",
+    "body_preview": "\ud83c\udfaf **What:** Addressed \"Too many parameters\" code health issue in `src/nroute/cli/simulate_cmd.py` fo"
+  },
+  "fix/security-path-traversal-14864652535277555821": {
+    "pr_number": 55,
+    "title": "\ud83d\udd12 [security] Fix Path Traversal in Topology Loading",
+    "created_at": "2026-06-27T05:31:21Z",
+    "updated_at": "2026-06-27T05:35:24Z",
+    "author": "Saket745",
+    "head_sha": "caea2fdfa118ab94906d595d6c2f8f09bd62dc69",
+    "body_preview": "\ud83c\udfaf **What:** Fixed a path traversal vulnerability in the `/api/topology/load` endpoint. \u26a0\ufe0f **Risk:** "
+  },
+  "test/anomaly-feature-extraction-tests-8242679179461086766": {
+    "pr_number": 52,
+    "title": "\ud83e\uddea Add unit tests for anomaly feature extraction",
+    "created_at": "2026-06-27T05:11:55Z",
+    "updated_at": "2026-06-27T05:31:01Z",
+    "author": "Saket745",
+    "head_sha": "2f5f77ee0ab8561588a65f6a1e0d967e8b7adda5",
+    "body_preview": "\ud83c\udfaf **What:** The testing gap addressed was the missing unit tests for `extract_anomaly_features` in `"
+  },
+  "security/fix-cors-wildcard-origin-6974267969552092306": {
+    "pr_number": 50,
+    "title": "\ud83d\udd12 [security] Fix overly permissive CORS configuration",
+    "created_at": "2026-06-27T05:11:26Z",
+    "updated_at": "2026-06-27T06:09:22Z",
+    "author": "Saket745",
+    "head_sha": "ff60a0ff979c033b8a259209caaa2b7c276a109c",
+    "body_preview": "\ud83c\udfaf **What:** The vulnerability fixed is the overly permissive CORS configuration that defaulted to a "
+  },
+  "perf/hoist-dict-unrolling-15889356080477461866": {
+    "pr_number": 49,
+    "title": "\u26a1 Hoist dictionary unrolling out of loop in generators",
+    "created_at": "2026-06-27T05:11:05Z",
+    "updated_at": "2026-06-27T05:34:08Z",
+    "author": "Saket745",
+    "head_sha": "6242f46617aa66573eaf5bcd044c3ec27a6c7432",
+    "body_preview": "\ud83d\udca1 **What:** Hoisted the extraction of extra default attributes out of the per-edge and per-node loop"
+  },
+  "perf/optimize-traffic-ingestion-14460893021035880943": {
+    "pr_number": 48,
+    "title": "\u26a1 Optimize TrafficMatrix ingestion performance by replacing iterrows with itertuples",
+    "created_at": "2026-06-27T05:10:04Z",
+    "updated_at": "2026-06-27T06:37:42Z",
+    "author": "Saket745",
+    "head_sha": "2e1e7325d15f39306e54a70a29bcab2fb32ea81e",
+    "body_preview": "\ud83d\udca1 **What:** Replaced `df.iterrows()` with `df.itertuples(index=True)` in the `TrafficMatrix.from_dat"
+  },
+  "test/rca-coverage-improvement-7783778276128302148": {
+    "pr_number": 45,
+    "title": "\ud83e\uddea [testing improvement] Add tests for RCA and fix priority bug",
+    "created_at": "2026-06-27T05:09:21Z",
+    "updated_at": "2026-06-27T05:09:22Z",
+    "author": "Saket745",
+    "head_sha": "1346d961963d579240add44933cab3cc41e8991e",
+    "body_preview": "This PR adds comprehensive unit tests for the Root-Cause Analysis (RCA) module and fixes a bug disco"
+  },
+  "agent/add-metrics-collector-tests-6887529673480347509": {
+    "pr_number": 42,
+    "title": "test(simulation): add unit tests for metrics and CLI",
+    "created_at": "2026-06-21T14:41:11Z",
+    "updated_at": "2026-06-21T14:41:11Z",
+    "author": "Saket745",
+    "head_sha": "9390c1494738ae14b14db60af204dfb458fe5e31",
+    "body_preview": "This commit adds comprehensive unit test coverage for metrics collection and traffic models, and imp"
+  },
+  "test/ai-router-tests-16698508805828502898": {
+    "pr_number": 37,
+    "title": "\ud83e\uddea add comprehensive unit tests for AIRouter",
+    "created_at": "2026-06-20T18:54:15Z",
+    "updated_at": "2026-06-20T19:15:34Z",
+    "author": "Saket745",
+    "head_sha": "25dac0e28fa74aee8bb658052b030bae7ec8bbc7",
+    "body_preview": "This PR addresses the missing unit tests for the `AIRouter` class. It adds a new test file `tests/un"
+  },
+  "agent/fix-missing-base-router-tests-961398932280433040": {
+    "pr_number": 21,
+    "title": "\ud83e\uddea [testing improvement] Add unit tests for BaseRouter and FallbackRouter",
+    "created_at": "2026-06-20T17:09:52Z",
+    "updated_at": "2026-06-21T13:15:47Z",
+    "author": "Saket745",
+    "head_sha": "ad1c102920bcd0a7fbecca82fa48b430c0251e04",
+    "body_preview": "\ud83c\udfaf **What:** Missing unit tests for `src/nroute/routing/base.py`, specifically for the `BaseRouter` a"
+  },
+  "feat/add-train-cmd-unit-tests-375217910205039542": {
+    "pr_number": 15,
+    "title": "\ud83e\uddea [testing improvement] Add unit tests for train_cmd.py",
+    "created_at": "2026-06-20T16:54:56Z",
+    "updated_at": "2026-06-20T17:19:31Z",
+    "author": "Saket745",
+    "head_sha": "4dd0b02a7a8ed48449cd603880ec90858d89c482",
+    "body_preview": "Implemented comprehensive unit tests for the `train_cmd` CLI module, covering all subcommands and er"
+  },
+  "feat/improve-logging-tests-12093512728014026956": {
+    "pr_number": 11,
+    "title": "\ud83e\uddea [test] Improve logging configuration tests",
+    "created_at": "2026-06-20T16:53:43Z",
+    "updated_at": "2026-06-20T17:01:25Z",
+    "author": "Saket745",
+    "head_sha": "6a02e68bb980521fc65f8bbb6853172a53c675fe",
+    "body_preview": "\ud83c\udfaf **What:** The existing logging tests only checked the `_configured` flag and didn't verify the act"
+  },
+  "fix/config-logging-13212699281908088072": {
+    "pr_number": 1,
+    "title": "\ud83e\uddf9 fix(config): add logging to silent exceptions in config casting",
+    "created_at": "2026-06-19T19:27:38Z",
+    "updated_at": "2026-06-19T19:46:51Z",
+    "author": "Saket745",
+    "head_sha": "b774aa2245dad49d22a09afb492bd7504ce6a5e3",
+    "body_preview": "\ud83c\udfaf **What:** Added a warning log inside the silent `except ValueError` block when casting environment"
+  }
+}

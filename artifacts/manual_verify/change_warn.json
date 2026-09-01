@@ -1,0 +1,11 @@
+{
+  "change_id": "CHG-WARN-002",
+  "description": "Primary link cut with alternative path available",
+  "link_changes": [
+    {
+      "src": "agg0",
+      "dst": "core0",
+      "status": "down"
+    }
+  ]
+}

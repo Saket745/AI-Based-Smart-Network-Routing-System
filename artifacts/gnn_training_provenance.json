@@ -1,0 +1,42 @@
+{
+  "models": {
+    "gcn_model": {
+      "status": "trained_and_frozen",
+      "checkpoint_path": "models\\gnn\\gcn_model_frozen.pt",
+      "checkpoint_sha256": "667e102dd534eeff5aa9036206a166259530d3c183576f8339a63b3f244dd8bd",
+      "parameter_count": 21698,
+      "training_seed_set": [
+        1001,
+        1002,
+        1003
+      ],
+      "validation_seed_set": [
+        501,
+        502
+      ],
+      "training_epochs": 30,
+      "val_roc_auc": 0.9999896793415333,
+      "val_f1": 0.9918962722852512,
+      "untrained_val_roc_auc": 0.5498817918624755
+    },
+    "graphsage_model": {
+      "status": "trained_and_frozen",
+      "checkpoint_path": "models\\gnn\\graphsage_model_frozen.pt",
+      "checkpoint_sha256": "77c0a27d1b0b417e3b852d49765d0efadbbb51e4985147d202377a8df0c5ee6c",
+      "parameter_count": 25986,
+      "training_seed_set": [
+        1001,
+        1002,
+        1003
+      ],
+      "validation_seed_set": [
+        501,
+        502
+      ],
+      "training_epochs": 30,
+      "val_roc_auc": 0.9999943638957309,
+      "val_f1": 0.9880694143167028,
+      "untrained_val_roc_auc": 0.5161804136007541
+    }
+  }
+}

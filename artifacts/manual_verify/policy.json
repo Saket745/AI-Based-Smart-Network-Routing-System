@@ -1,0 +1,5 @@
+{
+  "max_latency_increase_warn_ms": 3.0,
+  "max_latency_increase_block_ms": 20.0,
+  "max_path_changed_ratio_warn": 0.5
+}
