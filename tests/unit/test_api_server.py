@@ -95,6 +95,19 @@ def test_fallback_token_usage(client: TestClient) -> None:
     assert response.json()["status"] == "no_topology"
 
 
+# ── Security Headers Tests ──
+
+
+def test_api_responses_include_security_headers(client: TestClient) -> None:
+    """API responses must include defense-in-depth HTTP security headers."""
+    headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
+    response = client.get("/api/health", headers=headers)
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["X-XSS-Protection"] == "1; mode=block"
+    assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+
+
 # ── Path Traversal Tests (with Authentication) ──
 
 
