@@ -257,6 +257,20 @@ def _print_console_metrics(
                 edge = topo.get_edge(u, v)
                 lat_str = f"{float(edge.get('latency', 0)):.1f}"
                 bw_str = f"{float(edge.get('bandwidth', 0)):.0f}"
+                util = float(edge.get("utilization", 0.0))
+                status = edge.get("status", "up")
+
+                if status == "down":
+                    util_str = "[grey]--[/grey]"
+                    status_icon = "[red]down[/red]"
+                else:
+                    status_icon = "[green]up[/green]"
+                    if util > 0.85:
+                        util_str = f"[bold red]{util:.1%}[/bold red] 🔴"
+                    elif util > 0.60:
+                        util_str = f"[bold yellow]{util:.1%}[/bold yellow] 🟡"
+                    else:
+                        util_str = f"[bold green]{util:.1%}[/bold green] 🟢"
                 status = edge.get("status", "up")
                 is_down = status != "up"
                 util_val = float(edge.get("utilization", 0)) if not is_down else None

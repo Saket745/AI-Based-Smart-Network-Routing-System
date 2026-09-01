@@ -321,6 +321,9 @@ class LiveSimulationConsole:
             self.status = "Completed"
             return result
         except KeyboardInterrupt:
+            self.console.print(
+                "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
+            )
             self.status = "Aborted"
             self.console.print(
                 "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"

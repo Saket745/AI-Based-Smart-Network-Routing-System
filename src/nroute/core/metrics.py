@@ -57,6 +57,9 @@ class RouteMetrics(BaseModel):
             u_edges = adj.get(u)
             if u_edges is not None and v in u_edges:
                 edge = u_edges[v]
+                # Direct dictionary lookup without redundant float cast overhead
+                total_latency += edge.get("latency", 0.0)
+                bw = edge.get("bandwidth", inf_val)
                 total_latency += float(edge.get("latency", 0.0))
                 bw = float(edge.get("bandwidth", inf_val))
                 if bw < bottleneck_bw:
