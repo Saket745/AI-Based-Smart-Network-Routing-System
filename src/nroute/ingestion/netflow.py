@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from nroute.exceptions import IngestionError
+from nroute.exceptions import IngestionError, ValidationError
 from nroute.ingestion.normalizer import Normalizer
+from nroute.utils.validators import validate_file_path
 
 if TYPE_CHECKING:
     from nroute.core.traffic import TrafficMatrix
@@ -28,9 +29,10 @@ class NetFlowParser:
         Args:
             path: Path to the CSV NetFlow file.
         """
-        p = Path(path)
-        if not p.is_file():
-            raise IngestionError(f"NetFlow CSV file not found: {path}")
+        try:
+            p = validate_file_path(path, must_exist=True)
+        except ValidationError as exc:
+            raise IngestionError(f"Invalid NetFlow CSV file path '{path}': {exc}") from exc
 
         try:
             df = pd.read_csv(p)
