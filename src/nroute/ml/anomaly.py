@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, cast
 
 import joblib
 import joblib.numpy_pickle
@@ -252,32 +252,14 @@ class AnomalyDetector:
         if self.model_type == "isolation_forest":
             anomaly_scores, is_anomaly = self._detect_isolation_forest(x_data)
         elif self.model_type == "autoencoder":
-<<<<<<< HEAD
-            torch, _, _, _, _ = _get_torch()
-            self.model.eval()
-            x_norm = self._normalize(x_data, train=False)
-            x_tensor = torch.tensor(x_norm, dtype=torch.float32)
-
-            with torch.no_grad():
-                reconstructed = self.model(x_tensor)
-                # Compute reconstruction error per sample
-                mse_errors = torch.mean((reconstructed - x_tensor) ** 2, dim=1).numpy()
-
-            # Map error to score: scale relative to threshold
-            # E.g., if error is threshold, score is 0.5. Clamp to [0, 1]
-            anomaly_scores = np.clip(
-                (mse_errors / (self.reconstruction_threshold + 1e-6)) * 0.5, 0.0, 1.0
-            )
-            is_anomaly = mse_errors > self.reconstruction_threshold
-
-=======
             anomaly_scores, is_anomaly = self._detect_autoencoder(x_data)
->>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144
         elif self.model_type == "custom":
             res = self._detect_custom(features, x_data)
             if isinstance(res, pd.DataFrame):
                 return res
             anomaly_scores, is_anomaly = res
+        else:
+            raise ModelError(f"Unsupported model_type for detection: {self.model_type}")
 
         anomaly_types = self._classify_anomaly_types(features, is_anomaly)
 
@@ -290,11 +272,6 @@ class AnomalyDetector:
             index=features.index,
         )
 
-<<<<<<< HEAD
-        else:
-            raise ModelError(f"Unsupported model_type for detection: {self.model_type}")
-
-=======
     def _detect_isolation_forest(self, x_data: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         # decision_function outputs values in [-0.5, 0.5] (lower means more anomalous)
         raw_scores = self.model.decision_function(x_data)
@@ -308,6 +285,7 @@ class AnomalyDetector:
         return anomaly_scores, is_anomaly
 
     def _detect_autoencoder(self, x_data: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        torch, _, _, _, _ = _get_torch()
         self.model.eval()
         x_norm = self._normalize(x_data, train=False)
         x_tensor = torch.tensor(x_norm, dtype=torch.float32)
@@ -354,7 +332,6 @@ class AnomalyDetector:
         return anomaly_scores, is_anomaly
 
     def _classify_anomaly_types(self, features: pd.DataFrame, is_anomaly: np.ndarray) -> list[str]:
->>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144
         # Classify anomaly types using heuristics
         anomaly_types = []
         for idx in range(len(features)):

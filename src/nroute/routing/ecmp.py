@@ -99,6 +99,8 @@ class ECMPRouter(BaseRouter):
         """
         Internal implementation of finding and validating equal cost paths.
         """
+        pass
+
     def compute_all_equal_cost_paths(
         self,
         topology: Topology,
@@ -119,17 +121,17 @@ class ECMPRouter(BaseRouter):
         try:
             paths = nx.all_shortest_paths(
                 subgraph,
-                source=source,
-                target=destination,
+                source=source_val,
+                target=dest_val,
                 weight=weight_func,
             )
             res_paths = [list(p) for p in paths]
             for p in res_paths:
-                self.validate_path(topology, p, source, destination)
+                self.validate_path(topology, p, source_val, dest_val)
             return res_paths
         except nx.NetworkXNoPath as e:
             raise RoutingError(
-                f"No active path found between '{source}' and '{destination}'."
+                f"No active path found between '{source_val}' and '{dest_val}'."
             ) from e
         except Exception as e:
             if isinstance(e, RoutingError):
@@ -139,14 +141,6 @@ class ECMPRouter(BaseRouter):
     def compute_k_shortest_paths(
         self,
         topology: Topology,
-<<<<<<< HEAD
-=======
-        subgraph: nx.DiGraph,
-        source: str,
-        destination: str,
-        k: int,
-        weight_func: Callable[[str, str, dict[str, Any]], float],
->>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144
         query: RoutingQuery | None = None,
         source: str | None = None,
         destination: str | None = None,
@@ -165,18 +159,18 @@ class ECMPRouter(BaseRouter):
         try:
             generator = nx.shortest_simple_paths(
                 subgraph,
-                source=source,
-                target=destination,
+                source=source_val,
+                target=dest_val,
                 weight=weight_func,
             )
             paths = list(itertools.islice(generator, k_val))
             res_paths = [list(p) for p in paths]
             for p in res_paths:
-                self.validate_path(topology, p, source, destination)
+                self.validate_path(topology, p, source_val, dest_val)
             return res_paths
         except (nx.NetworkXNoPath, StopIteration) as e:
             raise RoutingError(
-                f"No active path found between '{source}' and '{destination}'."
+                f"No active path found between '{source_val}' and '{dest_val}'."
             ) from e
         except Exception as e:
             if isinstance(e, RoutingError):
