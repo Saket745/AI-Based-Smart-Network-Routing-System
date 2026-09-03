@@ -97,13 +97,6 @@ custom_routers: {}        # Registry mapping for custom routing plugins
             click.echo(json.dumps({"status": "success", "file": str(dest)}))
         else:
             console.print(
-                f"[green]+[/green] Initialized default configuration file at [bold]{dest}[/bold]"
-            )
-    except Exception as e:
-        if is_json:
-            click.echo(json.dumps({"error": str(e)}), err=True)
-            raise SystemExit(1) from e
-        console.print(f"[red]x Error initializing configuration file:[/red] {e}")
                 f"[green]+[/green] Initialized default configuration file at: [bold]{dest}[/bold]"
             )
     except Exception as e:

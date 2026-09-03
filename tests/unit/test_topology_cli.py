@@ -108,12 +108,7 @@ class TestTopologyGenerateCLI:
 
         assert result.exit_code == 0
         assert "Topology saved to" in result.output
-<<<<<<< HEAD
-        assert str(out_file) in result.output.replace("\n", "").replace("\r", "")
-=======
-        assert str(out_file.name) in result.output
         assert out_file.name in result.output
->>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144
         mock_topology.save.assert_called_once_with(str(out_file))
 
     def test_generate_json_output(self, runner: CliRunner) -> None:
@@ -185,10 +180,6 @@ class TestTopologyShowCLI:
         result = runner.invoke(topology_cmd, ["show", "--file", topo_file])
 
         assert result.exit_code == 0
-<<<<<<< HEAD
-=======
-        assert "Topology" in result.output
->>>>>>> b20fea97ab29a08784bcf12c878384b3ab936144
         assert "Topology:" in result.output
         assert "Nodes" in result.output
         assert "10" in result.output
