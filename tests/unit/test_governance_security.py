@@ -60,6 +60,8 @@ def test_joblib_deserialization_strict_package_allowlist() -> None:
         # Deserializing it should raise a ValueError due to the strict find_class allowlist
         with pytest.raises(ValueError, match="Unsafe deserialization attempt detected"):
             joblib.load(path)
+
+
 def test_anomaly_detector_pytorch_secure_loading_failure() -> None:
     """Verify that AnomalyDetector handles PyTorch secure loading failures."""
     from unittest.mock import patch

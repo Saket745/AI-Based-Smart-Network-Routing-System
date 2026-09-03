@@ -174,7 +174,6 @@ cli.add_command(api_cmd_mod.api_cmd, "api")
 cli.add_command(configs_cmd_mod.config_cmd, "config")
 
 
-
 # ── Shell Completion Subcommand ─────────────────────────────
 @cli.command(name="completion", help="Generate shell completion scripts.")
 @click.argument("shell", type=click.Choice(["bash", "zsh", "fish"]))

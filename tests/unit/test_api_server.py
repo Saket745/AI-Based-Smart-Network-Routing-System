@@ -154,9 +154,7 @@ def test_api_load_topology_success_cwd(client: TestClient) -> None:
 
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     try:
-        response = client.post(
-            "/api/topology/load", json={"path": str(temp_file)}, headers=headers
-        )
+        response = client.post("/api/topology/load", json={"path": str(temp_file)}, headers=headers)
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ok"
@@ -178,9 +176,7 @@ def test_api_load_topology_success_temp(client: TestClient) -> None:
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
     try:
         topo.save(temp_path)
-        response = client.post(
-            "/api/topology/load", json={"path": str(temp_path)}, headers=headers
-        )
+        response = client.post("/api/topology/load", json={"path": str(temp_path)}, headers=headers)
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ok"
@@ -203,9 +199,7 @@ def test_api_load_topology_not_found(client: TestClient) -> None:
 def test_api_load_topology_outside_cwd_relative(client: TestClient) -> None:
     """Test relative path traversal outside the allowed directories returns 403."""
     headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
-    response = client.post(
-        "/api/topology/load", json={"path": "../../etc/passwd"}, headers=headers
-    )
+    response = client.post("/api/topology/load", json={"path": "../../etc/passwd"}, headers=headers)
     assert response.status_code == 403
     assert "Access denied: Path is outside allowed directories" in response.json()["detail"]
 
