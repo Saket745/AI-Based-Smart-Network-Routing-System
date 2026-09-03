@@ -27,8 +27,8 @@ python -m build
 This command will output compiled packages into a newly created `dist/` directory:
 ```text
 dist/
-├── nroute-0.1.0-py3-none-any.whl
-└── nroute-0.1.0.tar.gz
+├── nroute-1.3.0-py3-none-any.whl
+└── nroute-1.3.0.tar.gz
 ```
 
 ---
@@ -43,8 +43,8 @@ twine check dist/*
 
 Ensure the output displays:
 ```text
-Checking dist/nroute-0.1.0-py3-none-any.whl: Passed
-Checking dist/nroute-0.1.0.tar.gz: Passed
+Checking dist/nroute-1.3.0-py3-none-any.whl: Passed
+Checking dist/nroute-1.3.0.tar.gz: Passed
 ```
 
 ---

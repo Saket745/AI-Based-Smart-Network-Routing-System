@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import networkx as nx
 import numpy as np
@@ -431,4 +431,4 @@ class NetworkRoutingEnv(_EnvBase):  # type: ignore[misc]
         obs.append(np.array(edge_stats, dtype=np.float32))
 
         # Flatten list of arrays into a single float32 vector
-        return np.concatenate(obs).astype(np.float32)
+        return cast("np.ndarray[Any, Any]", np.concatenate(obs).astype(np.float32))

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from typing import cast
 
 import click
@@ -191,16 +192,33 @@ def _print_json_metrics(
     click.echo(json.dumps(out, indent=2))
 
 
-def _format_utilization(util: float | None, is_down: bool = False) -> str:
+def _format_utilization(
+    util: float | None, is_down: bool = False, encoding: str | None = None
+) -> str:
     """Format utilization value with color coding and visual status indicator."""
     if is_down or util is None:
         return "[dim]--[/dim]"
+    enc = (
+        encoding
+        or getattr(console.file, "encoding", None)
+        or getattr(sys.stdout, "encoding", None)
+        or "utf-8"
+    )
+    try:
+        "🔴🟡🟢".encode(enc)
+        has_unicode = True
+    except (UnicodeEncodeError, LookupError):
+        has_unicode = False
+
     pct = util * 100
     if util > 0.85:
-        return f"🔴 [bold red]{pct:.1f}%[/bold red]"
+        ind = "🔴" if has_unicode else "[!]"
+        return f"{ind} [bold red]{pct:.1f}%[/bold red]"
     if util > 0.60:
-        return f"🟡 [yellow]{pct:.1f}%[/yellow]"
-    return f"🟢 [green]{pct:.1f}%[/green]"
+        ind = "🟡" if has_unicode else "[*]"
+        return f"{ind} [yellow]{pct:.1f}%[/yellow]"
+    ind = "🟢" if has_unicode else "[OK]"
+    return f"{ind} [green]{pct:.1f}%[/green]"
 
 
 def _print_console_metrics(

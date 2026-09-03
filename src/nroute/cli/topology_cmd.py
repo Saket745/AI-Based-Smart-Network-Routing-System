@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -186,6 +187,16 @@ def show(ctx: click.Context, /, filepath: str) -> None:
         raise SystemExit(1) from e
 
 
+def _safe_status_icons(encoding: str | None = None) -> tuple[str, str]:
+    """Return status icons ('🟢', '🔴') if supported by the encoding, else ASCII fallback ('[UP]', '[DOWN]')."""
+    enc = encoding or getattr(sys.stdout, "encoding", None) or "utf-8"
+    try:
+        "🟢🔴".encode(enc)
+        return "🟢", "🔴"
+    except (UnicodeEncodeError, LookupError):
+        return "[UP]", "[DOWN]"
+
+
 def _print_topology_summary(topo: Topology, title: str = "Topology Summary") -> None:
     """Print a Rich table summarizing the topology."""
     console.print()
@@ -207,17 +218,18 @@ def _print_topology_summary(topo: Topology, title: str = "Topology Summary") -> 
         stats_table.add_row("Avg Degree", f"{sum(degrees) / len(degrees):.1f}")
 
     # Count node statuses
+    icon_up, icon_down = _safe_status_icons(getattr(console.file, "encoding", None))
     up_nodes = sum(1 for n in topo.nodes if topo.get_node(n).get("status") == "up")
     down_nodes = topo.node_count - up_nodes
-    nodes_down_icon = "🔴" if down_nodes > 0 else "🟢"
-    stats_table.add_row("Nodes Up", f"🟢 {up_nodes}")
+    nodes_down_icon = icon_down if down_nodes > 0 else icon_up
+    stats_table.add_row("Nodes Up", f"{icon_up} {up_nodes}")
     stats_table.add_row("Nodes Down", f"{nodes_down_icon} {down_nodes}")
 
     # Count edge statuses
     up_edges = sum(1 for u, v in topo.edges if topo.get_edge(u, v).get("status") == "up")
     down_edges = topo.edge_count - up_edges
-    links_down_icon = "🔴" if down_edges > 0 else "🟢"
-    stats_table.add_row("Links Up", f"🟢 {up_edges}")
+    links_down_icon = icon_down if down_edges > 0 else icon_up
+    stats_table.add_row("Links Up", f"{icon_up} {up_edges}")
     stats_table.add_row("Links Down", f"{links_down_icon} {down_edges}")
 
     console.print(stats_table)

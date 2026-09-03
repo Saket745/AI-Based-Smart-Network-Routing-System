@@ -91,11 +91,10 @@ from nroute.cli.twin_cmd import twin_cmd as twin_group
 )
 @click.pass_context
 def cli(ctx: click.Context, /, **kwargs: Any) -> None:
-    """nroute - AI-Based Smart Network Routing System.
+    """nroute — High-Performance Network Digital Twin & Pre-Flight Validation Platform.
 
-    Simulate, visualize, and optimize network routing
-    with AI/ML: congestion prediction, anomaly detection,
-    and intelligent path rerouting.
+    Simulate network changes, compute blast radius, and execute deterministic
+    pre-flight policy validation with PASS / WARN / BLOCK gating.
     """
     ctx.ensure_object(dict)
     ctx.obj.update(kwargs)

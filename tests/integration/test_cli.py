@@ -268,9 +268,11 @@ class TestCLIHelp:
 
     def test_version(self, runner: CliRunner) -> None:
         """--version should display the version."""
+        import nroute
+
         result = runner.invoke(cli, ["--version"], catch_exceptions=False)
         assert result.exit_code == 0
-        assert "0.1.0" in result.output
+        assert nroute.__version__ in result.output
 
     def test_help(self, runner: CliRunner) -> None:
         """--help should display usage information."""

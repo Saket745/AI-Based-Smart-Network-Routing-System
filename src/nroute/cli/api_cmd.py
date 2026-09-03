@@ -27,5 +27,14 @@ def api_cmd() -> None:
 )
 def start_server(host: str, port: int) -> None:
     """Start the FastAPI API server using uvicorn."""
+    from nroute.api.server import get_active_api_token
+
+    token, is_fallback = get_active_api_token()
     click.echo(f"Starting API server on http://{host}:{port}...")
+    if is_fallback:
+        click.echo("----------------------------------------------------------------------")
+        click.echo("INFO: No NROUTE_API_TOKEN configured. Generated local session token:")
+        click.echo(f"      Bearer {token}")
+        click.echo("      Include header 'Authorization: Bearer <token>' in API requests.")
+        click.echo("----------------------------------------------------------------------")
     uvicorn.run("nroute.api.server:app", host=host, port=port, log_level="info")

@@ -1,0 +1,130 @@
+[
+  {
+    "id": "SEC-001",
+    "title": "Dockerfile syntax corruption and duplicate layers",
+    "area": "Security / Dependency / Packaging",
+    "severity": "BLOCKER",
+    "evidence": "Dockerfile contains 7 conflicting FROM lines for Stage 1, 7 conflicting FROM lines for Stage 2, and 4 stacked RUN pip install statements without proper chaining or escaping (lines 2-8, 23-29, 49-57).",
+    "affected_components": [
+      "Dockerfile",
+      "docs/deployment.md"
+    ],
+    "user_release_impact": "Directly prevents building the production Docker container (docker build fails with syntax errors).",
+    "recommended_action": "Clean up Dockerfile to a standard 2-stage build (one FROM python:3.10-slim AS builder, one FROM python:3.10-slim AS runtime, single pip install command)."
+  },
+  {
+    "id": "TYP-001",
+    "title": "Strict mypy return type violation in rl_env.py",
+    "area": "Test & Quality Evidence",
+    "severity": "HIGH",
+    "evidence": "Running `mypy src/nroute --strict` yields: `src\\nroute\\ml\\rl_env.py:434: error: Returning Any from function declared to return 'ndarray[Any, Any]' [no-any-return]`.",
+    "affected_components": [
+      "src/nroute/ml/rl_env.py",
+      ".github/workflows/ci.yml"
+    ],
+    "user_release_impact": "Will fail CI lint-and-type-check pipeline if run in strict mode as configured in CI workflow.",
+    "recommended_action": "Add explicit cast: `return cast(np.ndarray, np.concatenate(obs).astype(np.float32))`."
+  },
+  {
+    "id": "VER-001",
+    "title": "Packaging metadata version mismatch (0.1.0 vs v1.3.0)",
+    "area": "Security / Dependency / Packaging",
+    "severity": "HIGH",
+    "evidence": "`pyproject.toml` defines `version = '0.1.0'` and `src/nroute/__init__.py` defines `__version__ = '0.1.0'`, whereas Git release tags have progressed to `v1.3.0-preflight-validation-engine`.",
+    "affected_components": [
+      "pyproject.toml",
+      "src/nroute/__init__.py"
+    ],
+    "user_release_impact": "PyPI packaging, wheel distribution, and `nroute --version` emit 0.1.0, conflicting with documented milestone versioning.",
+    "recommended_action": "Synchronize package version in `pyproject.toml` and `src/nroute/__init__.py` to match the target release milestone (e.g., 1.3.0 or 1.4.0)."
+  },
+  {
+    "id": "DOC-001",
+    "title": "README, CLI Help, and Quickstart promote outdated AI-routing paradigm",
+    "area": "Product Truth & Documentation Consistency",
+    "severity": "HIGH",
+    "evidence": "`README.md` and root `nroute --help` describe the product as 'AI-Based Smart Network Routing System' that replaces BGP/OSPF with XGBoost/LSTM/PPO models. The flagship 'Pre-Flight Change-Impact Validation Engine' (`nroute twin validate`) is completely absent from `README.md`, `docs/quickstart.md`, and `docs/cli_reference.md`.",
+    "affected_components": [
+      "README.md",
+      "docs/quickstart.md",
+      "docs/cli_reference.md",
+      "src/nroute/cli/main.py"
+    ],
+    "user_release_impact": "Prospective users and enterprise adopters receive contradictory messaging; flagship Digital Twin capabilities remain undiscoverable while obsolete ML research models are presented as primary workflows.",
+    "recommended_action": "Revise `README.md`, `docs/quickstart.md`, and `src/nroute/cli/main.py` docstrings to align with 'High-Performance Network Digital Twin & Pre-Flight Validation Platform'. Prominently document `nroute twin validate`."
+  },
+  {
+    "id": "DOC-002",
+    "title": "Non-existent method `plot_throughput()` in README library quickstart",
+    "area": "Product Truth & Documentation Consistency",
+    "severity": "MEDIUM",
+    "evidence": "In `README.md` lines 96-97, the library usage example states: `results = sim.run(); results.plot_throughput()`. `MetricsCollectionResult` has no `plot_throughput` method.",
+    "affected_components": [
+      "README.md"
+    ],
+    "user_release_impact": "Users copy-pasting the README quickstart snippet will encounter an immediate AttributeError.",
+    "recommended_action": "Update README code example to use actual methods on `MetricsCollectionResult` or export via `CSVExporter`/`JSONExporter`."
+  },
+  {
+    "id": "EXP-001",
+    "title": "Top-level `nroute` package fails to export Digital Twin and Validation classes",
+    "area": "Implementation Reality",
+    "severity": "MEDIUM",
+    "evidence": "`src/nroute/__init__.py` exports legacy ML classes (`AIRouter`, `RLRouter`, `GraphTensorBundle`) but does NOT export `DigitalTwinEngine`, `PreFlightValidator`, `PolicyGateConfig`, `ValidationResult`, or `ValidationVerdict`.",
+    "affected_components": [
+      "src/nroute/__init__.py"
+    ],
+    "user_release_impact": "Developers using `nroute` as a library cannot do `from nroute import DigitalTwinEngine, PreFlightValidator`.",
+    "recommended_action": "Expose `DigitalTwinEngine`, `PreFlightValidator`, `PolicyGateConfig`, `ValidationResult`, and `ValidationVerdict` in `src/nroute/__init__.py` and `__all__`."
+  },
+  {
+    "id": "API-001",
+    "title": "Default random fallback token in API server locks out local CLI users",
+    "area": "Security / Dependency / Packaging",
+    "severity": "MEDIUM",
+    "evidence": "When `NROUTE_API_TOKEN` is unset, `src/nroute/api/server.py` generates `_FALLBACK_TOKEN = secrets.token_hex(32)`, but `nroute api start` neither prints this token nor saves it to a user directory.",
+    "affected_components": [
+      "src/nroute/api/server.py",
+      "src/nroute/cli/api_cmd.py"
+    ],
+    "user_release_impact": "Users running `nroute api start` out-of-the-box receive HTTP 401 Unauthorized for all protected endpoints (`/api/twin/validate`, `/api/health`, `/api/topology`).",
+    "recommended_action": "In `api_cmd.py` or server startup, log an explicit warning displaying the generated session token when running in local development mode without a preconfigured token."
+  },
+  {
+    "id": "DEP-001",
+    "title": "Invalid CLI command syntax in docker-compose.yml",
+    "area": "Security / Dependency / Packaging",
+    "severity": "MEDIUM",
+    "evidence": "`docker-compose.yml` line 16 defines `command: ['train', '--model', 'congestion', ...]`. `nroute train` does not accept a `--model` option; its syntax is `nroute train congestion`.",
+    "affected_components": [
+      "docker-compose.yml"
+    ],
+    "user_release_impact": "`docker-compose up` will crash the `nroute-train` container with Click usage error (code 2).",
+    "recommended_action": "Update command in `docker-compose.yml` to `['train', 'congestion', '-t', 'data/sample_topology.json', '-o', 'models/congestion_xgb_v1.joblib']`."
+  },
+  {
+    "id": "DOC-003",
+    "title": "`docs/api_reference.md` completely omits Digital Twin & Validation engine",
+    "area": "Documentation Consistency",
+    "severity": "MEDIUM",
+    "evidence": "`docs/api_reference.md` documents `nroute.core`, `nroute.routing`, `nroute.simulation.engine`, `nroute.ml`, and `nroute.visualization.exporters`, but has zero sections for `nroute.simulation.digital_twin`, `nroute.simulation.validator`, `nroute.simulation.policy`, or `nroute.core.openconfig`.",
+    "affected_components": [
+      "docs/api_reference.md"
+    ],
+    "user_release_impact": "Developers integrating with NRoute's core value proposition find no official API documentation.",
+    "recommended_action": "Add dedicated sections for `DigitalTwinEngine`, `PreFlightValidator`, `PolicyGateConfig`, and `ConfigChange` to `docs/api_reference.md`."
+  },
+  {
+    "id": "PERF-001",
+    "title": "Aspirational TRD claims vs measured empirical baselines",
+    "area": "Performance Evidence",
+    "severity": "LOW",
+    "evidence": "TRD section 7 contains aspirational targets (e.g., NetFlow >= 10k rec/s, memory <= 2GB). In reality, measured pytest benchmarks exceed algorithmic targets (Dijkstra 500-node: 0.69ms vs 10ms target; simulation 1000-node: 513 ticks/s vs 100 ticks/s target; pre-flight validation: 1.4ms to 12ms), but NetFlow ingestion benchmarks at 10k scale have high variance.",
+    "affected_components": [
+      "docs/archive/TRD.md",
+      "tests/benchmarks/"
+    ],
+    "user_release_impact": "No immediate release blocker, but marketing claims should cite verified benchmark results from `artifacts/` rather than TRD design goals.",
+    "recommended_action": "Publish an official Release Performance Factsheet citing the 120-run benchmark and Direction-C oracle data."
+  }
+]

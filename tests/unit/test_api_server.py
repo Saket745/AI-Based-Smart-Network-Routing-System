@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -265,3 +266,53 @@ def test_load_topology_null_byte_path_rejected(client: TestClient) -> None:
     )
     assert response.status_code == 400
     assert "null bytes" in response.json()["detail"]
+
+
+# ── Active Token Discovery Tests ──
+
+
+def test_get_active_api_token_configured_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """get_active_api_token returns configured token and is_fallback=False when env var is set."""
+    from nroute.api.server import get_active_api_token
+
+    monkeypatch.setenv("NROUTE_API_TOKEN", "test_env_token_456")
+    token, is_fallback = get_active_api_token()
+    assert token == "test_env_token_456"
+    assert is_fallback is False
+
+
+def test_get_active_api_token_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    """get_active_api_token returns _FALLBACK_TOKEN and is_fallback=True when unset."""
+    from nroute.api.server import _FALLBACK_TOKEN, get_active_api_token
+
+    monkeypatch.delenv("NROUTE_API_TOKEN", raising=False)
+    monkeypatch.delenv("NROUTE_GENERAL_API_TOKEN", raising=False)
+    token, is_fallback = get_active_api_token()
+    assert token == _FALLBACK_TOKEN
+    assert is_fallback is True
+
+
+def test_api_start_cli_displays_fallback_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    """nroute api start prints generated session token when no token is configured."""
+    from click.testing import CliRunner
+
+    from nroute.cli.api_cmd import api_cmd
+
+    monkeypatch.delenv("NROUTE_API_TOKEN", raising=False)
+    monkeypatch.delenv("NROUTE_GENERAL_API_TOKEN", raising=False)
+
+    # Mock uvicorn.run so it doesn't actually block starting a server
+    called_with: dict[str, Any] = {}
+
+    def mock_run(app_str: str, host: str, port: int, log_level: str) -> None:
+        called_with.update({"app": app_str, "host": host, "port": port, "log_level": log_level})
+
+    monkeypatch.setattr("uvicorn.run", mock_run)
+
+    runner = CliRunner()
+    result = runner.invoke(api_cmd, ["start", "--host", "127.0.0.1", "--port", "8000"])
+    assert result.exit_code == 0
+    assert "Generated local session token:" in result.output
+    assert "Bearer " in result.output
+    assert called_with["host"] == "127.0.0.1"
+    assert called_with["port"] == 8000

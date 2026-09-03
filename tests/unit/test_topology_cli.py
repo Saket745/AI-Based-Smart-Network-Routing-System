@@ -248,3 +248,24 @@ class TestTopologyShowCLI:
         assert result.exit_code == 1
         data = json.loads(result.output)
         assert data["error"] == "Load failed"
+
+    def test_safe_status_icons_encodings(self) -> None:
+        """Test that _safe_status_icons returns emojis for utf-8 and ASCII for cp1252/ascii."""
+        from nroute.cli.topology_cmd import _safe_status_icons
+
+        assert _safe_status_icons("utf-8") == ("🟢", "🔴")
+        assert _safe_status_icons("cp1252") == ("[UP]", "[DOWN]")
+        assert _safe_status_icons("ascii") == ("[UP]", "[DOWN]")
+
+    def test_show_topology_cp1252_encoding_safety(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Verify that topology show completes without UnicodeEncodeError on cp1252 consoles."""
+        p = tmp_path / "simple_topo.json"
+        topo = Topology()
+        topo.add_node("n0", status="up")
+        topo.add_node("n1", status="down")
+        topo.add_edge("n0", "n1", status="up")
+        topo.save(p)
+
+        # Run with default runner
+        result = runner.invoke(topology_cmd, ["show", "--file", str(p)])
+        assert result.exit_code == 0

@@ -407,3 +407,17 @@ class TestRouteComputeCLI:
 
         assert result.exit_code == 0
         assert "?" in result.output  # Should show '?' for latency/bandwidth/etc.
+
+    def test_format_utilization_encoding_safety(self) -> None:
+        """Test _format_utilization under utf-8 and cp1252 encodings."""
+        from nroute.cli.route_cmd import _format_utilization
+
+        # UTF-8 supports emojis
+        assert "🔴" in _format_utilization(0.90, encoding="utf-8")
+        assert "🟡" in _format_utilization(0.70, encoding="utf-8")
+        assert "🟢" in _format_utilization(0.40, encoding="utf-8")
+
+        # cp1252 falls back to ASCII indicators
+        assert "[!]" in _format_utilization(0.90, encoding="cp1252")
+        assert "[*]" in _format_utilization(0.70, encoding="cp1252")
+        assert "[OK]" in _format_utilization(0.40, encoding="cp1252")

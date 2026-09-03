@@ -43,6 +43,19 @@ _FALLBACK_TOKEN = secrets.token_hex(32)
 security_scheme = HTTPBearer(auto_error=False)
 
 
+def get_active_api_token() -> tuple[str, bool]:
+    """Return the active API token and a boolean indicating if it is the generated fallback."""
+    try:
+        cfg = load_config()
+        configured_token = cfg.general.api_token or os.environ.get("NROUTE_API_TOKEN")
+    except Exception:
+        configured_token = os.environ.get("NROUTE_API_TOKEN")
+
+    if configured_token:
+        return configured_token, False
+    return _FALLBACK_TOKEN, True
+
+
 async def verify_token(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),  # noqa: B008
@@ -53,14 +66,7 @@ async def verify_token(
     if request.url.path in ("/docs", "/redoc", "/openapi.json"):
         return
 
-    try:
-        cfg = load_config()
-        configured_token = cfg.general.api_token or os.environ.get("NROUTE_API_TOKEN")
-    except Exception:
-        configured_token = os.environ.get("NROUTE_API_TOKEN")
-
-    if not configured_token:
-        configured_token = _FALLBACK_TOKEN
+    configured_token, _ = get_active_api_token()
 
     # Constant-time comparison prevents token validation from leaking
     # prefix information through response timing (CWE-208).

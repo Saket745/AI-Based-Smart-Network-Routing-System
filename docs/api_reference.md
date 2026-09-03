@@ -4,10 +4,61 @@ This document provides a comprehensive API Reference for the `nroute` Python pac
 
 ---
 
-## 1. Core Data Models (`nroute.core`)
+## 1. Digital Twin & Pre-Flight Validation (`nroute.simulation`)
+
+### `nroute.simulation.digital_twin.DigitalTwinEngine`
+The central orchestration facade for the Network Digital Twin platform.
+* **`DigitalTwinEngine(snapshot_dir: Path | None = None)`**
+  * Initializes the Digital Twin engine instance.
+* **`load_topology(path: str | Path) -> None`**
+  * Loads and normalizes a baseline topology JSON file.
+* **`ingest_config(path: str | Path) -> None`**
+  * Ingests OpenConfig device configuration and updates the twin state.
+* **`compute_reachability() -> dict[str, set[str]]`**
+  * Computes the complete pairwise reachability matrix across all active nodes.
+* **`simulate_change(change: ConfigChange, weight: str = "latency") -> ChangeImpactResult`**
+  * Computes deterministic blast-radius metrics (path shifts, unreachable pairs, latency delta).
+* **`validate_change(change: ConfigChange | str | Path, policy: PolicyGateConfig | str | Path | None = None, weight: str = "latency") -> ValidationResult`**
+  * Executes end-to-end pre-flight policy validation returning PASS, WARN, or BLOCK.
+
+---
+
+### `nroute.simulation.validator.PreFlightValidator`
+Deterministic declarative safety policy evaluation engine.
+* **`PreFlightValidator(policy: PolicyGateConfig | None = None)`**
+  * Initializes the validator with a declarative policy gate configuration.
+* **`validate(baseline: Topology, change: ConfigChange, engine: ChangeImpactSimulator | None = None, weight: str = "latency") -> ValidationResult`**
+  * Evaluates proposed change against policy thresholds and returns a structured `ValidationResult`.
+
+---
+
+### `nroute.simulation.policy.PolicyGateConfig`
+Pydantic model defining declarative pre-flight safety gates.
+* **Attributes**:
+  * `max_latency_increase_ms: float` (Default: `10.0`) — Warning threshold for latency delta.
+  * `max_path_changed_ratio: float` (Default: `0.20`) — Warning threshold for rerouted traffic paths.
+  * `allow_newly_unreachable_pairs: bool` (Default: `False`) — If `False`, severed reachability triggers `BLOCK`.
+  * `protected_nodes: list[str]` — Critical nodes that must remain connected; disconnection triggers `BLOCK`.
+  * `max_affected_nodes: int | None` — Maximum permissible number of impacted nodes.
+  * `max_affected_edges: int | None` — Maximum permissible number of impacted edges.
+
+---
+
+### `nroute.core.openconfig.ConfigChange`
+Declarative network configuration patch model.
+* **Attributes**:
+  * `change_id: str` — Unique identifier for change tracking and audit logging.
+  * `target_devices: list[str]` — List of network devices targeted by the change.
+  * `node_state_changes: dict[str, str]` — Node administrative state modifications (`"up"` / `"down"`).
+  * `edge_state_changes: dict[tuple[str, str], str]` — Link administrative state modifications (`"up"` / `"down"`).
+  * `cost_metric_overrides: dict[tuple[str, str], float]` — Edge metric/weight adjustments.
+
+---
+
+## 2. Core Data Models (`nroute.core`)
 
 ### `nroute.core.topology.Topology`
-Represents the network graph topology, providing methods for loading, saving, and querying nodes and edges.
+Represents the network graph topology with graph query methods.
 * **`Topology(graph: nx.DiGraph | None = None)`**
   * Initializes an empty topology or wraps an existing NetworkX directed graph.
 * **`load(path: str | Path) -> Topology`** *(classmethod)*
@@ -15,93 +66,48 @@ Represents the network graph topology, providing methods for loading, saving, an
 * **`save(path: str | Path) -> None`**
   * Saves the current topology configuration to a JSON file.
 * **`from_netflow(netflow_path: str | Path) -> Topology`** *(classmethod)*
-  * Ingests NetFlow records from a CSV file to dynamically discover nodes, edges, and traffic matrices.
+  * Ingests NetFlow records from a CSV file to dynamically discover nodes and edges.
 * **Properties**:
   * `node_count: int` — Total number of nodes in the network.
   * `edge_count: int` — Total number of unidirectional links in the network.
   * `nodes: KeysView` — Access all nodes in the topology.
   * `edges: EdgeView` — Access all unidirectional edges in the topology.
 
-### `nroute.core.traffic.TrafficMatrix`
-Represents a snapshot of active traffic flows traversing the network topology.
-* **`from_csv(path: str | Path) -> TrafficMatrix`** *(classmethod)*
-  * Loads traffic flow records from a CSV file.
-* **`to_csv(path: str | Path) -> None`**
-  * Saves the active traffic flow matrix to a CSV file.
-* **`add_flow(flow: FlowRecord) -> None`**
-  * Adds an individual flow record to the traffic matrix.
-
 ---
 
-## 2. Routing Engines (`nroute.routing`)
+## 3. Deterministic Routing Engines (`nroute.routing`)
 
 ### `nroute.routing.base.BaseRouter`
-The base class interface for all pathfinding and routing engines.
+The base interface for all pathfinding engines.
 * **`compute_path(topology: Topology, source: str, destination: str, weight: str | Callable | None = None) -> list[str]`**
-  * Abstract method to calculate the route from source to destination. Returns a list of node IDs.
+  * Calculates the optimal route from source to destination.
 
 ### `nroute.routing.dijkstra.DijkstraRouter`
-Computes the shortest path using Dijkstra's algorithm.
-* **`compute_path(topology: Topology, source: str, destination: str, weight: str | Callable | None = "weight") -> list[str]`**
-  * Standard shortest-path computations supporting link cost attribute optimization.
+High-performance shortest path computation using Dijkstra's algorithm.
+* **`compute_path(topology: Topology, source: str, destination: str, weight: str | Callable | None = "latency") -> list[str]`**
+  * Computes deterministic single-path routes.
 
-### `nroute.routing.rl_router.RLRouter`
-A deep reinforcement learning routing agent powered by Stable-Baselines3 (PPO or DQN).
-* **`RLRouter(topology: Topology | None = None, algorithm: str = "ppo", confidence_threshold: float = 0.4)`**
-  * Initializes the RL-based path finder with automatic fallback capabilities.
-* **`train(traffic_data: Any = None, episodes: int = 1000, seed: int | None = None) -> dict[str, Any]`**
-  * Trains the policy on the network topology Gymnasium environment.
-* **`save(path: str) -> None`**
-  * Serializes trained policy weights (using PyTorch state dictionaries or SB3 archives) and caches training topology structure.
-* **`load(path: str) -> None`**
-  * Re-loads policy weights and structure metadata from disk.
+### `nroute.routing.ecmp.ECMPRouter`
+Equal-Cost Multi-Path router for balanced flow distribution.
+* **`compute_paths(topology: Topology, source: str, destination: str, weight: str | None = "latency") -> list[list[str]]`**
+  * Returns all equal-cost candidate paths between source and destination.
 
 ---
 
-## 3. Simulation Engine (`nroute.simulation`)
+## 4. Simulation Engine (`nroute.simulation`)
 
 ### `nroute.simulation.engine.SimulationEngine`
-Manages packet-level network simulation execution, failure injections, queue updates, and metric tracking.
+Packet-level network simulation execution, failure injections, queue updates, and metric tracking.
 * **`SimulationEngine(topology: Topology, router: BaseRouter, traffic_gen: TrafficGenerator)`**
   * Initializes the simulation manager.
-* **`run(duration_ticks: int = 100, seed: int | None = None) -> SimulationResult`**
-  * Runs the simulation for a specific duration.
-* **`apply_change(change: ConfigChange) -> None`**
-  * Dynamically modifies simulation properties (e.g. topology edits) during execution.
-
-### `nroute.simulation.traffic_gen.TrafficGenerator`
-Abstract base class for simulating network traffic generation patterns.
-* **`TrafficGenerator(model: str = "uniform", n_flows_per_tick: int = 5)`**
-  * Base traffic injector support.
-* **Available Models**: `"uniform"`, `"gravity"`, `"hotspot"`, `"bursty"`.
+* **`run(duration_ticks: int = 100, seed: int | None = None) -> MetricsCollectionResult`**
+  * Runs discrete-event simulation for a specific duration.
 
 ---
 
-## 4. Machine Learning & Anomaly Detection (`nroute.ml`)
+## 5. Auxiliary Research Modules (`nroute.ml`)
 
-### `nroute.ml.congestion.CongestionPredictor`
-Predicts link congestion levels using scikit-learn/XGBoost or custom models.
-* **`CongestionPredictor(model_type: str = "xgboost")`**
-  * Initializes the predictor.
-* **`train(features: pd.DataFrame, labels: np.ndarray) -> dict[str, float]`**
-  * Fits the classifier and returns training metrics.
-* **`predict(features: pd.DataFrame) -> pd.DataFrame`**
-  * Infers congestion probability for live links.
-
-### `nroute.ml.anomaly.AnomalyDetector`
-Identifies malicious traffic anomalies or network performance degradation.
-* **`AnomalyDetector(model_type: str = "isolation_forest", contamination: float = 0.05)`**
-  * Configures the detector.
-* **`fit(features: pd.DataFrame) -> None`**
-  * Trains the anomaly detection engine on normal operational traffic.
-* **`predict(features: pd.DataFrame) -> np.ndarray`**
-  * Classifies features as normal (0) or anomalous (1).
-
----
-
-## 5. Exporters (`nroute.visualization.exporters`)
-
-Provides methods to serialize topologies and metrics.
-* **`JSONExporter`** — Serializes graph details, nodes, and links to JSON format.
-* **`CSVExporter`** — Writes flat node and edge attribute tables to CSV files.
-* **`GraphMLExporter`** — Generates standard XML GraphML files compatible with external visualization tools like Gephi.
+*Preserved empirical baseline research models:*
+* **`CongestionPredictor(model_type: str = "xgboost")`** — Predicts link congestion from flow telemetry.
+* **`AnomalyDetector(model_type: str = "isolation_forest")`** — Identifies network anomalies.
+* **`RLRouter(topology: Topology, algorithm: str = "ppo")`** — Historical reinforcement learning pathfinder.
