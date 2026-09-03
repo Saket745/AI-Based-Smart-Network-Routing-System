@@ -94,16 +94,16 @@ def export_cmd(type: str, format: str, input: str, output: str) -> None:
         except Exception as exc:
             raise click.ClickException(f"Failed to load metrics from {input_path}: {exc}") from exc
 
-        metrics_summary = f"({len(metrics_col.results)} metric records)"
+        records_summary = f"({len(metrics_col.results)} records)"
         if format == "json":
             MetricsExporter.to_json(metrics_col, output_path)
             console.print(
                 f"[green]+[/green] Successfully exported metrics to JSON: "
-                f"[bold]{output_path}[/bold] {metrics_summary}"
+                f"[bold]{output_path}[/bold] {records_summary}"
             )
         elif format == "csv":
             MetricsExporter.to_csv(metrics_col, output_path)
             console.print(
                 f"[green]+[/green] Successfully exported metrics to CSV: "
-                f"[bold]{output_path}[/bold] {metrics_summary}"
+                f"[bold]{output_path}[/bold] {records_summary}"
             )

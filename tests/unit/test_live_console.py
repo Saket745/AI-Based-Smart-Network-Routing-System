@@ -27,7 +27,6 @@ def test_plotext_renderable() -> None:
     options.max_width = 80
     options.height = 10
 
-    with patch("nroute.visualization.live_console.plt.build", return_value="\x1b[31mRedPlot\x1b[0m") as mock_build:
     with patch("nroute.visualization.live_console.plt.build", return_value="\x1b[31mRedPlot\x1b[0m"):
         segments = list(renderable.__rich_console__(MagicMock(), options))
         assert len(segments) > 0
@@ -121,7 +120,6 @@ def test_live_console_error_handling() -> None:
         patch("nroute.visualization.live_console.logger") as mock_logger,
         patch.object(engine.topology, "get_edge", side_effect=TopologyError("Edge error")),
         patch.object(engine.topology, "get_node", side_effect=TopologyError("Node error")),
-        patch("nroute.visualization.live_console.logger") as mock_logger,
     ):
         console_viz.update_events(tick=0)
         # Verify errors were logged
@@ -241,8 +239,6 @@ def test_live_console_keyboard_interrupt_handling() -> None:
     )
     engine.collector.results.append(mock_metric)
 
-    from nroute.core.metrics import MetricsCollectionResult
-
     # Mock engine.run to raise KeyboardInterrupt
     with (
         patch.object(engine, "run", side_effect=KeyboardInterrupt),
@@ -290,7 +286,6 @@ def test_live_console_normal_completion_preserved() -> None:
             active_flows=1,
         ),
     ]
-    from nroute.core.metrics import MetricsCollectionResult
 
     engine.collector.results.extend(mock_metrics)
     expected_result = MetricsCollectionResult(results=mock_metrics)

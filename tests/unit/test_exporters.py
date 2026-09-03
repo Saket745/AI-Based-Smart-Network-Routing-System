@@ -196,7 +196,7 @@ def test_cli_export_metrics(sample_metrics: MetricsCollectionResult, tmp_path: P
     assert out_path.name in result.output
     clean_output = " ".join(result.output.split())
     assert "(2 records)" in clean_output
-    assert "metric records" in result.output
+    assert "records" in result.output
     assert out_path.exists()
 
 

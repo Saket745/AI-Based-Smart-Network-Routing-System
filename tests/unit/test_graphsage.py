@@ -179,16 +179,6 @@ def test_sage_conv_specific_graph() -> None:
     torch.testing.assert_close(out[2], expected_node_2)
 
 
-def test_graphsage_load_invalid_path_raises_model_error() -> None:
-    """Test loading GraphSAGE model with non-existent path raises ValidationError/ModelError."""
-    model = GraphSAGEModel(16, 8)
-    with pytest.raises((ValidationError, ModelError), match="does not exist"):
-        model.load("non_existent_graphsage_model.pt")
-
-
-def test_graphsage_load_corrupted_file_raises_model_error() -> None:
-    """Test loading GraphSAGE model with corrupted file raises ModelError."""
-    model = GraphSAGEModel(16, 8)
 def test_graphsage_model_load_invalid_path() -> None:
     """Test that loading GraphSAGE from non-existent or invalid path raises appropriate error."""
     model = GraphSAGEModel(node_in_dim=16, edge_in_dim=8)

@@ -40,19 +40,9 @@ class PcapParser:
         Read up to max_packets from a PCAP file and aggregate flow metrics.
         """
         try:
-            p = validate_file_path(path, must_exist=True)
+            validate_file_path(file_path, must_exist=True)
         except ValidationError as e:
             raise IngestionError(f"Invalid PCAP file path: {e}") from e
-
-        # Lazy import scapy to minimize start-up time
-        try:
-            from scapy.layers.inet import IP
-            from scapy.utils import PcapReader
-        except ImportError as e:
-            raise IngestionError(
-                "Optional dependency 'scapy' is required for PCAP parsing. "
-                "Install with 'pip install nroute[pcap]'."
-            ) from e
 
         # Store aggregations of flows
         # Key: (src_ip, dst_ip, protocol_str)
@@ -138,12 +128,15 @@ class PcapParser:
             from scapy.utils import PcapReader
         except ImportError as e:
             raise IngestionError(
-                "Scapy library is required for PCAP parsing. Run 'pip install scapy'."
+                "Optional dependency 'scapy' is required for PCAP parsing. "
+                "Install with 'pip install nroute[pcap]'."
             ) from e
 
         try:
             flow_aggregations = PcapParser._read_pcap_flows(p, 100000, IP, PcapReader)
         except Exception as e:
+            if isinstance(e, IngestionError):
+                raise
             raise IngestionError(f"Failed to parse PCAP file {path}: {e}") from e
 
         raw_records = PcapParser._build_raw_records(flow_aggregations)

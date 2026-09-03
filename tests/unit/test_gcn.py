@@ -146,16 +146,6 @@ def test_gcn_model_load_unsafe() -> None:
             assert torch.equal(p1, p2)
 
 
-def test_gcn_load_invalid_path_raises_model_error() -> None:
-    """Test loading GCN model with non-existent path raises ValidationError/ModelError."""
-    model = GCNModel(8, 4)
-    with pytest.raises((ValidationError, ModelError), match="does not exist"):
-        model.load("non_existent_gcn_model.pt")
-
-
-def test_gcn_load_corrupted_file_raises_model_error() -> None:
-    """Test loading GCN model with corrupted file raises ModelError."""
-    model = GCNModel(8, 4)
 def test_gcn_model_load_invalid_path() -> None:
     """Test that loading from a non-existent or invalid path raises appropriate error."""
     model = GCNModel(8, 4)

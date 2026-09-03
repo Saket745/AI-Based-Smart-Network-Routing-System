@@ -269,7 +269,6 @@ class LiveSimulationConsole:
         layout["footer"].update(Panel(footer_text, title="Real-Time Event Log", style="white"))
 
     def _create_layout(self) -> Layout:
-        """Create the main console layout structure."""
         """Create and return the initial panel layout."""
         layout = Layout()
         layout.split_column(
@@ -322,14 +321,8 @@ class LiveSimulationConsole:
             self.status = "Completed"
             return result
         except KeyboardInterrupt:
-            self.status = "Completed"
-            self.console.print(
-                "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
-            )
             self.status = "Aborted"
             self.console.print(
                 "\n[bold yellow]⚠ Simulation aborted by user (Ctrl+C).[/bold yellow]\n"
             )
             return MetricsCollectionResult(results=self.engine.collector.results)
-        finally:
-            self.status = "Completed"

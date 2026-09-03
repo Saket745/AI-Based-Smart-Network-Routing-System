@@ -9,6 +9,16 @@ from typing import Any
 import click
 
 import nroute
+import nroute.cli.api_cmd as api_cmd_mod
+import nroute.cli.configs_cmd as configs_cmd_mod
+import nroute.cli.detect_cmd as detect_cmd_mod
+import nroute.cli.export_cmd as export_cmd_mod
+import nroute.cli.predict_cmd as predict_cmd_mod
+import nroute.cli.route_cmd as route_cmd_mod
+import nroute.cli.simulate_cmd as simulate_cmd_mod
+import nroute.cli.topology_cmd as topology_cmd_mod
+import nroute.cli.train_cmd as train_cmd_mod
+import nroute.cli.twin_cmd as twin_cmd_mod
 from nroute.cli import (
     api_cmd,
     configs_cmd,
@@ -31,17 +41,6 @@ from nroute.cli.simulate_cmd import simulate_cmd as simulate_group
 from nroute.cli.topology_cmd import topology_cmd as topology_group
 from nroute.cli.train_cmd import train_cmd as train_group
 from nroute.cli.twin_cmd import twin_cmd as twin_group
-import nroute.cli.api_cmd as api_cmd_mod
-import nroute.cli.configs_cmd as configs_cmd_mod
-import nroute.cli.detect_cmd as detect_cmd_mod
-import nroute.cli.export_cmd as export_cmd_mod
-import nroute.cli.predict_cmd as predict_cmd_mod
-import nroute.cli.route_cmd as route_cmd_mod
-import nroute.cli.simulate_cmd as simulate_cmd_mod
-import nroute.cli.topology_cmd as topology_cmd_mod
-import nroute.cli.train_cmd as train_cmd_mod
-import nroute.cli.twin_cmd as twin_cmd_mod
-
 
 
 @click.group(
