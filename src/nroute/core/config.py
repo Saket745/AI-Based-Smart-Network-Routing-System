@@ -45,14 +45,17 @@ class GeneralConfig(BaseModel):
                 return DEFAULT_CORS_ORIGINS
             return cleaned
         if isinstance(v, list):
+            res: list[str] = []
             for origin in v:
-                if str(origin).strip() == "*":
+                s = str(origin).strip()
+                if s == "*":
                     raise ValueError(
                         "Wildcard '*' is not allowed for cors_origins due to security risks. "
                         "Please specify explicit origins."
                     )
-            return v
-        return v
+                res.append(s)
+            return res
+        return [str(v)]
 
 
 class TopologyConfig(BaseModel):
