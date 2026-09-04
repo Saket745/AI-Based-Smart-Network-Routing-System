@@ -8,8 +8,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from nroute.exceptions import ModelError
+from nroute.exceptions import ModelError, ValidationError
 from nroute.utils.logging import get_logger
+from nroute.utils.validators import validate_file_path
 
 logger = get_logger(__name__)
 
@@ -21,7 +22,7 @@ class ModelStore:
 
     def __init__(self, base_dir: str | Path = "./models") -> None:
         """Initialize the ModelStore with a base storage directory."""
-        self.base_dir = Path(base_dir)
+        self.base_dir = Path(base_dir).resolve()
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def _compute_sha256(self, filepath: Path) -> str:
@@ -129,16 +130,22 @@ class ModelStore:
             except Exception as e:
                 raise ModelError(f"Failed to parse timestamps to find latest model: {e}") from e
 
-        model_path = Path(target_meta["file_path"])
+        raw_path = target_meta.get("file_path", "")
         expected_sha = target_meta["sha256"]
 
-        if not model_path.is_file():
-            # Try loading relative to base directory in case path is absolute to different workspace
-            alt_path = self.base_dir / model_path.name
-            if alt_path.is_file():
-                model_path = alt_path
-            else:
-                raise ModelError(f"Model file not found: {model_path}")
+        try:
+            candidate_path = Path(raw_path)
+            if not candidate_path.is_file():
+                # Try loading relative to base directory in case path is absolute to different workspace
+                candidate_path = self.base_dir / candidate_path.name
+
+            model_path = validate_file_path(
+                candidate_path, must_exist=True, allowed_root=self.base_dir
+            )
+        except ValidationError as e:
+            raise ModelError(f"Model path validation failed for '{raw_path}': {e}") from e
+        except Exception as e:
+            raise ModelError(f"Invalid model file path '{raw_path}': {e}") from e
 
         # Check integrity
         actual_sha = self._compute_sha256(model_path)
