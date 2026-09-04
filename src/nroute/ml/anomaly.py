@@ -409,6 +409,7 @@ class AnomalyDetector:
         Raises:
             ModelError: If loading fails or insecure file is detected with allow_unsafe=False.
         """
+        raw_path = str(path)
         try:
             validated_path = validate_file_path(path, must_exist=True)
             path = str(validated_path)
@@ -441,7 +442,7 @@ class AnomalyDetector:
         except ModelError:
             raise
         except Exception as e:
-            raise ModelError(f"Failed to load model from {path}: {e}") from e
+            raise ModelError(f"Failed to load model from {raw_path}: {e}") from e
 
         self.model_type = load_dict["model_type"]
         self.is_trained = load_dict["is_trained"]
