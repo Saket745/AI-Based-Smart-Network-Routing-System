@@ -65,6 +65,10 @@ class SimulationEngine:
         # - "accumulated_latency": float
         self.active_flows: list[dict[str, Any]] = []
 
+        # Set of active edge tuples (u, v) that currently have non-zero utilization.
+        # Used for fast $O(\text{active\_edges})$ reset during `_update_link_utilizations`.
+        self._active_utilized_edges: set[tuple[str, str]] = set()
+
     def run(
         self,
         duration_ticks: int,
@@ -87,9 +91,18 @@ class SimulationEngine:
         self.rng = get_rng(seed)
         self.traffic_generator.set_seed(seed)
 
-        # Reset collector and active flows
+        # Reset collector, active flows, and active utilized edges
         self.collector = MetricsCollector()
         self.active_flows = []
+        self._active_utilized_edges = set()
+
+        # One-time initialization of utilization=0.0 across all graph edges to prevent state leakage
+        # across multiple run() calls and guarantee 'utilization' key presence on all edges.
+        g = self.topology.graph
+        adj = getattr(g, "_adj", g.adj)
+        for u in adj:
+            for v, edge_data in adj[u].items():
+                edge_data["utilization"] = 0.0
 
         logger.info(
             "Starting network simulation",
@@ -291,10 +304,15 @@ class SimulationEngine:
         """
         Recalculate link utilization metrics based on current active flows.
         """
-        # 1. Reset all edges to 0 utilization directly in networkx graph for performance
         g = self.topology.graph
-        for u, v in g.edges:
-            g.edges[u, v]["utilization"] = 0.0
+        adj = getattr(g, "_adj", g.adj)
+
+        # 1. Reset only edges that had non-zero utilization in the previous tick.
+        # This avoids iterating over all |E| edges on every tick (O(active_edges) vs O(E)).
+        for u, v in self._active_utilized_edges:
+            if g.has_edge(u, v):
+                adj[u][v]["utilization"] = 0.0
+        self._active_utilized_edges.clear()
 
         # 2. Accumulate bandwidth demands of in-flight flows on their active link
         # Flow bandwidth demand = (bytes * 8) / (duration * 1e6) in Mbps.
@@ -319,8 +337,11 @@ class SimulationEngine:
         # sets (_down_nodes / _down_edges), making direct mutation safe and desync-free.
         for (u, v), demand in link_demands.items():
             if g.has_edge(u, v):
-                edge_data = g.edges[u, v]
+                edge_data = adj[u][v]
                 bandwidth = float(edge_data.get("bandwidth", 1000.0))
                 util = demand / bandwidth if bandwidth > 0.0 else 0.0
                 # Clamp to [0.0, 1.0] to satisfy schema constraints
-                edge_data["utilization"] = min(1.0, max(0.0, util))
+                clamped_util = min(1.0, max(0.0, util))
+                edge_data["utilization"] = clamped_util
+                if clamped_util > 0.0:
+                    self._active_utilized_edges.add((u, v))
