@@ -66,6 +66,7 @@ class PreFlightValidator:
         change: ConfigChange | dict[str, Any] | str | Path,
     ) -> tuple[ConfigChange, str, str]:
         """Parse and validate change patch input."""
+        change_id: str = "CHG-ANONYMOUS"
         if isinstance(change, (str, Path)):
             p = Path(change)
             if not p.is_file():
