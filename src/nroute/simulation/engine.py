@@ -100,8 +100,8 @@ class SimulationEngine:
         # across multiple run() calls and guarantee 'utilization' key presence on all edges.
         g = self.topology.graph
         adj = getattr(g, "_adj", g.adj)
-        for u in adj:
-            for v, edge_data in adj[u].items():
+        for adj_u in adj.values():
+            for edge_data in adj_u.values():
                 edge_data["utilization"] = 0.0
 
         logger.info(
