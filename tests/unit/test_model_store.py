@@ -150,6 +150,34 @@ def test_load_model_metadata_open_exception() -> None:
             store.load_model(model, "test")
 
 
+def test_model_store_path_traversal_prevention() -> None:
+    """Test that load_model rejects path traversal attempts in metadata file_path."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base_dir = Path(tmpdir) / "models"
+        base_dir.mkdir()
+        store = ModelStore(base_dir=base_dir)
+
+        # Create an existing file outside base_dir
+        outside_file = Path(tmpdir) / "secret.txt"
+        outside_file.write_text("secret_data", encoding="utf-8")
+
+        # Create metadata pointing outside base_dir to existing outside_file
+        meta_file = base_dir / "traversal_v1.metadata.json"
+        metadata = {
+            "name": "traversal",
+            "version": "1.0.0",
+            "file_path": str(outside_file),
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "timestamp": "2026-01-01T00:00:00Z",
+            "model_type": "custom",
+        }
+        meta_file.write_text(json.dumps(metadata), encoding="utf-8")
+
+        model = DummyModel()
+        with pytest.raises(ModelError, match="outside the allowed root"):
+            store.load_model(model, "traversal", version="1.0.0")
+
+
 def test_model_store_list_models() -> None:
     """Test listing models in the store."""
     with tempfile.TemporaryDirectory() as tmpdir:
