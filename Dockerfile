@@ -30,12 +30,14 @@ RUN groupadd -g 10001 nroute \
 # Copy the built wheel from builder stage
 COPY --from=builder --chown=nroute:nroute /app/dist/*.whl ./
 
+# Upgrade system-wide python packages as root to resolve vulnerabilities in /usr/local/lib/python3.10/site-packages
+RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
+
 # Switch to the non-root user
 USER nroute
 
-# Install the wheel package locally and upgrade vulnerable indirect dependencies
-RUN pip install --user --no-cache-dir --upgrade pip "setuptools>=75.8.0" "wheel>=0.46.2" "jaraco.context>=6.1.0" \
-    && pip install --user --no-cache-dir *.whl \
+# Install the wheel package locally
+RUN pip install --user --no-cache-dir *.whl \
     && rm *.whl
 
 # Ensure local user bin is on path (where the wheel installs the entry points)
