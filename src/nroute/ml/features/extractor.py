@@ -46,11 +46,11 @@ class DefaultGraphFeatureExtractor(BaseFeatureExtractor):
         self.use_pytorch = use_pytorch
 
     def extract_features(self, topology: Topology) -> GraphTensorBundle:
-        # Sort nodes and edges deterministic ordering
-        nodes = sorted(topology.nodes)
-        edges = sorted(topology.edges)
-        node_to_idx = {node: idx for idx, node in enumerate(nodes)}
+        # Sort nodes and edges deterministic ordering directly from graph views
         graph = topology.graph
+        nodes = sorted(graph.nodes)
+        edges = sorted(graph.edges)
+        node_to_idx = {node: idx for idx, node in enumerate(nodes)}
 
         # Fast direct dict access on NetworkX graph internals to avoid per-node/edge list allocations and view overhead
         node_attrs = graph._node

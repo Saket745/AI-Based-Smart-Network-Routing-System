@@ -566,13 +566,16 @@ class Topology:
         if not isinstance(result, TrafficMatrix):
             raise TopologyError("Ingested data is not a TrafficMatrix.")
 
-        # Build topology from traffic matrix endpoints
+        # Build topology from traffic matrix endpoints using direct NetworkX graph lookups
+        # to avoid list allocation and linear scans overhead from topo.nodes and topo.edges
         topo = cls()
+        graph = topo.graph
         for flow in result.flows:
-            if flow.source not in topo.nodes:
-                topo.add_node(flow.source)
-            if flow.destination not in topo.nodes:
-                topo.add_node(flow.destination)
-            if (flow.source, flow.destination) not in topo.edges:
-                topo.add_edge(flow.source, flow.destination)
+            src, dst = flow.source, flow.destination
+            if src not in graph:
+                topo.add_node(src)
+            if dst not in graph:
+                topo.add_node(dst)
+            if not graph.has_edge(src, dst):
+                topo.add_edge(src, dst)
         return topo

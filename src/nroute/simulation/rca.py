@@ -367,10 +367,11 @@ class RCACorrelator:
         if root_peer:
             downstream_nodes.add(root_peer)
 
-        if root_node and root_node in self.topology.nodes:
+        topo_graph = self.topology.graph
+        if root_node and root_node in topo_graph:
             with contextlib.suppress(Exception):
                 downstream_nodes.update(self.topology.neighbors(root_node))
-        if root_peer and root_peer in self.topology.nodes:
+        if root_peer and root_peer in topo_graph:
             with contextlib.suppress(Exception):
                 downstream_nodes.update(self.topology.neighbors(root_peer))
 
