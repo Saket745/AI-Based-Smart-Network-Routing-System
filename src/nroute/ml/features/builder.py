@@ -29,12 +29,11 @@ class FeatureBuilder:
         Returns:
             GraphTensorBundle containing normalized feature tensors.
         """
-        # Sort nodes and edges for deterministic ordering
-        nodes = sorted(topology.nodes)
-        edges = sorted(topology.edges)
-        node_to_idx = {node: idx for idx, node in enumerate(nodes)}
-
+        # Sort nodes and edges for deterministic ordering directly from graph views
         graph = topology.graph
+        nodes = sorted(graph.nodes)
+        edges = sorted(graph.edges)
+        node_to_idx = {node: idx for idx, node in enumerate(nodes)}
         betweenness, closeness = self._compute_centralities(graph)
         node_features_arr = self._build_node_features(
             graph, nodes, topology, betweenness, closeness

@@ -126,8 +126,8 @@ class ConfigParser:
         for dev in configs:
             node_id = dev.hostname
 
-            # Ensure node exists
-            if node_id not in topology.nodes:
+            # Ensure node exists (query graph directly to avoid list allocation)
+            if node_id not in topology.graph:
                 if create_missing_nodes:
                     topology.add_node(
                         node_id,
@@ -189,11 +189,12 @@ class ConfigParser:
             ConfigParser.apply_device_configs(modified, change.devices)
 
         # 2. Apply explicit node-level overrides
+        mod_graph = modified.graph
         for node_change in change.node_changes:
             nid = node_change.get("id") or node_change.get("hostname")
             if nid is None:
                 continue
-            if nid not in modified.nodes:
+            if nid not in mod_graph:
                 logger.warning("Node change target missing", node_id=nid)
                 continue
             status = node_change.get("status")
@@ -208,7 +209,7 @@ class ConfigParser:
             dst = link_change.get("dst") or link_change.get("target")
             if not src or not dst:
                 continue
-            if (src, dst) not in modified.edges:
+            if not mod_graph.has_edge(src, dst):
                 logger.warning("Link change target missing", src=src, dst=dst)
                 continue
             update_attrs = {
@@ -296,9 +297,10 @@ class ConfigParser:
 
         bgp: BGPConfig  # type: ignore[no-redef]
 
+        graph = topology.graph
         for peer in bgp.neighbors:
             peer_id = peer.neighbor_address
-            if peer_id in topology.nodes and (node_id, peer_id) in topology.edges:
+            if peer_id in graph and graph.has_edge(node_id, peer_id):
                 topology.update_edge(
                     node_id,
                     peer_id,
