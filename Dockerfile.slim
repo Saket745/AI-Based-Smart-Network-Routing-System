@@ -22,8 +22,9 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Upgrade system python packages as root to resolve Trivy security scan findings
-RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
+# Upgrade system python packages as root and clean old preinstalled dist-info to resolve Trivy security scan findings
+RUN rm -rf /usr/local/lib/python3.10/site-packages/setuptools* \
+    && pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
 
 # Create a non-root user and group
 RUN groupadd -g 10001 nroute \
