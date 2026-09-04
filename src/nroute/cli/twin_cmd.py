@@ -107,6 +107,8 @@ def health_cmd(ctx: click.Context, topology: str, config: str | None) -> None:
         click.echo(json.dumps(summary, indent=2, default=str))
         return
 
+    from nroute.cli.topology_cmd import _safe_status_icons
+
     # Rich formatted output
     down_nodes = summary.get("down_nodes", [])
     down_edges = summary.get("down_edges", [])
@@ -132,20 +134,26 @@ def health_cmd(ctx: click.Context, topology: str, config: str | None) -> None:
     tot_edges = summary.get("total_edges", 0)
     act_edges = summary.get("active_edges", 0)
 
+    icon_up, icon_down = _safe_status_icons(getattr(console.file, "encoding", None))
+
     table.add_row(
         "Active Nodes",
         f"{act_nodes} / {tot_nodes}",
-        "[green]OK[/green]" if len(down_nodes) == 0 else f"[red]{len(down_nodes)} down[/red]",
+        f"{icon_up} [green]OK[/green]"
+        if len(down_nodes) == 0
+        else f"{icon_down} [red]{len(down_nodes)} down[/red]",
     )
     table.add_row(
         "Active Edges",
         f"{act_edges} / {tot_edges}",
-        "[green]OK[/green]" if len(down_edges) == 0 else f"[red]{len(down_edges)} down[/red]",
+        f"{icon_up} [green]OK[/green]"
+        if len(down_edges) == 0
+        else f"{icon_down} [red]{len(down_edges)} down[/red]",
     )
     table.add_row(
         "Strong Connectivity",
         "Yes" if is_connected else "No",
-        "[green]YES[/green]" if is_connected else "[bold red]NO[/bold red]",
+        f"{icon_up} [green]YES[/green]" if is_connected else f"{icon_down} [bold red]NO[/bold red]",
     )
 
     audit_summary = summary.get("audit_summary", {})

@@ -559,6 +559,8 @@ class TestNewCLIFeatures:
             or "UNHEALTHY" in result.output
         )
         assert "Active Nodes" in result.output
+        assert "OK" in result.output
+        assert "YES" in result.output or "NO" in result.output
 
     def test_twin_health_json_format(self, runner: CliRunner, topo_file: str) -> None:
         """nroute twin health should output valid JSON when -f json is provided."""
