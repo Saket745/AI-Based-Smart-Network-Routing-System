@@ -26,7 +26,8 @@ VALID_TYPES = {
     "revert",  # Revert a previous commit
     "security",  # Security fixes
     "palette",  # Palette agent UX enhancements
-    "palette",  # Palette agent micro-UX enhancements
+    "bolt",  # Bolt performance agent optimizations
+    "sentinel",  # Sentinel security agent fixes
 }
 
 # Regex to match conventional commits header
@@ -34,7 +35,7 @@ VALID_TYPES = {
 # Updated to allow optional emojis and case-insensitivity for types
 # Pattern: [Emoji] type(scope)!: Description
 CONVENTIONAL_REGEX = re.compile(
-    r"^(?:(?:Palette|Bolt|Sentinel|Jules|\W+):?\s*)?(?P<type>[a-zA-Z]+)(?:\((?P<scope>[a-zA-Z0-9_\-\/]+)\))?(?P<breaking>!)?:?\s+(?P<desc>.+)$"
+    r"^(?:(?:Palette|Bolt|Sentinel|Jules|\W+):?\s*)*(?P<type>[a-zA-Z]+)(?:\((?P<scope>[a-zA-Z0-9_\-\/]+)\))?(?P<breaking>!)?:?\s+(?P<desc>.+)$"
 )
 
 
