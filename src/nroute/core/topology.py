@@ -10,6 +10,7 @@ import networkx as nx
 
 from nroute.exceptions import TopologyError, ValidationError
 from nroute.utils.validators import (
+    validate_file_path,
     validate_node_id,
     validate_positive_float,
     validate_probability,
@@ -418,8 +419,8 @@ class Topology:
         Args:
             path: Path to the target file.
         """
-        p = Path(path)
         try:
+            p = validate_file_path(path, must_exist=False)
             p.parent.mkdir(parents=True, exist_ok=True)
             with open(p, "w", encoding="utf-8") as f:
                 json.dump(self.to_dict(), f, indent=2)
@@ -437,10 +438,8 @@ class Topology:
         Returns:
             Reconstructed Topology instance.
         """
-        p = Path(path)
-        if not p.is_file():
-            raise TopologyError(f"Topology file does not exist: {path}")
         try:
+            p = validate_file_path(path, must_exist=True)
             with open(p, encoding="utf-8") as f:
                 data = json.load(f)
             return cls.from_dict(data)

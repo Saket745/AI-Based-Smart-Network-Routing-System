@@ -262,6 +262,23 @@ def test_save_load_file() -> None:
         assert topo_loaded.get_edge("A", "B")["latency"] == 15.0
 
 
+def test_save_load_file_path_validation_security() -> None:
+    """Test path validation safety in Topology.save and Topology.load."""
+    topo = Topology()
+    topo.add_node("A")
+
+    # Invalid path with null bytes
+    with pytest.raises(TopologyError, match="Failed to save topology"):
+        topo.save("bad_\0_file.json")
+
+    with pytest.raises(TopologyError, match="Failed to load topology"):
+        Topology.load("bad_\0_file.json")
+
+    # Non-existent file
+    with pytest.raises(TopologyError, match="Failed to load topology"):
+        Topology.load("non_existent_topology_12345.json")
+
+
 def test_summary_and_neighbors() -> None:
     """Test summary string format and neighbors querying."""
     topo = Topology()
