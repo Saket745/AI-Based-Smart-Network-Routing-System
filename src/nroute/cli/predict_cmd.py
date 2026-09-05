@@ -183,6 +183,22 @@ def _print_congestion_json(edge_ids: list[str], probs: list[Any], threshold: flo
     click.echo(json.dumps(out, indent=2))
 
 
+def _safe_predict_icons(console_obj: Console) -> tuple[str, str, str]:
+    """Return status icon strings compatible with console encoding."""
+    import sys
+
+    enc = (
+        getattr(console_obj.file, "encoding", None)
+        or getattr(sys.stdout, "encoding", None)
+        or "utf-8"
+    )
+    try:
+        "🔴🟡🟢".encode(enc)
+        return "🔴", "🟡", "🟢"
+    except (UnicodeEncodeError, LookupError):
+        return "[!]", "[*]", "[OK]"
+
+
 def _print_congestion_console(edge_ids: list[str], probs: list[Any], threshold: float) -> None:
     """Output congestion predictions as a table to the console."""
     console.print()
@@ -193,17 +209,19 @@ def _print_congestion_console(edge_ids: list[str], probs: list[Any], threshold: 
     table.add_column("Probability", justify="right")
     table.add_column("Status", justify="center")
 
+    icon_red, icon_yellow, icon_green = _safe_predict_icons(console)
+
     for edge_id, prob in zip(edge_ids, probs, strict=True):
         p = float(prob) if not isinstance(prob, (int, float)) else prob
         if p >= threshold:
             prob_style = "bold red"
-            status = "🔴 [bold red]CONGESTED[/bold red]"
+            status = f"{icon_red} [bold red]CONGESTED[/bold red]"
         elif p >= threshold * 0.7:
             prob_style = "yellow"
-            status = "🟡 [yellow]AT RISK[/yellow]"
+            status = f"{icon_yellow} [yellow]AT RISK[/yellow]"
         else:
             prob_style = "green"
-            status = "🟢 [green]NORMAL[/green]"
+            status = f"{icon_green} [green]NORMAL[/green]"
 
         table.add_row(edge_id, f"[{prob_style}]{p:.3f}[/{prob_style}]", status)
 
@@ -211,10 +229,16 @@ def _print_congestion_console(edge_ids: list[str], probs: list[Any], threshold: 
 
     # Summary
     congested_count = sum(1 for p in probs if float(p) >= threshold)
-    console.print(
-        f"\n  [bold]{congested_count}[/bold] of {len(edge_ids)} links flagged as congested "
-        f"(threshold: {threshold})\n"
-    )
+    if congested_count > 0:
+        console.print(
+            f"\n  [red]![/red] [bold red]{congested_count}[/bold red] of {len(edge_ids)} links flagged as congested "
+            f"(threshold: {threshold})\n"
+        )
+    else:
+        console.print(
+            f"\n  [green]+[/green] All {len(edge_ids)} links operating normally "
+            f"(threshold: {threshold})\n"
+        )
 
 
 @predict_cmd.command(name="gnn")
@@ -399,6 +423,7 @@ def _print_gnn_console(
 
     edges_sorted = sorted(topo.edges)
     congested_count = 0
+    icon_red, icon_yellow, icon_green = _safe_predict_icons(console)
 
     for idx, (u, v) in enumerate(edges_sorted):
         prob = probs[idx]
@@ -410,14 +435,14 @@ def _print_gnn_console(
 
         if prob >= args.threshold:
             prob_style = "bold red"
-            status = "🔴 [bold red]CONGESTED[/bold red]"
+            status = f"{icon_red} [bold red]CONGESTED[/bold red]"
             congested_count += 1
         elif prob >= args.threshold * 0.7:
             prob_style = "yellow"
-            status = "🟡 [yellow]AT RISK[/yellow]"
+            status = f"{icon_yellow} [yellow]AT RISK[/yellow]"
         else:
             prob_style = "green"
-            status = "🟢 [green]NORMAL[/green]"
+            status = f"{icon_green} [green]NORMAL[/green]"
 
         table.add_row(
             f"{u} -> {v}",
@@ -429,7 +454,13 @@ def _print_gnn_console(
         )
 
     console.print(table)
-    console.print(
-        f"\n  [bold]{congested_count}[/bold] of {len(edges_sorted)} links predicted as congested "
-        f"(threshold: {args.threshold})\n"
-    )
+    if congested_count > 0:
+        console.print(
+            f"\n  [red]![/red] [bold red]{congested_count}[/bold red] of {len(edges_sorted)} links predicted as congested "
+            f"(threshold: {args.threshold})\n"
+        )
+    else:
+        console.print(
+            f"\n  [green]+[/green] All {len(edges_sorted)} links operating normally "
+            f"(threshold: {args.threshold})\n"
+        )

@@ -13,7 +13,7 @@ import pytest
 import torch
 from click.testing import CliRunner
 
-from nroute.cli.predict_cmd import predict_cmd
+from nroute.cli.predict_cmd import _safe_predict_icons, predict_cmd
 
 
 @pytest.fixture
@@ -92,7 +92,33 @@ class TestCongestionPredictCLI:
         assert "B -> C" in result.output
         assert "NORMAL" in result.output
         assert "CONGESTED" in result.output
+        assert "1 of 2 links flagged as congested" in result.output
         mock_predictor.load.assert_called_once_with(model_file, allow_unsafe=False)
+
+    @patch("nroute.cli.predict_cmd.Topology.load")
+    @patch("nroute.ml.congestion.CongestionPredictor")
+    def test_congestion_all_normal_summary(
+        self,
+        mock_predictor_cls: MagicMock,
+        mock_topo_load: MagicMock,
+        runner: CliRunner,
+        topo_file: str,
+        model_file: str,
+        mock_topology: MagicMock,
+    ) -> None:
+        """Test summary output when all links operate normally."""
+        mock_topo_load.return_value = mock_topology
+        mock_predictor = MagicMock()
+        mock_predictor.predict.return_value = pd.DataFrame({"probability": [0.1, 0.2]})
+        mock_predictor_cls.return_value = mock_predictor
+
+        result = runner.invoke(
+            predict_cmd,
+            ["congestion", "--topology", topo_file, "--model", model_file],
+        )
+
+        assert result.exit_code == 0
+        assert "All 2 links operating normally" in result.output
 
     @patch("nroute.cli.predict_cmd.Topology.load")
     def test_congestion_topology_load_fail(
@@ -184,6 +210,19 @@ class TestCongestionPredictCLI:
 
         assert result.exit_code == 0
         assert "No edges found in topology" in result.output
+
+
+def test_safe_predict_icons() -> None:
+    """Test _safe_predict_icons for unicode and non-unicode console encodings."""
+    mock_console_utf8 = MagicMock()
+    mock_console_utf8.file.encoding = "utf-8"
+    icons_utf8 = _safe_predict_icons(mock_console_utf8)
+    assert icons_utf8 == ("🔴", "🟡", "🟢")
+
+    mock_console_ascii = MagicMock()
+    mock_console_ascii.file.encoding = "ascii"
+    icons_ascii = _safe_predict_icons(mock_console_ascii)
+    assert icons_ascii == ("[!]", "[*]", "[OK]")
 
 
 class TestGNNPredictCLI:
