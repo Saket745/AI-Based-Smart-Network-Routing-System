@@ -2,13 +2,12 @@
 
 import json
 import subprocess
-import sys
 from pathlib import Path
 
 
 def run_git(args: list[str]) -> str:
     res = subprocess.run(
-        ["git"] + args,
+        ["git", *args],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -33,10 +32,9 @@ def main():
 
         # Get diff summary against main
         try:
-            diff_stat = run_git(["diff", "--stat", f"main...{name}"])
+            _ = run_git(["diff", "--stat", f"main...{name}"])
             diff_files = run_git(["diff", "--name-only", f"main...{name}"]).splitlines()
-        except Exception as exc:
-            diff_stat = f"Error computing diff: {exc}"
+        except Exception:
             diff_files = []
 
         # Get commits
