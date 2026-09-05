@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import click
 from rich.console import Console
 from rich.table import Table
@@ -16,54 +18,21 @@ def detect_cmd() -> None:
     """Detect network traffic anomalies."""
 
 
-@detect_cmd.command(name="anomalies")
-@click.option(
-    "--traffic",
-    "-t",
-    "traffic_path",
-    type=click.Path(exists=True),
-    required=True,
-    help="Path to a traffic features CSV file.",
-)
-@click.option(
-    "--model",
-    "-m",
-    "model_path",
-    type=click.Path(exists=True),
-    required=True,
-    help="Path to a trained anomaly detection model.",
-)
-@click.option(
-    "--allow-unsafe",
-    is_flag=True,
-    default=False,
-    help="Allow loading of unsafe models (joblib/pickle).",
-)
-@click.pass_context
-def anomalies(
-    ctx: click.Context,
-    traffic_path: str,
-    model_path: str,
-    allow_unsafe: bool,
-) -> None:
-    """Detect anomalies in network traffic data."""
-    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
-    import pandas as pd
+def _load_and_prepare_features(traffic_path: str, is_json: bool) -> Any:
+    """Load traffic CSV and prepare feature matrix."""
+    import json
 
-    from nroute.ml.anomaly import AnomalyDetector
+    import pandas as pd
 
     try:
         raw_df = pd.read_csv(traffic_path)
     except Exception as e:
         if is_json:
-            import json
-
             click.echo(json.dumps({"error": f"Failed to load traffic data: {e}"}), err=True)
             raise SystemExit(1) from e
         console.print(f"[red]x Failed to load traffic data:[/red] {e}")
         raise SystemExit(1) from e
 
-    # Detect if input is raw traffic matrix data or pre-computed feature matrix
     cols_lower = {str(c).lower().strip() for c in raw_df.columns}
     is_raw_traffic = (
         any(c in cols_lower for c in ("source", "src", "src_addr", "from"))
@@ -77,11 +46,9 @@ def anomalies(
 
         try:
             tm = Normalizer.normalize_traffic(raw_df.to_dict(orient="records"))
-            features = extract_anomaly_features(tm)
+            return extract_anomaly_features(tm)
         except Exception as e:
             if is_json:
-                import json
-
                 click.echo(
                     json.dumps({"error": f"Failed to extract anomaly features: {e}"}),
                     err=True,
@@ -89,57 +56,65 @@ def anomalies(
                 raise SystemExit(1) from e
             console.print(f"[red]x Failed to extract anomaly features:[/red] {e}")
             raise SystemExit(1) from e
-    else:
-        features = raw_df
+
+    return raw_df
+
+
+def _run_anomaly_detection(
+    features: Any, model_path: str, allow_unsafe: bool, is_json: bool
+) -> Any:
+    """Load detector model and run anomaly detection."""
+    import json
+
+    from nroute.ml.anomaly import AnomalyDetector
 
     try:
         detector = AnomalyDetector()
         detector.load(model_path, allow_unsafe=allow_unsafe)
     except ModelError as e:
         if is_json:
-            import json
-
             click.echo(json.dumps({"error": f"Failed to load model: {e}"}), err=True)
             raise SystemExit(1) from e
         console.print(f"[red]x Failed to load model:[/red] {e}")
         raise SystemExit(1) from e
 
     try:
-        results = detector.detect(features)
+        return detector.detect(features)
     except ModelError as e:
         if is_json:
-            import json
-
             click.echo(json.dumps({"error": f"Detection failed: {e}"}), err=True)
             raise SystemExit(1) from e
         console.print(f"[red]x Detection failed:[/red] {e}")
         raise SystemExit(1) from e
 
-    if is_json:
-        import json
 
-        samples = []
-        for idx, row in results.iterrows():
-            samples.append(
-                {
-                    "sample_id": int(idx),
-                    "anomaly_score": float(row["anomaly_score"]),
-                    "is_anomaly": bool(row["is_anomaly"]),
-                    "anomaly_type": str(row["anomaly_type"]),
-                }
-            )
+def _render_json_results(results: Any) -> None:
+    """Format and print detection results as JSON."""
+    import json
 
-        type_counts = results[results["is_anomaly"]]["anomaly_type"].value_counts().to_dict()
-        out = {
-            "total_samples": len(results),
-            "anomalies_detected": int(results["is_anomaly"].sum()),
-            "anomaly_type_breakdown": {str(k): int(v) for k, v in type_counts.items()},
-            "samples": samples,
-        }
-        click.echo(json.dumps(out, indent=2))
-        return
+    samples = []
+    for idx, row in results.iterrows():
+        samples.append(
+            {
+                "sample_id": int(idx),
+                "anomaly_score": float(row["anomaly_score"]),
+                "is_anomaly": bool(row["is_anomaly"]),
+                "anomaly_type": str(row["anomaly_type"]),
+            }
+        )
 
-    # Display results
+    type_counts = results[results["is_anomaly"]]["anomaly_type"].value_counts().to_dict()
+    out = {
+        "total_samples": len(results),
+        "anomalies_detected": int(results["is_anomaly"].sum()),
+        "anomaly_type_breakdown": {str(k): int(v) for k, v in type_counts.items()},
+        "samples": samples,
+    }
+    click.echo(json.dumps(out, indent=2))
+
+
+def _render_terminal_results(results: Any) -> None:
+    """Render detection results as formatted terminal tables and summaries."""
     console.print()
     console.rule("[bold cyan]Anomaly Detection Results[/bold cyan]")
 
@@ -174,12 +149,10 @@ def anomalies(
 
     console.print(table)
 
-    # Summary
     total = len(results)
     anomalies_found = int(results["is_anomaly"].sum())
     console.print(f"\n  [bold]{anomalies_found}[/bold] anomalies detected out of {total} samples")
 
-    # Breakdown by type
     if anomalies_found > 0:
         type_counts = results[results["is_anomaly"]]["anomaly_type"].value_counts()
         breakdown_table = Table(
@@ -196,3 +169,45 @@ def anomalies(
         console.print(breakdown_table)
 
     console.print()
+
+
+@detect_cmd.command(name="anomalies")
+@click.option(
+    "--traffic",
+    "-t",
+    "traffic_path",
+    type=click.Path(exists=True),
+    required=True,
+    help="Path to a traffic features CSV file.",
+)
+@click.option(
+    "--model",
+    "-m",
+    "model_path",
+    type=click.Path(exists=True),
+    required=True,
+    help="Path to a trained anomaly detection model.",
+)
+@click.option(
+    "--allow-unsafe",
+    is_flag=True,
+    default=False,
+    help="Allow loading of unsafe models (joblib/pickle).",
+)
+@click.pass_context
+def anomalies(
+    ctx: click.Context,
+    traffic_path: str,
+    model_path: str,
+    allow_unsafe: bool,
+) -> None:
+    """Detect anomalies in network traffic data."""
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
+
+    features = _load_and_prepare_features(traffic_path, is_json)
+    results = _run_anomaly_detection(features, model_path, allow_unsafe, is_json)
+
+    if is_json:
+        _render_json_results(results)
+    else:
+        _render_terminal_results(results)
