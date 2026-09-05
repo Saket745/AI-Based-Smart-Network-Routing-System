@@ -48,13 +48,14 @@ USER nroute
 # Install the wheel package locally WITHOUT resolving dependencies automatically
 # to avoid installing heavy machine learning libraries (torch, stable-baselines3, scikit-learn, xgboost)
 RUN pip install --user --no-cache-dir --no-deps *.whl \
-    && pip install --user --no-cache-dir "wheel>=0.46.2" "jaraco.context>=6.1.0" \
+    && pip install --user --no-cache-dir "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" \
     && rm *.whl
 
 # Manually install ONLY the lightweight, basic dependencies (routing, simulation, CLI, FastAPI server)
 RUN pip install --user --no-cache-dir \
     "wheel>=0.46.2" \
     "jaraco.context>=6.1.0" \
+    "msgpack>=1.2.1" \
     "networkx>=3.2" \
     "numpy>=1.26" \
     "pandas>=2.1" \
@@ -66,9 +67,7 @@ RUN pip install --user --no-cache-dir \
     "pyarrow>=14.0" \
     "fastapi>=0.100" \
     "python-multipart>=0.0.7" \
-    "uvicorn>=0.22" \
-    "wheel>=0.46.2" \
-    "jaraco.context>=6.1.0"
+    "uvicorn>=0.22"
 
 # Ensure local user bin is on path (where the wheel installs the entry points)
 ENV PATH="/home/nroute/.local/bin:${PATH}"
