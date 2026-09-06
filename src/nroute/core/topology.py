@@ -285,9 +285,7 @@ class Topology:
                 updates[k] = validate_positive_float(v, "latency")
             elif k == "jitter":
                 updates[k] = validate_positive_float(v, "jitter")
-            elif k == "packet_loss":
-                updates[k] = validate_probability(v)
-            elif k == "utilization":
+            elif k in ("packet_loss", "utilization"):
                 updates[k] = validate_probability(v)
             elif k == "weight":
                 updates[k] = validate_positive_float(v, "weight")
