@@ -299,16 +299,45 @@ def reachability_cmd(
     reach = twin.compute_reachability()
     # Convert sets to sorted lists for JSON serialization
     serializable = {k: sorted(v) for k, v in reach.items()}
+    total_pairs = sum(len(v) for v in serializable.values())
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
 
     if output:
-        Path(output).parent.mkdir(parents=True, exist_ok=True)
-        with open(output, "w", encoding="utf-8") as f:
+        out_path = Path(output)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with out_path.open("w", encoding="utf-8") as f:
             json.dump(serializable, f, indent=2)
-        click.echo(f"Reachability matrix written to {output}")
-    else:
-        total_pairs = sum(len(v) for v in serializable.values())
-        click.echo(f"Reachability: {len(serializable)} nodes, {total_pairs} reachable pairs")
+        if is_json:
+            click.echo(f"Reachability matrix written to {output}")
+        else:
+            console.print(
+                f"[green]+[/green] Reachability matrix saved to [bold]{output}[/bold] "
+                f"({len(serializable)} nodes, {total_pairs} reachable pairs)"
+            )
+        return
+
+    if is_json:
         click.echo(json.dumps(serializable, indent=2))
+        return
+
+    # Rich visual summary
+    console.print()
+    console.rule("[bold cyan]Pairwise Reachability Analysis[/bold cyan]")
+
+    table = Table(title="Reachability Breakdown", show_header=True, header_style="bold magenta")
+    table.add_column("Source Node", style="cyan")
+    table.add_column("Reachable Count", style="green", justify="right")
+    table.add_column("Target Nodes", style="dim")
+
+    for src_node, targets in sorted(serializable.items()):
+        targets_str = ", ".join(targets) if targets else "[italic red]None[/italic red]"
+        table.add_row(src_node, str(len(targets)), targets_str)
+
+    console.print(table)
+    console.print(
+        f"\n[green]+[/green] Reachability summary: [bold]{len(serializable)}[/bold] source nodes, "
+        f"[bold]{total_pairs}[/bold] total reachable pairs\n"
+    )
 
 
 # ── twin audit ───────────────────────────────────────────────
