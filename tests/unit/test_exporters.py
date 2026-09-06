@@ -78,6 +78,40 @@ def test_topology_exporter_json_invalid_path(sample_topology: Topology) -> None:
         TopologyExporter.to_json(sample_topology, 12345)  # type: ignore[arg-type]
 
 
+def test_topology_exporter_graphml_invalid_path(sample_topology: Topology) -> None:
+    """Test exporting topology to GraphML with invalid path raises SimulationError."""
+    with pytest.raises(SimulationError, match="Failed to export topology to GraphML"):
+        TopologyExporter.to_graphml(sample_topology, "invalid_path_\0_null.graphml")
+
+    with pytest.raises(SimulationError, match="Failed to export topology to GraphML"):
+        TopologyExporter.to_graphml(sample_topology, "")
+
+
+def test_topology_exporter_csv_invalid_path(sample_topology: Topology) -> None:
+    """Test exporting topology to CSV with invalid path raises SimulationError."""
+    with pytest.raises(SimulationError, match="Failed to export topology to CSV"):
+        TopologyExporter.to_csv(sample_topology, "invalid_path_\0_null.csv")
+
+    with pytest.raises(SimulationError, match="Failed to export topology to CSV"):
+        TopologyExporter.to_csv(sample_topology, "")
+
+
+def test_metrics_exporter_invalid_path(sample_metrics: MetricsCollectionResult) -> None:
+    """Test exporting metrics with invalid path raises SimulationError."""
+    with pytest.raises(SimulationError, match="Failed to export metrics to JSON"):
+        MetricsExporter.to_json(sample_metrics, "invalid_path_\0_null.json")
+
+    with pytest.raises(SimulationError, match="Failed to export metrics to CSV"):
+        MetricsExporter.to_csv(sample_metrics, "invalid_path_\0_null.csv")
+
+    # Test with list of dicts/metrics
+    with pytest.raises(SimulationError, match="Failed to export metrics to JSON"):
+        MetricsExporter.to_json([{"tick": 0}], "invalid_path_\0_null.json")
+
+    with pytest.raises(SimulationError, match="Failed to export metrics to CSV"):
+        MetricsExporter.to_csv([{"tick": 0}], "invalid_path_\0_null.csv")
+
+
 def test_topology_exporter_graphml(sample_topology: Topology, tmp_path: Path) -> None:
     """Test exporting topology to GraphML."""
     out_path = tmp_path / "topo.graphml"
