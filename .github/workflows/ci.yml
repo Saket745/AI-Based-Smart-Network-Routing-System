@@ -38,10 +38,11 @@ jobs:
         run: mypy src/nroute --strict
 
       - name: Validate Commit Messages (Conventional Commits)
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # Validate PR Title (Primary check for Squash & Merge)
-            PR_TITLE="${{ github.event.pull_request.title }}"
             echo "Validating PR Title: $PR_TITLE"
             python scripts/validate_commit_msg.py "$PR_TITLE"
 
