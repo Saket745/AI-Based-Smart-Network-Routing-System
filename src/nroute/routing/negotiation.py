@@ -52,14 +52,14 @@ class NegotiationRouter(BaseRouter):
     def _resolve_edge_weight(self, u: str, v: str, edge_data: dict[str, Any]) -> float:
         """Resolve edge weight based on the selected negotiation profile."""
         latency = float(edge_data.get("latency", 5.0))
-        utilization = float(edge_data.get("utilization", 0.0))
-        packet_loss = float(edge_data.get("packet_loss", 0.0))
-
         if self.profile == "latency":
             return latency
+
+        utilization = float(edge_data.get("utilization", 0.0))
         if self.profile == "congestion":
             return latency / max(0.01, 1.0 - utilization)
-        # balanced
+
+        packet_loss = float(edge_data.get("packet_loss", 0.0))
         return latency + 50.0 * packet_loss + 5.0 / max(0.01, 1.0 - utilization)
 
     def _calculate_local_link_cost(
@@ -173,18 +173,31 @@ class NegotiationRouter(BaseRouter):
 
                 weight_func = weight_func_callable
 
-        rem_weight = weight_func or self._resolve_edge_weight
+        # Determine weight parameter for single-source reverse Dijkstra
+        dijkstra_weight: Any
+        if isinstance(weight, str):
+            dijkstra_weight = weight
+        elif weight is None and self.profile == "latency":
+            dijkstra_weight = "latency"
+        else:
+            rem_weight = weight_func or self._resolve_edge_weight
+
+            def dijkstra_weight_fn(u_rev: str, v_rev: str, d: dict[str, Any]) -> float:
+                return rem_weight(v_rev, u_rev, d)
+
+            dijkstra_weight = dijkstra_weight_fn
+
         rev_subgraph = subgraph.reverse(copy=False)
         try:
             distances = nx.single_source_dijkstra_path_length(
                 rev_subgraph,
                 destination,
-                weight=lambda u_rev, v_rev, d: rem_weight(v_rev, u_rev, d),
+                weight=dijkstra_weight,
             )
         except (nx.NetworkXNoPath, nx.NodeNotFound):
             distances = {}
 
-        # Hop-by-hop contract-net negotiation with backtracking
+        # Context for hop-by-hop negotiation
         context = NegotiationContext(
             subgraph=subgraph,
             destination=destination,
@@ -192,17 +205,18 @@ class NegotiationRouter(BaseRouter):
             distances=distances,
         )
 
-        def negotiate_path(
-            current_node: str,
-            path_so_far: list[str],
-        ) -> list[str] | None:
+        # Hop-by-hop contract-net negotiation with backtracking
+        visited = {source}
+        path_stack = [source]
+
+        def negotiate_path(current_node: str) -> list[str] | None:
             if current_node == destination:
-                return path_so_far
+                return list(path_stack)
 
             # Solicit bids from neighbors of current_node
             bids = []
             for neighbor in subgraph.neighbors(current_node):
-                if neighbor in path_so_far:
+                if neighbor in visited:
                     # Loop prevention
                     continue
 
@@ -214,13 +228,17 @@ class NegotiationRouter(BaseRouter):
             bids.sort(key=lambda x: x[1])
 
             for neighbor, _ in bids:
-                result = negotiate_path(neighbor, [*path_so_far, neighbor])
+                visited.add(neighbor)
+                path_stack.append(neighbor)
+                result = negotiate_path(neighbor)
                 if result is not None:
                     return result
+                path_stack.pop()
+                visited.remove(neighbor)
 
             return None
 
-        path = negotiate_path(source, [source])
+        path = negotiate_path(source)
         if path is None:
             raise RoutingError(
                 f"Multi-agent negotiation failed to find a path from '{source}' to '{destination}'."
