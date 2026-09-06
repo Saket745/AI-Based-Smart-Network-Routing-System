@@ -271,55 +271,38 @@ class Topology:
             TopologyError: If the edge does not exist.
             ValidationError: If attribute values violate constraints.
         """
-        if not self._graph.has_edge(src, dst):
+        adj = self._graph._adj
+        if src not in adj or dst not in adj[src]:
             raise TopologyError(f"Edge from '{src}' to '{dst}' does not exist.")
 
-        edge_data = self._graph.edges[src, dst]
+        edge_data = adj[src][dst]
 
-        # Validate provided attributes
-        updated_data: dict[str, Any] = {}
-
-        if "bandwidth" in attrs:
-            updated_data["bandwidth"] = validate_positive_float(attrs["bandwidth"], "bandwidth")
-        if "latency" in attrs:
-            updated_data["latency"] = validate_positive_float(attrs["latency"], "latency")
-        if "jitter" in attrs:
-            updated_data["jitter"] = validate_positive_float(attrs["jitter"], "jitter")
-        if "packet_loss" in attrs:
-            updated_data["packet_loss"] = validate_probability(attrs["packet_loss"])
-        if "utilization" in attrs:
-            updated_data["utilization"] = validate_probability(attrs["utilization"])
-        if "weight" in attrs:
-            updated_data["weight"] = validate_positive_float(attrs["weight"], "weight")
-        if "status" in attrs:
-            status = attrs["status"]
-            if status not in self.EDGE_STATUSES:
-                raise ValidationError(
-                    f"Edge status '{status}' is invalid. Must be one of {self.EDGE_STATUSES}."
-                )
-            updated_data["status"] = status
-
-        # Merge other attributes
+        updates: dict[str, Any] = {}
         for k, v in attrs.items():
-            if k not in {
-                "bandwidth",
-                "latency",
-                "jitter",
-                "packet_loss",
-                "utilization",
-                "weight",
-                "status",
-            }:
-                updated_data[k] = v
-
-        # Apply update (attrs holds all custom attributes; updated_data holds schema-validated overrides)
-        edge_data.update(attrs)
-        edge_data.update(updated_data)
-        if "status" in updated_data:
-            if updated_data["status"] == "down":
-                self._down_edges.add((src, dst))
+            if k == "bandwidth":
+                updates[k] = validate_positive_float(v, "bandwidth")
+            elif k == "latency":
+                updates[k] = validate_positive_float(v, "latency")
+            elif k == "jitter":
+                updates[k] = validate_positive_float(v, "jitter")
+            elif k in ("packet_loss", "utilization"):
+                updates[k] = validate_probability(v)
+            elif k == "weight":
+                updates[k] = validate_positive_float(v, "weight")
+            elif k == "status":
+                if v not in self.EDGE_STATUSES:
+                    raise ValidationError(
+                        f"Edge status '{v}' is invalid. Must be one of {self.EDGE_STATUSES}."
+                    )
+                updates[k] = v
+                if v == "down":
+                    self._down_edges.add((src, dst))
+                else:
+                    self._down_edges.discard((src, dst))
             else:
-                self._down_edges.discard((src, dst))
+                updates[k] = v
+
+        edge_data.update(updates)
 
     def set_link_down(self, src: str, dst: str) -> None:
         """Mark a link's status as down."""
