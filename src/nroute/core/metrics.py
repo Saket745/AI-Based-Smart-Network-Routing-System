@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pandas as pd
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from nroute.core.topology import Topology
 
 from nroute.exceptions import SimulationError
+from nroute.utils.validators import validate_file_path
 
 
 class RouteMetrics(BaseModel):
@@ -167,8 +169,8 @@ class MetricsCollectionResult(BaseModel):
         """
         Export simulation metrics to a JSON file.
         """
-        p = Path(path)
         try:
+            p = validate_file_path(path, must_exist=False)
             p.parent.mkdir(parents=True, exist_ok=True)
             with open(p, "w", encoding="utf-8") as f:
                 json.dump([m.model_dump() for m in self.results], f, indent=2)
@@ -179,8 +181,8 @@ class MetricsCollectionResult(BaseModel):
         """
         Export simulation metrics to a CSV file.
         """
-        p = Path(path)
         try:
+            p = validate_file_path(path, must_exist=False)
             p.parent.mkdir(parents=True, exist_ok=True)
             self.to_dataframe().to_csv(p, index=False)
         except Exception as e:
