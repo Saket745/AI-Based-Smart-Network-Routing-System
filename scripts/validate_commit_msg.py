@@ -26,7 +26,6 @@ VALID_TYPES = {
     "revert",  # Revert a previous commit
     "security",  # Security fixes
     "palette",  # Palette agent UX enhancements
-    "palette",  # Palette agent micro-UX enhancements
 }
 
 # Regex to match conventional commits header
