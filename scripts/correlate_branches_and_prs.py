@@ -6,11 +6,17 @@ from pathlib import Path
 
 def main():
     # 1. Load branches audit
-    branch_inventory = json.loads(Path("artifacts/branch_forensic_inventory.json").read_text(encoding="utf-8"))
+    branch_inventory = json.loads(
+        Path("artifacts/branch_forensic_inventory.json").read_text(encoding="utf-8")
+    )
 
     # 2. Load open PRs from the step output
     # Find step 801 output file
-    step_file = list(Path(r"C:\Users\91705\.gemini\antigravity-ide\brain\4634347a-8a3f-4ac7-beed-96852a4d7272\.system_generated\steps").glob("*/output.txt"))
+    step_file = list(
+        Path(
+            r"C:\Users\91705\.gemini\antigravity-ide\brain\4634347a-8a3f-4ac7-beed-96852a4d7272\.system_generated\steps"
+        ).glob("*/output.txt")
+    )
     open_prs = []
     for sf in step_file:
         try:
@@ -36,16 +42,6 @@ def main():
             "base_ref": pr.get("base", {}).get("ref", ""),
         }
 
-    # Analyze categories
-    categories = {
-        "jules_agent": 0,
-        "security_patches": 0,
-        "testing_improvements": 0,
-        "refactoring": 0,
-        "features": 0,
-        "other": 0,
-    }
-
     annotated_branches = []
     for b in branch_inventory:
         c_name = b.get("clean_name", b["name"])
@@ -53,7 +49,26 @@ def main():
         b["open_pr"] = pr_info
 
         # Categorize
-        if any(x in c_name for x in ["jules", "agent/", "task-", "-6", "-1", "-2", "-3", "-4", "-5", "-7", "-8", "-9"]) and len(c_name.split("-")[-1]) >= 18:
+        if (
+            any(
+                x in c_name
+                for x in [
+                    "jules",
+                    "agent/",
+                    "task-",
+                    "-6",
+                    "-1",
+                    "-2",
+                    "-3",
+                    "-4",
+                    "-5",
+                    "-7",
+                    "-8",
+                    "-9",
+                ]
+            )
+            and len(c_name.split("-")[-1]) >= 18
+        ):
             cat = "jules_automated_task"
         elif c_name.startswith("security/") or "security" in c_name or "sentinel" in c_name:
             cat = "security"
