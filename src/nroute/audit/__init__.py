@@ -23,10 +23,12 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from nroute.utils.logging import get_logger
+
+if TYPE_CHECKING:
+    from pathlib import Path
 from nroute.utils.validators import validate_file_path
 
 logger = get_logger(__name__)
