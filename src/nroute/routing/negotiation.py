@@ -51,16 +51,16 @@ class NegotiationRouter(BaseRouter):
 
     def _resolve_edge_weight(self, u: str, v: str, edge_data: dict[str, Any]) -> float:
         """Resolve edge weight based on the selected negotiation profile."""
-        latency = float(edge_data.get("latency", 5.0))
-        utilization = float(edge_data.get("utilization", 0.0))
-        packet_loss = float(edge_data.get("packet_loss", 0.0))
-
+        latency = edge_data.get("latency", 5.0)
         if self.profile == "latency":
-            return latency
+            return float(latency)
+
+        utilization = float(edge_data.get("utilization", 0.0))
         if self.profile == "congestion":
-            return latency / max(0.01, 1.0 - utilization)
+            return float(latency) / max(0.01, 1.0 - utilization)
         # balanced
-        return latency + 50.0 * packet_loss + 5.0 / max(0.01, 1.0 - utilization)
+        packet_loss = float(edge_data.get("packet_loss", 0.0))
+        return float(latency) + 50.0 * packet_loss + 5.0 / max(0.01, 1.0 - utilization)
 
     def _calculate_local_link_cost(
         self,
@@ -155,16 +155,12 @@ class NegotiationRouter(BaseRouter):
         if source == destination:
             return [source]
 
-        # Adapt weight to NetworkX signature (u, v, data_dict) -> weight_value
+        # Fast path string weight attributes directly to NetworkX Dijkstra to avoid Python lambda wrapper call overhead
+        weight_attr = None
         weight_func = None
         if weight is not None:
             if isinstance(weight, str):
                 weight_attr = weight
-
-                def weight_func_str(u: str, v: str, d: dict[str, Any]) -> float:
-                    return float(d.get(weight_attr, 1.0))
-
-                weight_func = weight_func_str
             else:
                 wt_callable = weight
 
@@ -172,15 +168,25 @@ class NegotiationRouter(BaseRouter):
                     return float(wt_callable(d))
 
                 weight_func = weight_func_callable
+        elif self.profile == "latency":
+            weight_attr = "latency"
 
-        rem_weight = weight_func or self._resolve_edge_weight
         rev_subgraph = subgraph.reverse(copy=False)
         try:
-            distances = nx.single_source_dijkstra_path_length(
-                rev_subgraph,
-                destination,
-                weight=lambda u_rev, v_rev, d: rem_weight(v_rev, u_rev, d),
-            )
+            if weight_attr is not None:
+                # Fast-path string weight attribute directly to single_source_dijkstra_path_length
+                distances = nx.single_source_dijkstra_path_length(
+                    rev_subgraph,
+                    destination,
+                    weight=weight_attr,
+                )
+            else:
+                rem_weight = weight_func or self._resolve_edge_weight
+                distances = nx.single_source_dijkstra_path_length(
+                    rev_subgraph,
+                    destination,
+                    weight=lambda u_rev, v_rev, d: rem_weight(v_rev, u_rev, d),
+                )
         except (nx.NetworkXNoPath, nx.NodeNotFound):
             distances = {}
 
@@ -195,6 +201,7 @@ class NegotiationRouter(BaseRouter):
         def negotiate_path(
             current_node: str,
             path_so_far: list[str],
+            visited_set: set[str],
         ) -> list[str] | None:
             if current_node == destination:
                 return path_so_far
@@ -202,8 +209,8 @@ class NegotiationRouter(BaseRouter):
             # Solicit bids from neighbors of current_node
             bids = []
             for neighbor in subgraph.neighbors(current_node):
-                if neighbor in path_so_far:
-                    # Loop prevention
+                if neighbor in visited_set:
+                    # O(1) loop prevention check
                     continue
 
                 bid_cost = self._calculate_bid(current_node, neighbor, context)
@@ -214,13 +221,15 @@ class NegotiationRouter(BaseRouter):
             bids.sort(key=lambda x: x[1])
 
             for neighbor, _ in bids:
-                result = negotiate_path(neighbor, [*path_so_far, neighbor])
+                result = negotiate_path(
+                    neighbor, [*path_so_far, neighbor], visited_set | {neighbor}
+                )
                 if result is not None:
                     return result
 
             return None
 
-        path = negotiate_path(source, [source])
+        path = negotiate_path(source, [source], {source})
         if path is None:
             raise RoutingError(
                 f"Multi-agent negotiation failed to find a path from '{source}' to '{destination}'."
