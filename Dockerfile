@@ -37,8 +37,8 @@ COPY --from=builder --chown=nroute:nroute /app/dist/*.whl ./
 USER nroute
 
 # Install the wheel package locally and upgrade vulnerable indirect dependencies
-RUN pip install --user --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" \
-    && pip install --user --no-cache-dir *.whl \
+RUN pip install --user --no-cache-dir --upgrade pip \
+    && pip install --user --no-cache-dir --upgrade "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" *.whl \
     && rm *.whl
 
 # Ensure local user bin is on path (where the wheel installs the entry points)
