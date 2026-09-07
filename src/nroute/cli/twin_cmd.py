@@ -269,6 +269,26 @@ def rca_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
 # ── twin reachability ────────────────────────────────────────
 
 
+def _safe_reachability_status(ratio: float, encoding: str | None = None) -> str:
+    """Return colored reachability status indicator with encoding safety."""
+    enc = encoding or getattr(sys.stdout, "encoding", None) or "utf-8"
+    try:
+        "🟢🟡🔴".encode(enc)
+        has_unicode = True
+    except (UnicodeEncodeError, LookupError):
+        has_unicode = False
+
+    pct = ratio * 100
+    if ratio >= 1.0:
+        ind = "🟢" if has_unicode else "[+]"
+        return f"{ind} [green]{pct:.0f}%[/green]"
+    if ratio >= 0.5:
+        ind = "🟡" if has_unicode else "[*]"
+        return f"{ind} [yellow]{pct:.0f}%[/yellow]"
+    ind = "🔴" if has_unicode else "[!]"
+    return f"{ind} [bold red]{pct:.0f}%[/bold red]"
+
+
 @twin_cmd.command("reachability")
 @click.option(
     "--topology",
@@ -299,16 +319,63 @@ def reachability_cmd(
     reach = twin.compute_reachability()
     # Convert sets to sorted lists for JSON serialization
     serializable = {k: sorted(v) for k, v in reach.items()}
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
+    total_pairs = sum(len(v) for v in serializable.values())
 
     if output:
-        Path(output).parent.mkdir(parents=True, exist_ok=True)
-        with open(output, "w", encoding="utf-8") as f:
+        out_path = Path(output)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with out_path.open("w", encoding="utf-8") as f:
             json.dump(serializable, f, indent=2)
-        click.echo(f"Reachability matrix written to {output}")
-    else:
-        total_pairs = sum(len(v) for v in serializable.values())
-        click.echo(f"Reachability: {len(serializable)} nodes, {total_pairs} reachable pairs")
+        if is_json:
+            click.echo(
+                json.dumps(
+                    {
+                        "status": "success",
+                        "file": str(out_path),
+                        "nodes": len(serializable),
+                        "total_pairs": total_pairs,
+                    }
+                )
+            )
+        else:
+            console.print(
+                f"[green]+[/green] Reachability matrix written to [bold]{out_path}[/bold] "
+                f"({len(serializable)} nodes, {total_pairs} reachable pairs)"
+            )
+        return
+
+    if is_json:
         click.echo(json.dumps(serializable, indent=2))
+        return
+
+    # Rich formatted console output
+    total_nodes = len(serializable)
+    console.print()
+    console.rule(
+        f"[bold cyan]Reachability Analysis ({total_nodes} nodes, {total_pairs} reachable pairs)[/bold cyan]"
+    )
+
+    table = Table(title="Pairwise Reachability", show_header=True, header_style="bold magenta")
+    table.add_column("Source Node", style="cyan")
+    table.add_column("Reachable Count", style="green", justify="right")
+    table.add_column("Reachability", justify="right")
+    table.add_column("Reachable Targets", style="dim")
+
+    for src, targets in sorted(serializable.items()):
+        cnt = len(targets)
+        possible = total_nodes - 1 if total_nodes > 1 else 1
+        ratio = cnt / possible if possible > 0 else 1.0
+        status_str = _safe_reachability_status(ratio, getattr(console.file, "encoding", None))
+
+        target_preview = ", ".join(targets[:5])
+        if len(targets) > 5:
+            target_preview += f" (+{len(targets) - 5} more)"
+
+        table.add_row(src, f"{cnt} / {possible}", status_str, target_preview or "[dim]None[/dim]")
+
+    console.print(table)
+    console.print()
 
 
 # ── twin audit ───────────────────────────────────────────────

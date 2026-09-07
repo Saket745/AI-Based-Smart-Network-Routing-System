@@ -11,7 +11,7 @@ COPY pyproject.toml README.md LICENSE ./
 COPY src/ ./src/
 
 # Install build dependencies and build package distributions
-RUN pip install --no-cache-dir --upgrade pip "setuptools>=75.8.0" "wheel>=0.46.2" build && python -m build
+RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" build && python -m build
 
 # Stage 2: Minimal runtime image
 FROM python:3.10-slim
@@ -22,10 +22,11 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Create a non-root user and group
+# Create a non-root user and group, and upgrade system-level packages to resolve Trivy findings
 RUN groupadd -g 10001 nroute \
     && useradd -u 10001 -g nroute -m -s /sbin/nologin nroute \
-    && chown -R nroute:nroute /app
+    && chown -R nroute:nroute /app \
+    && pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
 
 # Copy the built wheel from builder stage
 COPY --from=builder --chown=nroute:nroute /app/dist/*.whl ./
@@ -34,7 +35,7 @@ COPY --from=builder --chown=nroute:nroute /app/dist/*.whl ./
 USER nroute
 
 # Install the wheel package locally and upgrade vulnerable indirect dependencies
-RUN pip install --user --no-cache-dir --upgrade pip "setuptools>=75.8.0" "wheel>=0.46.2" "jaraco.context>=6.1.0" \
+RUN pip install --user --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" \
     && pip install --user --no-cache-dir *.whl \
     && rm *.whl
 
