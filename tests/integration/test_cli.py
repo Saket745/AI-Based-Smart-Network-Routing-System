@@ -572,3 +572,32 @@ class TestNewCLIFeatures:
         assert "total_nodes" in data
         assert "total_edges" in data
         assert "active_nodes" in data
+
+    def test_twin_reachability_rich_table(self, runner: CliRunner, topo_file: str) -> None:
+        """nroute twin reachability should render a Rich table in terminal mode."""
+        result = runner.invoke(
+            cli,
+            ["twin", "reachability", "-t", topo_file],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+        assert "Reachability Analysis" in result.output
+        assert "Pairwise Reachability" in result.output
+        assert "Source Node" in result.output
+
+    def test_twin_reachability_file_output(
+        self, runner: CliRunner, topo_file: str, tmp_path: Path
+    ) -> None:
+        """nroute twin reachability with --output should write reachability matrix to JSON file."""
+        out_file = str(tmp_path / "reachability.json")
+        result = runner.invoke(
+            cli,
+            ["twin", "reachability", "-t", topo_file, "-o", out_file],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+        assert "Reachability matrix written to" in result.output
+        assert os.path.exists(out_file)
+        with open(out_file) as f:
+            data = json.load(f)
+        assert isinstance(data, dict)
