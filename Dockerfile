@@ -22,27 +22,23 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Upgrade system-level pip, setuptools, wheel, jaraco.context in python image root site-packages
-RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
-
 # Create a non-root user and group
 RUN groupadd -g 10001 nroute \
     && useradd -u 10001 -g nroute -m -s /sbin/nologin nroute \
     && chown -R nroute:nroute /app
 
 # Copy the built wheel from builder stage
-COPY --from=builder --chown=nroute:nroute /app/dist/*.whl ./
+COPY --from=builder /app/dist/*.whl ./
+
+# Upgrade system dependencies, install wheel system-wide, and purge outdated pre-installed dist-info metadata
+RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" \
+    && pip install --no-cache-dir *.whl \
+    && rm *.whl \
+    && rm -rf /usr/local/lib/python3.10/site-packages/setuptools-70* \
+    && rm -rf /usr/local/lib/python3.10/site-packages/msgpack-1.1*
 
 # Switch to the non-root user
 USER nroute
-
-# Install the wheel package locally and upgrade vulnerable indirect dependencies
-RUN pip install --user --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" \
-    && pip install --user --no-cache-dir *.whl \
-    && rm *.whl
-
-# Ensure local user bin is on path (where the wheel installs the entry points)
-ENV PATH="/home/nroute/.local/bin:${PATH}"
 
 # Expose FastAPI port
 EXPOSE 8000
