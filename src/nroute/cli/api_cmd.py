@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import click
 import uvicorn
+from rich.console import Console
+
+console = Console()
 
 
 @click.group(name="api", help="Manage the Digital Twin API server.")
@@ -30,11 +33,13 @@ def start_server(host: str, port: int) -> None:
     from nroute.api.server import get_active_api_token
 
     token, is_fallback = get_active_api_token()
-    click.echo(f"Starting API server on http://{host}:{port}...")
+    console.print(f"[cyan]Starting API server on [bold]http://{host}:{port}[/bold]...[/cyan]")
     if is_fallback:
-        click.echo("----------------------------------------------------------------------")
-        click.echo("INFO: No NROUTE_API_TOKEN configured. Generated local session token:")
-        click.echo(f"      Bearer {token}")
-        click.echo("      Include header 'Authorization: Bearer <token>' in API requests.")
-        click.echo("----------------------------------------------------------------------")
+        console.print(
+            "\n[yellow]⚠ No NROUTE_API_TOKEN configured. Generated local session token:[/yellow]"
+        )
+        console.print(f"  [bold green]Bearer {token}[/bold green]")
+        console.print(
+            "  [dim]Include header 'Authorization: Bearer <token>' in API requests.[/dim]\n"
+        )
     uvicorn.run("nroute.api.server:app", host=host, port=port, log_level="info")
