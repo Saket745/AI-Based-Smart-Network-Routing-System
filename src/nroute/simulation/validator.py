@@ -127,7 +127,9 @@ class PreFlightValidator:
                 p = validate_file_path(policy, must_exist=True)
             except ValidationError as exc:
                 if "does not exist" in str(exc):
-                    raise FileNotFoundError(f"Policy configuration file not found: {policy}") from exc
+                    raise FileNotFoundError(
+                        f"Policy configuration file not found: {policy}"
+                    ) from exc
                 raise ValueError(f"Invalid policy configuration file path: {exc}") from exc
             if not p.is_file():
                 raise FileNotFoundError(f"Policy configuration file not found: {policy}")
