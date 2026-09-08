@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any
 import yaml
 
 from nroute.core.openconfig import ConfigChange
+from nroute.exceptions import ValidationError
 from nroute.simulation.change_impact import ChangeImpactSimulator
 from nroute.simulation.policy import (
     PolicyGateConfig,
@@ -28,6 +29,7 @@ from nroute.simulation.policy import (
     ValidationVerdict,
 )
 from nroute.utils.logging import get_logger
+from nroute.utils.validators import validate_file_path
 
 if TYPE_CHECKING:
     from nroute.core.topology import Topology
@@ -86,7 +88,12 @@ class PreFlightValidator:
         change_id: str = "CHG-ANONYMOUS"
 
         if isinstance(change, (str, Path)):
-            p = Path(change)
+            try:
+                p = validate_file_path(change, must_exist=True)
+            except ValidationError as exc:
+                if "does not exist" in str(exc):
+                    raise FileNotFoundError(f"Change patch file not found: {change}") from exc
+                raise ValueError(f"Invalid change patch file path: {exc}") from exc
             if not p.is_file():
                 raise FileNotFoundError(f"Change patch file not found: {change}")
             content = p.read_text(encoding="utf-8")
@@ -116,7 +123,12 @@ class PreFlightValidator:
             gate_policy = PolicyGateConfig()
             policy_hash = _compute_sha256(gate_policy.model_dump())
         elif isinstance(policy, (str, Path)):
-            p = Path(policy)
+            try:
+                p = validate_file_path(policy, must_exist=True)
+            except ValidationError as exc:
+                if "does not exist" in str(exc):
+                    raise FileNotFoundError(f"Policy configuration file not found: {policy}") from exc
+                raise ValueError(f"Invalid policy configuration file path: {exc}") from exc
             if not p.is_file():
                 raise FileNotFoundError(f"Policy configuration file not found: {policy}")
             content = p.read_text(encoding="utf-8")

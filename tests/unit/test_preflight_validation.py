@@ -259,6 +259,20 @@ def test_malformed_change_patch() -> None:
         PreFlightValidator.validate(topo, change="non_existent_file.yaml")
 
 
+def test_path_traversal_rejection_in_preflight_validator() -> None:
+    """Ensure path traversal attempts and null byte paths are rejected in PreFlightValidator."""
+    topo = _build_test_network()
+
+    # Test change path with null bytes or invalid paths
+    with pytest.raises(ValueError, match="Invalid change patch file path"):
+        PreFlightValidator.validate(topo, change="change_file.json\0.txt")
+
+    # Test policy path with null bytes or invalid paths
+    valid_change = ConfigChange(description="Valid change")
+    with pytest.raises(ValueError, match="Invalid policy configuration file path"):
+        PreFlightValidator.validate(topo, change=valid_change, policy="policy.json\0.txt")
+
+
 def test_deterministic_repeated_evaluation() -> None:
     """Two evaluations on identical inputs must yield identical decision fields."""
     topo = _build_test_network()
