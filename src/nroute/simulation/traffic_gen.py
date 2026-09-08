@@ -76,7 +76,7 @@ class TrafficGenerator:
 
         # Weighted protocols: TCP (70%), UDP (25%), ICMP (5%)
         # BOLT OPTIMIZATION: Threshold check avoids allocating temporary choices/weights lists per flow (~6x speedup).
-        r = self.rng.random_float() if hasattr(self.rng, "random_float") else self.rng.random()
+        r = self.rng.random_float()
         proto = "TCP" if r < 0.70 else ("UDP" if r < 0.95 else "ICMP")
         timestamp = float(tick)
 
