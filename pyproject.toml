@@ -54,6 +54,8 @@ dependencies = [
     "fastapi>=0.100",
     "python-multipart>=0.0.7",
     "uvicorn>=0.22",
+    "setuptools>=78.1.1",
+    "msgpack>=1.2.1",
 ]
 
 [project.optional-dependencies]
