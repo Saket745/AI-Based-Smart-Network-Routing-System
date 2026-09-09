@@ -7,7 +7,9 @@ if hasattr(sys.stdout, "reconfigure"):
 
 
 def main():
-    branches = json.loads(Path("artifacts/unmerged_branches_detailed.json").read_text(encoding="utf-8"))
+    branches = json.loads(
+        Path("artifacts/unmerged_branches_detailed.json").read_text(encoding="utf-8")
+    )
 
     with_prs = [b for b in branches if b["open_pr"] is not None]
     without_prs = [b for b in branches if b["open_pr"] is None]
@@ -25,7 +27,9 @@ def main():
         print(f"  Title:   {pr['title']}")
         print(f"  Author:  {pr['user']} | Created: {pr['created_at']}")
         print(f"  Ahead:   {b['ahead']} | Behind: {b['behind']}")
-        print(f"  Files:   {len(b['files_changed'])} files changed ({', '.join(b['files_changed'][:3])})")
+        print(
+            f"  Files:   {len(b['files_changed'])} files changed ({', '.join(b['files_changed'][:3])})"
+        )
         print()
 
     print("\n" + "=" * 80)
@@ -39,10 +43,18 @@ def main():
         print(f"  * {a}: {count} branches")
 
     # Inspect if any unmerged branch without PR has unique source code changes (outside tests/docs)
-    core_touching = [b for b in without_prs if b["touches_core"] or b["touches_routing"] or b["touches_simulation"] or b["touches_api"]]
-    print(f"\nUnmerged branches without PRs that touch core/routing/simulation/api: {len(core_touching)}")
+    core_touching = [
+        b
+        for b in without_prs
+        if b["touches_core"] or b["touches_routing"] or b["touches_simulation"] or b["touches_api"]
+    ]
+    print(
+        f"\nUnmerged branches without PRs that touch core/routing/simulation/api: {len(core_touching)}"
+    )
     for b in core_touching[:20]:
-        print(f"  * {b['clean_name']} (ahead={b['ahead']}, behind={b['behind']}, author={b['last_commit_author']})")
+        print(
+            f"  * {b['clean_name']} (ahead={b['ahead']}, behind={b['behind']}, author={b['last_commit_author']})"
+        )
         print(f"    Subject: {b['last_commit_subject']}")
         print(f"    Files:   {b['files_changed']}")
 
