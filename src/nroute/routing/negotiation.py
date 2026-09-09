@@ -192,6 +192,8 @@ class NegotiationRouter(BaseRouter):
             distances=distances,
         )
 
+        path_so_far_set = {source}
+
         def negotiate_path(
             current_node: str,
             path_so_far: list[str],
@@ -202,7 +204,7 @@ class NegotiationRouter(BaseRouter):
             # Solicit bids from neighbors of current_node
             bids = []
             for neighbor in subgraph.neighbors(current_node):
-                if neighbor in path_so_far:
+                if neighbor in path_so_far_set:
                     # Loop prevention
                     continue
 
@@ -214,9 +216,11 @@ class NegotiationRouter(BaseRouter):
             bids.sort(key=lambda x: x[1])
 
             for neighbor, _ in bids:
+                path_so_far_set.add(neighbor)
                 result = negotiate_path(neighbor, [*path_so_far, neighbor])
                 if result is not None:
                     return result
+                path_so_far_set.remove(neighbor)
 
             return None
 
