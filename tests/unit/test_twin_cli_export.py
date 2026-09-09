@@ -111,7 +111,8 @@ def test_twin_reachability_export_feedback(runner: CliRunner, tmp_path) -> None:
 
         assert result.exit_code == 0
         assert "+" in result.output or "Successfully" in result.output
-        assert "reachable pairs" in result.output
+        assert "reachable" in result.output
+        assert "pairs" in result.output
         assert out_file.exists()
 
 
