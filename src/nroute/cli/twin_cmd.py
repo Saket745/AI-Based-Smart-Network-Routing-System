@@ -214,7 +214,11 @@ def impact_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
-        click.echo(f"Blast-radius report written to {args.output}")
+        impacted_count = len(report.get("impacted_pairs", []))
+        console.print(
+            f"[green]+[/green] Successfully exported blast-radius report to JSON: "
+            f"[bold]{args.output}[/bold] ({impacted_count} impacted pairs)"
+        )
     else:
         click.echo(json.dumps(report, indent=2))
 
@@ -261,7 +265,11 @@ def rca_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
-        click.echo(f"RCA report written to {args.output}")
+        rc_count = len(report.get("root_causes", []))
+        console.print(
+            f"[green]+[/green] Successfully exported RCA report to JSON: "
+            f"[bold]{args.output}[/bold] ({rc_count} root causes identified)"
+        )
     else:
         click.echo(json.dumps(report, indent=2, default=str))
 
@@ -304,7 +312,11 @@ def reachability_cmd(
         Path(output).parent.mkdir(parents=True, exist_ok=True)
         with open(output, "w", encoding="utf-8") as f:
             json.dump(serializable, f, indent=2)
-        click.echo(f"Reachability matrix written to {output}")
+        total_pairs = sum(len(v) for v in serializable.values())
+        console.print(
+            f"[green]+[/green] Successfully exported reachability matrix to JSON: "
+            f"[bold]{output}[/bold] ({len(serializable)} nodes, {total_pairs} reachable pairs)"
+        )
     else:
         total_pairs = sum(len(v) for v in serializable.values())
         click.echo(f"Reachability: {len(serializable)} nodes, {total_pairs} reachable pairs")
@@ -358,7 +370,10 @@ def audit_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", encoding="utf-8") as f:
             json.dump(records, f, indent=2)
-        click.echo(f"Exported {len(records)} audit records to {args.output}")
+        console.print(
+            f"[green]+[/green] Successfully exported audit trail to JSON: "
+            f"[bold]{args.output}[/bold] ({len(records)} records)"
+        )
     else:
         click.echo(f"Audit trail: {len(records)} record(s)")
         click.echo(json.dumps(records, indent=2))
