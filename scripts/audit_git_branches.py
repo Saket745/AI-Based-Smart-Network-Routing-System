@@ -34,7 +34,9 @@ def main():
     print(f"HEAD: {head_branch} ({main_sha}) | origin/main: {origin_main_sha}")
 
     # 2. Get all local branches
-    raw_local = run_git(["branch", "--format=%(refname:short)|%(upstream:short)|%(objectname)"]).splitlines()
+    raw_local = run_git(
+        ["branch", "--format=%(refname:short)|%(upstream:short)|%(objectname)"]
+    ).splitlines()
     local_branches = {}
     for line in raw_local:
         if not line:
@@ -59,8 +61,12 @@ def main():
         remote_branches[name] = {"sha": sha}
 
     # 4. Check merged status against main
-    merged_local = set(run_git(["branch", "--merged", "main", "--format=%(refname:short)"]).splitlines())
-    merged_remote = set(run_git(["branch", "-r", "--merged", "main", "--format=%(refname:short)"]).splitlines())
+    merged_local = set(
+        run_git(["branch", "--merged", "main", "--format=%(refname:short)"]).splitlines()
+    )
+    merged_remote = set(
+        run_git(["branch", "-r", "--merged", "main", "--format=%(refname:short)"]).splitlines()
+    )
 
     branch_audit = []
 
@@ -80,22 +86,26 @@ def main():
             raw_log = run_git(["log", "--oneline", f"main..{name}"]).splitlines()
             unique_commits = raw_log
 
-        last_commit_info = run_git(["log", "-1", "--format=%cd|%an|%s", "--date=iso", name]).split("|")
+        last_commit_info = run_git(["log", "-1", "--format=%cd|%an|%s", "--date=iso", name]).split(
+            "|"
+        )
 
-        branch_audit.append({
-            "name": name,
-            "type": "local",
-            "sha": data["sha"],
-            "upstream": data["upstream"],
-            "is_merged_to_main": is_merged,
-            "ahead_main": ahead,
-            "behind_main": behind,
-            "unique_commits_count": len(unique_commits),
-            "unique_commits": unique_commits[:10],
-            "last_commit_date": last_commit_info[0] if len(last_commit_info) > 0 else "",
-            "last_commit_author": last_commit_info[1] if len(last_commit_info) > 1 else "",
-            "last_commit_subject": last_commit_info[2] if len(last_commit_info) > 2 else "",
-        })
+        branch_audit.append(
+            {
+                "name": name,
+                "type": "local",
+                "sha": data["sha"],
+                "upstream": data["upstream"],
+                "is_merged_to_main": is_merged,
+                "ahead_main": ahead,
+                "behind_main": behind,
+                "unique_commits_count": len(unique_commits),
+                "unique_commits": unique_commits[:10],
+                "last_commit_date": last_commit_info[0] if len(last_commit_info) > 0 else "",
+                "last_commit_author": last_commit_info[1] if len(last_commit_info) > 1 else "",
+                "last_commit_subject": last_commit_info[2] if len(last_commit_info) > 2 else "",
+            }
+        )
 
     # Audit Remote Branches
     for name, data in remote_branches.items():
@@ -116,22 +126,26 @@ def main():
             except Exception:
                 pass
 
-        last_commit_info = run_git(["log", "-1", "--format=%cd|%an|%s", "--date=iso", name]).split("|")
+        last_commit_info = run_git(["log", "-1", "--format=%cd|%an|%s", "--date=iso", name]).split(
+            "|"
+        )
 
-        branch_audit.append({
-            "name": name,
-            "clean_name": clean_name,
-            "type": "remote",
-            "sha": data["sha"],
-            "is_merged_to_main": is_merged,
-            "ahead_main": ahead,
-            "behind_main": behind,
-            "unique_commits_count": len(unique_commits),
-            "unique_commits": unique_commits[:10],
-            "last_commit_date": last_commit_info[0] if len(last_commit_info) > 0 else "",
-            "last_commit_author": last_commit_info[1] if len(last_commit_info) > 1 else "",
-            "last_commit_subject": last_commit_info[2] if len(last_commit_info) > 2 else "",
-        })
+        branch_audit.append(
+            {
+                "name": name,
+                "clean_name": clean_name,
+                "type": "remote",
+                "sha": data["sha"],
+                "is_merged_to_main": is_merged,
+                "ahead_main": ahead,
+                "behind_main": behind,
+                "unique_commits_count": len(unique_commits),
+                "unique_commits": unique_commits[:10],
+                "last_commit_date": last_commit_info[0] if len(last_commit_info) > 0 else "",
+                "last_commit_author": last_commit_info[1] if len(last_commit_info) > 1 else "",
+                "last_commit_subject": last_commit_info[2] if len(last_commit_info) > 2 else "",
+            }
+        )
 
     out_file = Path("artifacts/branch_forensic_inventory.json")
     out_file.parent.mkdir(parents=True, exist_ok=True)
@@ -145,7 +159,9 @@ def main():
     unmerged = [b for b in branch_audit if not b["is_merged_to_main"] and b["name"] != "main"]
     print(f"Total Unmerged Branches: {len(unmerged)}")
     for b in unmerged:
-        print(f"  * {b['name']} (ahead={b['ahead_main']}, behind={b['behind_main']}) -> {b['last_commit_subject']}")
+        print(
+            f"  * {b['name']} (ahead={b['ahead_main']}, behind={b['behind_main']}) -> {b['last_commit_subject']}"
+        )
 
 
 if __name__ == "__main__":
