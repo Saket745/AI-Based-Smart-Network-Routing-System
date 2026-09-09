@@ -28,26 +28,10 @@ class BlastRadiusOracle:
     """
 
     @staticmethod
-    def compute_reroute_ground_truth(
-        topology: Topology,
-        flows: list[FlowDemand],
-        cut_edge: tuple[str, str],
-    ) -> dict[str, Any]:
-        """
-        Compute exact post-failure flow redistribution for severed flows.
-
-        Args:
-            topology: The pre-failure network topology.
-            flows: List of active flow demands.
-            cut_edge: The hypothetical failed edge (u, v).
-
-        Returns:
-            Dictionary containing u_pre, u_post, delta_u, disconnected_flows, and routing paths.
-        """
-        graph = topology.graph
-        u_cut, v_cut = cut_edge
-
-        # 1. Pre-Failure Shortest Path Routing
+    def _compute_pre_failure_routing(
+        graph: nx.Graph, flows: list[FlowDemand]
+    ) -> tuple[dict[str, list[str]], dict[tuple[str, str], float]]:
+        """Compute pre-failure shortest paths and edge utilization."""
         pre_paths: dict[str, list[str]] = {}
         edge_loads_pre: dict[tuple[str, str], float] = {e: 0.0 for e in graph.edges}
 
@@ -66,12 +50,21 @@ class BlastRadiusOracle:
             cap = float(graph.edges[e].get("bandwidth", 1000.0))
             u_pre[e] = load / cap if cap > 0 else 0.0
 
-        # 2. Construct Perturbed Graph Copy G' = G \ {cut_edge}
+        return pre_paths, u_pre
+
+    @staticmethod
+    def _compute_post_failure_routing(
+        graph: nx.Graph,
+        flows: list[FlowDemand],
+        cut_edge: tuple[str, str],
+        pre_paths: dict[str, list[str]],
+    ) -> tuple[nx.Graph, dict[str, list[str]], dict[tuple[str, str], float], int]:
+        """Construct perturbed graph G' and compute post-failure flow routing and utilization."""
+        u_cut, v_cut = cut_edge
         perturbed_graph = graph.copy()
         if perturbed_graph.has_edge(u_cut, v_cut):
             perturbed_graph.remove_edge(u_cut, v_cut)
 
-        # 3. Post-Failure Selective Flow Rerouting
         post_paths: dict[str, list[str]] = {}
         edge_loads_post: dict[tuple[str, str], float] = {e: 0.0 for e in perturbed_graph.edges}
         disconnected_count = 0
@@ -108,10 +101,49 @@ class BlastRadiusOracle:
             cap = float(perturbed_graph.edges[e].get("bandwidth", 1000.0))
             u_post[e] = load / cap if cap > 0 else 0.0
 
-        # 4. Compute Delta_U for surviving edges
+        return perturbed_graph, post_paths, u_post, disconnected_count
+
+    @staticmethod
+    def _compute_delta_u(
+        perturbed_graph: nx.Graph,
+        u_pre: dict[tuple[str, str], float],
+        u_post: dict[tuple[str, str], float],
+    ) -> dict[tuple[str, str], float]:
+        """Compute Delta_U for surviving edges in the perturbed graph."""
         delta_u: dict[tuple[str, str], float] = {}
         for e in perturbed_graph.edges:
             delta_u[e] = u_post[e] - u_pre.get(e, 0.0)
+        return delta_u
+
+    @staticmethod
+    def compute_reroute_ground_truth(
+        topology: Topology,
+        flows: list[FlowDemand],
+        cut_edge: tuple[str, str],
+    ) -> dict[str, Any]:
+        """
+        Compute exact post-failure flow redistribution for severed flows.
+
+        Args:
+            topology: The pre-failure network topology.
+            flows: List of active flow demands.
+            cut_edge: The hypothetical failed edge (u, v).
+
+        Returns:
+            Dictionary containing u_pre, u_post, delta_u, disconnected_flows, and routing paths.
+        """
+        graph = topology.graph
+
+        # 1. Pre-Failure Shortest Path Routing
+        pre_paths, u_pre = BlastRadiusOracle._compute_pre_failure_routing(graph, flows)
+
+        # 2. Post-Failure Selective Flow Rerouting
+        perturbed_graph, post_paths, u_post, disconnected_count = (
+            BlastRadiusOracle._compute_post_failure_routing(graph, flows, cut_edge, pre_paths)
+        )
+
+        # 3. Compute Delta_U for surviving edges
+        delta_u = BlastRadiusOracle._compute_delta_u(perturbed_graph, u_pre, u_post)
 
         return {
             "cut_edge": cut_edge,
