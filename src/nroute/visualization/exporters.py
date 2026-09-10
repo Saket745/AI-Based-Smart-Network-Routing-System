@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import networkx as nx
@@ -14,6 +13,8 @@ from nroute.exceptions import SimulationError, ValidationError
 from nroute.utils.validators import validate_file_path
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from nroute.core.topology import Topology
 
 
@@ -34,8 +35,8 @@ class TopologyExporter:
     @staticmethod
     def to_graphml(topology: Topology, path: str | Path) -> None:
         """Export topology graph to GraphML file for tool interoperability (Gephi/Cytoscape)."""
-        p = Path(path)
         try:
+            p = validate_file_path(path, must_exist=False)
             p.parent.mkdir(parents=True, exist_ok=True)
             # Create a copy to prevent mutating the original topology graph attributes
             g_copy = topology.graph.copy()
@@ -54,21 +55,21 @@ class TopologyExporter:
                         edata[k] = json.dumps(v)
 
             nx.write_graphml(g_copy, str(p))
-        except Exception as e:
+        except (ValidationError, Exception) as e:
             raise SimulationError(f"Failed to export topology to GraphML {path}: {e}") from e
 
     @staticmethod
     def to_csv(topology: Topology, path: str | Path) -> None:
         """Export topology to separate node and edge CSV files."""
-        p = Path(path)
-        base_name = p.stem
-        dir_name = p.parent
-        ext = p.suffix or ".csv"
-
-        nodes_path = dir_name / f"{base_name}_nodes{ext}"
-        edges_path = dir_name / f"{base_name}_edges{ext}"
-
         try:
+            p = validate_file_path(path, must_exist=False)
+            base_name = p.stem
+            dir_name = p.parent
+            ext = p.suffix or ".csv"
+
+            nodes_path = dir_name / f"{base_name}_nodes{ext}"
+            edges_path = dir_name / f"{base_name}_edges{ext}"
+
             dir_name.mkdir(parents=True, exist_ok=True)
 
             # Node DataFrame
@@ -87,7 +88,7 @@ class TopologyExporter:
                 edges_data.append(row)
             pd.DataFrame(edges_data).to_csv(edges_path, index=False)
 
-        except Exception as e:
+        except (ValidationError, Exception) as e:
             raise SimulationError(f"Failed to export topology to CSV {path}: {e}") from e
 
 
@@ -100,11 +101,11 @@ class MetricsExporter:
         path: str | Path,
     ) -> None:
         """Export simulation metrics to JSON file."""
-        p = Path(path)
-        if isinstance(metrics, MetricsCollectionResult):
-            metrics.to_json(p)
-        else:
-            try:
+        try:
+            p = validate_file_path(path, must_exist=False)
+            if isinstance(metrics, MetricsCollectionResult):
+                metrics.to_json(p)
+            else:
                 p.parent.mkdir(parents=True, exist_ok=True)
                 raw_list = []
                 for item in metrics:
@@ -114,8 +115,8 @@ class MetricsExporter:
                         raw_list.append(item)
                 with open(p, "w", encoding="utf-8") as f:
                     json.dump(raw_list, f, indent=2)
-            except Exception as e:
-                raise SimulationError(f"Failed to export metrics to JSON {path}: {e}") from e
+        except (ValidationError, Exception) as e:
+            raise SimulationError(f"Failed to export metrics to JSON {path}: {e}") from e
 
     @staticmethod
     def to_csv(
@@ -123,11 +124,11 @@ class MetricsExporter:
         path: str | Path,
     ) -> None:
         """Export simulation metrics to CSV file."""
-        p = Path(path)
-        if isinstance(metrics, MetricsCollectionResult):
-            metrics.to_csv(p)
-        else:
-            try:
+        try:
+            p = validate_file_path(path, must_exist=False)
+            if isinstance(metrics, MetricsCollectionResult):
+                metrics.to_csv(p)
+            else:
                 p.parent.mkdir(parents=True, exist_ok=True)
                 raw_list = []
                 for item in metrics:
@@ -136,5 +137,5 @@ class MetricsExporter:
                     else:
                         raw_list.append(item)
                 pd.DataFrame(raw_list).to_csv(p, index=False)
-            except Exception as e:
-                raise SimulationError(f"Failed to export metrics to CSV {path}: {e}") from e
+        except (ValidationError, Exception) as e:
+            raise SimulationError(f"Failed to export metrics to CSV {path}: {e}") from e
