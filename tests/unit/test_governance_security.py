@@ -81,7 +81,10 @@ def test_anomaly_detector_pytorch_secure_loading_failure() -> None:
             with pytest.raises(ModelError) as excinfo:
                 detector.load(path, allow_unsafe=True)
             err_msg = str(excinfo.value)
-            assert f"Failed to load model from {path}" in err_msg or f"Failed to load model from {os.path.realpath(path)}" in err_msg
+            assert (
+                f"Failed to load model from {path}" in err_msg
+                or f"Failed to load model from {os.path.realpath(path)}" in err_msg
+            )
             assert "Security breach!" in err_msg
 
 
@@ -104,7 +107,10 @@ def test_congestion_predictor_pytorch_secure_loading_failure() -> None:
             with pytest.raises(ModelError) as excinfo:
                 predictor.load(path, allow_unsafe=True)
             err_msg = str(excinfo.value)
-            assert f"Failed to load model from {path}" in err_msg or f"Failed to load model from {os.path.realpath(path)}" in err_msg
+            assert (
+                f"Failed to load model from {path}" in err_msg
+                or f"Failed to load model from {os.path.realpath(path)}" in err_msg
+            )
             assert "Security breach!" in err_msg
 
 
