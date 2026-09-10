@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 import click
 from rich.console import Console
 from rich.table import Table
@@ -9,6 +11,16 @@ from rich.table import Table
 from nroute.exceptions import ModelError
 
 console = Console()
+
+
+def _safe_anomaly_icons(encoding: str | None = None) -> tuple[str, str]:
+    """Return status icons ('🟢', '🔴') if supported by the encoding, else ASCII fallback ('[OK]', '[!]')."""
+    enc = encoding or getattr(sys.stdout, "encoding", None) or "utf-8"
+    try:
+        "🟢🔴".encode(enc)
+        return "🟢", "🔴"
+    except (UnicodeEncodeError, LookupError):
+        return "[OK]", "[!]"
 
 
 @click.group(name="detect")
@@ -156,13 +168,17 @@ def anomalies(
         "normal": "green",
     }
 
+    icon_no, icon_yes = _safe_anomaly_icons(getattr(console.file, "encoding", None))
+
     for idx, row in results.iterrows():
         score = float(row["anomaly_score"])
         is_anom = bool(row["is_anomaly"])
         atype = str(row["anomaly_type"])
 
         score_style = "red" if score > 0.5 else "green"
-        anom_icon = "🔴 [bold red]YES[/bold red]" if is_anom else "🟢 [green]NO[/green]"
+        anom_icon = (
+            f"{icon_yes} [bold red]YES[/bold red]" if is_anom else f"{icon_no} [green]NO[/green]"
+        )
         type_style = anomaly_type_colors.get(atype, "white")
 
         table.add_row(
