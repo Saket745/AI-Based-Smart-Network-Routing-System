@@ -177,9 +177,7 @@ def anomalies(
 
         score_style = "red" if score > 0.5 else "green"
         anom_icon = (
-            f"{icon_yes} [bold red]YES[/bold red]"
-            if is_anom
-            else f"{icon_no} [green]NO[/green]"
+            f"{icon_yes} [bold red]YES[/bold red]" if is_anom else f"{icon_no} [green]NO[/green]"
         )
         type_style = anomaly_type_colors.get(atype, "white")
 
