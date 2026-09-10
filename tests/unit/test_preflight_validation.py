@@ -259,6 +259,18 @@ def test_malformed_change_patch() -> None:
         PreFlightValidator.validate(topo, change="non_existent_file.yaml")
 
 
+def test_validation_path_traversal_and_null_byte_rejection() -> None:
+    """Verify that file paths with null bytes raise FileNotFoundError in PreFlightValidator."""
+    topo = _build_test_network()
+    with pytest.raises(FileNotFoundError):
+        PreFlightValidator.validate(topo, change="change.json\0.yaml")
+
+    with pytest.raises(FileNotFoundError):
+        PreFlightValidator.validate(
+            topo, change=ConfigChange(description="test"), policy="policy.json\0.yaml"
+        )
+
+
 def test_deterministic_repeated_evaluation() -> None:
     """Two evaluations on identical inputs must yield identical decision fields."""
     topo = _build_test_network()
