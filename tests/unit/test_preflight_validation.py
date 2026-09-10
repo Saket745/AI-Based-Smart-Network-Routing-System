@@ -266,7 +266,9 @@ def test_validation_path_traversal_and_null_byte_rejection() -> None:
         PreFlightValidator.validate(topo, change="change.json\0.yaml")
 
     with pytest.raises(FileNotFoundError):
-        PreFlightValidator.validate(topo, change=ConfigChange(description="test"), policy="policy.json\0.yaml")
+        PreFlightValidator.validate(
+            topo, change=ConfigChange(description="test"), policy="policy.json\0.yaml"
+        )
 
 
 def test_deterministic_repeated_evaluation() -> None:
