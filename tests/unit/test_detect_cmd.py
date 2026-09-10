@@ -10,8 +10,14 @@ import pytest
 from click.testing import CliRunner
 
 from nroute.cli import cli
-from nroute.cli.detect_cmd import detect_cmd
+from nroute.cli.detect_cmd import _safe_anomaly_icons, detect_cmd
 from nroute.exceptions import ModelError
+
+
+def test_safe_anomaly_icons() -> None:
+    """Test safe status icon resolution with utf-8 vs ascii encodings."""
+    assert _safe_anomaly_icons("utf-8") == ("🟢", "🔴")
+    assert _safe_anomaly_icons("ascii") == ("[OK]", "[!]")
 
 
 @pytest.fixture
