@@ -34,8 +34,11 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Upgrade system level packages to resolve security vulnerabilities
-RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
+# Upgrade system level packages to resolve security vulnerabilities and purge old dist-info
+RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" \
+    && find /usr/local/lib/python3.10/site-packages -maxdepth 1 -type d -name "setuptools-70*" -exec rm -rf {} + \
+    && find /usr/local/lib/python3.10/site-packages -maxdepth 1 -type d -name "wheel-0.45*" -exec rm -rf {} + \
+    && find /usr/local/lib/python3.10/site-packages -maxdepth 1 -type d -name "jaraco.context-5*" -exec rm -rf {} +
 
 # Create a non-root user and group
 RUN groupadd -g 10001 nroute \
@@ -50,8 +53,8 @@ USER nroute
 
 # Install the wheel package locally WITHOUT resolving dependencies automatically
 # to avoid installing heavy machine learning libraries (torch, stable-baselines3, scikit-learn, xgboost)
-RUN pip install --user --no-cache-dir --no-deps *.whl \
-    && pip install --user --no-cache-dir "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" \
+RUN pip install --user --no-cache-dir "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" \
+    && pip install --user --no-cache-dir --no-deps *.whl \
     && rm *.whl
 
 # Manually install ONLY the lightweight, basic dependencies (routing, simulation, CLI, FastAPI server)
