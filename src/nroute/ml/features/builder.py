@@ -130,7 +130,9 @@ class FeatureBuilder:
         n_edges = len(edges)
         src_indices = [0] * n_edges
         dst_indices = [0] * n_edges
-        edge_features = [None] * n_edges
+        edge_features: list[tuple[float, float, float, float, float, float] | None] = [
+            None
+        ] * n_edges
 
         has_adj = hasattr(graph, "_adj")
         adj = getattr(graph, "_adj", graph.edges)
