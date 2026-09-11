@@ -134,6 +134,87 @@ class NegotiationRouter(BaseRouter):
 
         return link_cost + remaining_cost
 
+    def _build_weight_func(
+        self,
+        weight: str | Callable[[dict[str, Any]], float] | None,
+    ) -> Callable[[str, str, dict[str, Any]], float] | None:
+        """Adapt weight parameter to NetworkX weight signature (u, v, d) -> float."""
+        if weight is None:
+            return None
+
+        if isinstance(weight, str):
+            weight_attr = weight
+
+            def weight_func_str(u: str, v: str, d: dict[str, Any]) -> float:
+                return float(d.get(weight_attr, 1.0))
+
+            return weight_func_str
+
+        wt_callable = weight
+
+        def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
+            return float(wt_callable(d))
+
+        return weight_func_callable
+
+    def _compute_reverse_distances(
+        self,
+        subgraph: nx.DiGraph,
+        destination: str,
+        rem_weight: Callable[[str, str, dict[str, Any]], float],
+    ) -> dict[str, float]:
+        """Compute shortest path distances from all nodes to destination on reversed subgraph."""
+        rev_subgraph = subgraph.reverse(copy=False)
+        try:
+            return dict(
+                nx.single_source_dijkstra_path_length(
+                    rev_subgraph,
+                    destination,
+                    weight=lambda u_rev, v_rev, d: rem_weight(v_rev, u_rev, d),
+                )
+            )
+        except (nx.NetworkXNoPath, nx.NodeNotFound):
+            return {}
+
+    def _negotiate_path(
+        self,
+        current_node: str,
+        path_so_far: list[str],
+        path_so_far_set: set[str],
+        context: NegotiationContext,
+    ) -> list[str] | None:
+        """Recursively perform Contract Net Protocol negotiation with backtracking."""
+        if current_node == context.destination:
+            return path_so_far
+
+        # Solicit bids from neighbors of current_node
+        bids = []
+        for neighbor in context.subgraph.neighbors(current_node):
+            if neighbor in path_so_far_set:
+                # Loop prevention
+                continue
+
+            bid_cost = self._calculate_bid(current_node, neighbor, context)
+            if bid_cost is not None:
+                bids.append((neighbor, bid_cost))
+
+        # Sort neighbors by bid cost (lowest first)
+        bids.sort(key=lambda x: x[1])
+
+        for neighbor, _ in bids:
+            path_so_far_set.add(neighbor)
+            result = self._negotiate_path(
+                neighbor,
+                [*path_so_far, neighbor],
+                path_so_far_set,
+                context,
+            )
+            if result is not None:
+                return result
+            path_so_far_set.remove(neighbor)
+
+        return None
+
     def compute_path(
         self,
         topology: Topology,
@@ -155,34 +236,9 @@ class NegotiationRouter(BaseRouter):
         if source == destination:
             return [source]
 
-        # Adapt weight to NetworkX signature (u, v, data_dict) -> weight_value
-        weight_func = None
-        if weight is not None:
-            if isinstance(weight, str):
-                weight_attr = weight
-
-                def weight_func_str(u: str, v: str, d: dict[str, Any]) -> float:
-                    return float(d.get(weight_attr, 1.0))
-
-                weight_func = weight_func_str
-            else:
-                wt_callable = weight
-
-                def weight_func_callable(u: str, v: str, d: dict[str, Any]) -> float:
-                    return float(wt_callable(d))
-
-                weight_func = weight_func_callable
-
+        weight_func = self._build_weight_func(weight)
         rem_weight = weight_func or self._resolve_edge_weight
-        rev_subgraph = subgraph.reverse(copy=False)
-        try:
-            distances = nx.single_source_dijkstra_path_length(
-                rev_subgraph,
-                destination,
-                weight=lambda u_rev, v_rev, d: rem_weight(v_rev, u_rev, d),
-            )
-        except (nx.NetworkXNoPath, nx.NodeNotFound):
-            distances = {}
+        distances = self._compute_reverse_distances(subgraph, destination, rem_weight)
 
         # Hop-by-hop contract-net negotiation with backtracking
         context = NegotiationContext(
@@ -192,35 +248,7 @@ class NegotiationRouter(BaseRouter):
             distances=distances,
         )
 
-        def negotiate_path(
-            current_node: str,
-            path_so_far: list[str],
-        ) -> list[str] | None:
-            if current_node == destination:
-                return path_so_far
-
-            # Solicit bids from neighbors of current_node
-            bids = []
-            for neighbor in subgraph.neighbors(current_node):
-                if neighbor in path_so_far:
-                    # Loop prevention
-                    continue
-
-                bid_cost = self._calculate_bid(current_node, neighbor, context)
-                if bid_cost is not None:
-                    bids.append((neighbor, bid_cost))
-
-            # Sort neighbors by bid cost (lowest first)
-            bids.sort(key=lambda x: x[1])
-
-            for neighbor, _ in bids:
-                result = negotiate_path(neighbor, [*path_so_far, neighbor])
-                if result is not None:
-                    return result
-
-            return None
-
-        path = negotiate_path(source, [source])
+        path = self._negotiate_path(source, [source], {source}, context)
         if path is None:
             raise RoutingError(
                 f"Multi-agent negotiation failed to find a path from '{source}' to '{destination}'."
