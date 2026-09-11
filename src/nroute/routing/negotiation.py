@@ -51,16 +51,20 @@ class NegotiationRouter(BaseRouter):
 
     def _resolve_edge_weight(self, u: str, v: str, edge_data: dict[str, Any]) -> float:
         """Resolve edge weight based on the selected negotiation profile."""
+        if self.profile == "latency":
+            return float(edge_data.get("latency", 5.0))
+
         latency = float(edge_data.get("latency", 5.0))
         utilization = float(edge_data.get("utilization", 0.0))
-        packet_loss = float(edge_data.get("packet_loss", 0.0))
+        denom = 1.0 - utilization
+        eff_denom = denom if denom >= 0.01 else 0.01
 
-        if self.profile == "latency":
-            return latency
         if self.profile == "congestion":
-            return latency / max(0.01, 1.0 - utilization)
+            return latency / eff_denom
+
         # balanced
-        return latency + 50.0 * packet_loss + 5.0 / max(0.01, 1.0 - utilization)
+        packet_loss = float(edge_data.get("packet_loss", 0.0))
+        return latency + 50.0 * packet_loss + 5.0 / eff_denom
 
     def _calculate_local_link_cost(
         self,
@@ -124,7 +128,11 @@ class NegotiationRouter(BaseRouter):
             The bid cost as a float, or None if the neighbor cannot reach the destination.
         """
         # Calculate local link cost u -> v
-        edge_data = context.subgraph.edges[u, v]
+        edge_data = (
+            context.subgraph._adj[u][v]
+            if hasattr(context.subgraph, "_adj")
+            else context.subgraph.edges[u, v]
+        )
         link_cost = self._calculate_local_link_cost(u, v, edge_data, context.weight_func)
 
         # Estimate remaining cost from v to destination
@@ -173,13 +181,22 @@ class NegotiationRouter(BaseRouter):
 
                 weight_func = weight_func_callable
 
-        rem_weight = weight_func or self._resolve_edge_weight
+        if weight_func is not None:
+
+            def rev_weight(u_rev: str, v_rev: str, d: dict[str, Any]) -> float:
+                return weight_func(v_rev, u_rev, d)
+
+        else:
+
+            def rev_weight(u_rev: str, v_rev: str, d: dict[str, Any]) -> float:
+                return self._resolve_edge_weight(v_rev, u_rev, d)
+
         rev_subgraph = subgraph.reverse(copy=False)
         try:
             distances = nx.single_source_dijkstra_path_length(
                 rev_subgraph,
                 destination,
-                weight=lambda u_rev, v_rev, d: rem_weight(v_rev, u_rev, d),
+                weight=rev_weight,
             )
         except (nx.NetworkXNoPath, nx.NodeNotFound):
             distances = {}
@@ -192,6 +209,9 @@ class NegotiationRouter(BaseRouter):
             distances=distances,
         )
 
+        path_so_far_set = {source}
+        subgraph_adj = getattr(subgraph, "_adj", None)
+
         def negotiate_path(
             current_node: str,
             path_so_far: list[str],
@@ -201,8 +221,13 @@ class NegotiationRouter(BaseRouter):
 
             # Solicit bids from neighbors of current_node
             bids = []
-            for neighbor in subgraph.neighbors(current_node):
-                if neighbor in path_so_far:
+            neighbors = (
+                subgraph_adj[current_node]
+                if subgraph_adj is not None
+                else subgraph.neighbors(current_node)
+            )
+            for neighbor in neighbors:
+                if neighbor in path_so_far_set:
                     # Loop prevention
                     continue
 
@@ -214,9 +239,11 @@ class NegotiationRouter(BaseRouter):
             bids.sort(key=lambda x: x[1])
 
             for neighbor, _ in bids:
+                path_so_far_set.add(neighbor)
                 result = negotiate_path(neighbor, [*path_so_far, neighbor])
                 if result is not None:
                     return result
+                path_so_far_set.remove(neighbor)
 
             return None
 
