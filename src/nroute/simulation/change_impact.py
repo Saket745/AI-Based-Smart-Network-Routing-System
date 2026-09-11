@@ -288,8 +288,8 @@ class ChangeImpactSimulator:
         after_g = AnalyticalEngine.get_active_graph(modified)
 
         # Compute all-pairs shortest paths and precomputed path latencies
-        before_paths, before_lengths = AnalyticalEngine.compute_all_pairs_shortest_paths_and_lengths(
-            before_g, weight=weight
+        before_paths, before_lengths = (
+            AnalyticalEngine.compute_all_pairs_shortest_paths_and_lengths(before_g, weight=weight)
         )
         after_paths, after_lengths = AnalyticalEngine.compute_all_pairs_shortest_paths_and_lengths(
             after_g, weight=weight
