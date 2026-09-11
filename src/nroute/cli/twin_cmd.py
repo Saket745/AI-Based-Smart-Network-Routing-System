@@ -214,7 +214,10 @@ def impact_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
-        click.echo(f"Blast-radius report written to {args.output}")
+        console.print(
+            f"[green]+[/green] Blast-radius report written to [bold]{args.output}[/bold] "
+            f"({result.path_changed_pairs} path change(s), {result.newly_unreachable_pairs} newly unreachable)"
+        )
     else:
         click.echo(json.dumps(report, indent=2))
 
@@ -261,7 +264,10 @@ def rca_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
-        click.echo(f"RCA report written to {args.output}")
+        console.print(
+            f"[green]+[/green] RCA report written to [bold]{args.output}[/bold] "
+            f"({result.total_events} event(s) analyzed, root cause: {result.root_cause})"
+        )
     else:
         click.echo(json.dumps(report, indent=2, default=str))
 
