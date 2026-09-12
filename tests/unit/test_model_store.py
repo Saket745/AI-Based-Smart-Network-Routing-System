@@ -60,7 +60,7 @@ def test_model_store_save_and_load_default() -> None:
 
         loaded_model = DummyModel(model_type="xgboost")
         loaded_path = store.load_model(loaded_model, name="test_model", version="1.0.0")
-        assert loaded_path == saved_path
+        assert Path(loaded_path).resolve() == Path(saved_path).resolve()
         assert loaded_model.load_called
         assert loaded_model.loaded_path == loaded_path
 
@@ -77,7 +77,7 @@ def test_model_store_save_custom_extension() -> None:
 
         loaded_model = DummyModel(model_type="my_nn")
         loaded_path = store.load_model(loaded_model, name="nn_model", version="2.1.0")
-        assert loaded_path == saved_path
+        assert Path(loaded_path).resolve() == Path(saved_path).resolve()
 
 
 def test_model_store_integrity_check_failure() -> None:
@@ -148,6 +148,29 @@ def test_load_model_metadata_open_exception() -> None:
             pytest.raises(ModelError, match="No valid metadata files found for model 'test'"),
         ):
             store.load_model(model, "test")
+
+
+def test_model_store_path_traversal_validation() -> None:
+    """Test that load_model fails if metadata specifies a path outside base_dir."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base_dir = Path(tmpdir)
+        store = ModelStore(base_dir=base_dir)
+
+        # Create a metadata file pointing to a file outside base_dir (e.g., /etc/passwd or root temp file)
+        with tempfile.NamedTemporaryFile(suffix=".joblib") as external_file:
+            meta_path = base_dir / "malicious_1.0.0.metadata.json"
+            meta_data = {
+                "name": "malicious",
+                "version": "1.0.0",
+                "file_path": external_file.name,
+                "sha256": "dummy",
+                "timestamp": "2025-01-01T00:00:00Z",
+            }
+            meta_path.write_text(json.dumps(meta_data), encoding="utf-8")
+
+            model = DummyModel()
+            with pytest.raises(ModelError, match="Model file path validation failed"):
+                store.load_model(model, name="malicious", version="1.0.0")
 
 
 def test_model_store_list_models() -> None:
