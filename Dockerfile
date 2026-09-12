@@ -22,8 +22,8 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Upgrade root site-packages for security vulnerability fixes before switching user
-RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
+# Upgrade system-level root packages to eliminate vulnerabilities in base image python site-packages
+RUN python3 -m pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
 
 # Create a non-root user and group
 RUN groupadd -g 10001 nroute \
