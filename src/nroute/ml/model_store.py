@@ -139,7 +139,9 @@ class ModelStore:
 
         try:
             # Validate path traversal against base_dir root
-            model_path = validate_file_path(candidate_path, must_exist=True, allowed_root=self.base_dir)
+            model_path = validate_file_path(
+                candidate_path, must_exist=True, allowed_root=self.base_dir
+            )
         except ValidationError as e:
             raise ModelError(f"Model file path validation failed: {e}") from e
 
