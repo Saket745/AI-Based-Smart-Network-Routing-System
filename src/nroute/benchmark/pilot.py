@@ -154,37 +154,31 @@ def pretrain_models_for_topology(
     return ai_router, rl_router
 
 
-def run_single_experiment(
-    topo_type: str,
-    traffic_model: str,
-    failure_type: str,
+def _setup_failure_injector(
+    topo: Topology, failure_type: str
+) -> tuple[FailureInjector | None, int | None, int | None]:
+    """Configure failure injector and schedule link failure/recovery if requested."""
+    if failure_type != "single_link_cut":
+        return None, None, None
+
+    failure_injector = FailureInjector()
+    u, v = find_highest_betweenness_edge(topo)
+    failure_tick = 10
+    recovery_tick = 20
+    failure_injector.schedule_link_failure(u, v, failure_tick)
+    failure_injector.schedule_recovery(u, v, recovery_tick)
+    return failure_injector, failure_tick, recovery_tick
+
+
+def _instantiate_router(
     algorithm: str,
-    eval_seed: int,
+    topo_type: str,
+    topo: Topology,
     train_seed: int,
-    duration_ticks: int = 25,
-    pretrained_ai: AIRouter | None = None,
-    pretrained_rl: RLRouter | None = None,
-) -> dict[str, Any]:
-    """
-    Execute a single isolated benchmark run and return comprehensive telemetry.
-    """
-    # 1. Create topology with evaluation seed
-    topo = create_topology(topo_type, seed=eval_seed)
-
-    # 2. Configure Failure Injector
-    failure_injector: FailureInjector | None = None
-    failure_tick: int | None = None
-    recovery_tick: int | None = None
-
-    if failure_type == "single_link_cut":
-        failure_injector = FailureInjector()
-        u, v = find_highest_betweenness_edge(topo)
-        failure_tick = 10
-        recovery_tick = 20
-        failure_injector.schedule_link_failure(u, v, failure_tick)
-        failure_injector.schedule_recovery(u, v, recovery_tick)
-
-    # 3. Instantiate and instrument router
+    pretrained_ai: AIRouter | None,
+    pretrained_rl: RLRouter | None,
+) -> InstrumentedRouter:
+    """Instantiate and instrument router for the benchmark run."""
     raw_router: Any
     if algorithm == "static_dijkstra":
         raw_router = DijkstraRouter()
@@ -207,7 +201,33 @@ def run_single_experiment(
     else:
         raise ValueError(f"Unknown algorithm: {algorithm}")
 
-    instrumented_router = InstrumentedRouter(raw_router)
+    return InstrumentedRouter(raw_router)
+
+
+def run_single_experiment(
+    topo_type: str,
+    traffic_model: str,
+    failure_type: str,
+    algorithm: str,
+    eval_seed: int,
+    train_seed: int,
+    duration_ticks: int = 25,
+    pretrained_ai: AIRouter | None = None,
+    pretrained_rl: RLRouter | None = None,
+) -> dict[str, Any]:
+    """
+    Execute a single isolated benchmark run and return comprehensive telemetry.
+    """
+    # 1. Create topology with evaluation seed
+    topo = create_topology(topo_type, seed=eval_seed)
+
+    # 2. Configure Failure Injector
+    failure_injector, failure_tick, recovery_tick = _setup_failure_injector(topo, failure_type)
+
+    # 3. Instantiate and instrument router
+    instrumented_router = _instantiate_router(
+        algorithm, topo_type, topo, train_seed, pretrained_ai, pretrained_rl
+    )
 
     # 4. Configure Traffic Generator with evaluation seed
     n_flows = 20 if traffic_model == "hotspot" else 10
