@@ -150,6 +150,29 @@ def test_load_model_metadata_open_exception() -> None:
             store.load_model(model, "test")
 
 
+def test_model_store_path_traversal_validation() -> None:
+    """Test that load_model fails if metadata specifies a path outside base_dir."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base_dir = Path(tmpdir)
+        store = ModelStore(base_dir=base_dir)
+
+        # Create a metadata file pointing to a file outside base_dir (e.g., /etc/passwd or root temp file)
+        with tempfile.NamedTemporaryFile(suffix=".joblib") as external_file:
+            meta_path = base_dir / "malicious_1.0.0.metadata.json"
+            meta_data = {
+                "name": "malicious",
+                "version": "1.0.0",
+                "file_path": external_file.name,
+                "sha256": "dummy",
+                "timestamp": "2025-01-01T00:00:00Z",
+            }
+            meta_path.write_text(json.dumps(meta_data), encoding="utf-8")
+
+            model = DummyModel()
+            with pytest.raises(ModelError, match="Model file path validation failed"):
+                store.load_model(model, name="malicious", version="1.0.0")
+
+
 def test_model_store_list_models() -> None:
     """Test listing models in the store."""
     with tempfile.TemporaryDirectory() as tmpdir:

@@ -8,8 +8,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from nroute.exceptions import ModelError
+from nroute.exceptions import ModelError, ValidationError
 from nroute.utils.logging import get_logger
+from nroute.utils.validators import validate_file_path
 
 logger = get_logger(__name__)
 
@@ -129,16 +130,18 @@ class ModelStore:
             except Exception as e:
                 raise ModelError(f"Failed to parse timestamps to find latest model: {e}") from e
 
-        model_path = Path(target_meta["file_path"])
+        raw_path = Path(target_meta["file_path"])
         expected_sha = target_meta["sha256"]
 
-        if not model_path.is_file():
-            # Try loading relative to base directory in case path is absolute to different workspace
-            alt_path = self.base_dir / model_path.name
-            if alt_path.is_file():
-                model_path = alt_path
-            else:
-                raise ModelError(f"Model file not found: {model_path}")
+        candidate_path = raw_path if raw_path.is_absolute() else self.base_dir / raw_path
+        if not candidate_path.is_file():
+            candidate_path = self.base_dir / raw_path.name
+
+        try:
+            # Validate path traversal against base_dir root
+            model_path = validate_file_path(candidate_path, must_exist=True, allowed_root=self.base_dir)
+        except ValidationError as e:
+            raise ModelError(f"Model file path validation failed: {e}") from e
 
         # Check integrity
         actual_sha = self._compute_sha256(model_path)
