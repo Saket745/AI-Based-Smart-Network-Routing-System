@@ -10,13 +10,12 @@ Analyzes all local and remote branches against `main`:
 
 import json
 import subprocess
-import sys
 from pathlib import Path
 
 
 def run_git(args: list[str]) -> str:
     res = subprocess.run(
-        ["git"] + args,
+        ["git", *args],
         capture_output=True,
         text=True,
         encoding="utf-8",
