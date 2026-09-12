@@ -13,7 +13,7 @@ import pytest
 import torch
 from click.testing import CliRunner
 
-from nroute.cli.predict_cmd import predict_cmd
+from nroute.cli.predict_cmd import _safe_predict_icons, predict_cmd
 
 
 @pytest.fixture
@@ -323,3 +323,9 @@ class TestGNNPredictCLI:
 
         assert result.exit_code != 0
         assert "Feature engineering failed" in result.output
+
+
+def test_safe_predict_icons_fallback() -> None:
+    """Test encoding-aware status icon resolution for predict CLI."""
+    assert _safe_predict_icons("utf-8") == ("🔴", "🟡", "🟢")
+    assert _safe_predict_icons("ascii") == ("[!]", "[*]", "[OK]")
