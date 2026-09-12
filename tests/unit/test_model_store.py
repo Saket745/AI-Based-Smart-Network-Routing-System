@@ -60,7 +60,7 @@ def test_model_store_save_and_load_default() -> None:
 
         loaded_model = DummyModel(model_type="xgboost")
         loaded_path = store.load_model(loaded_model, name="test_model", version="1.0.0")
-        assert loaded_path == saved_path
+        assert Path(loaded_path).resolve() == Path(saved_path).resolve()
         assert loaded_model.load_called
         assert loaded_model.loaded_path == loaded_path
 
@@ -77,7 +77,7 @@ def test_model_store_save_custom_extension() -> None:
 
         loaded_model = DummyModel(model_type="my_nn")
         loaded_path = store.load_model(loaded_model, name="nn_model", version="2.1.0")
-        assert loaded_path == saved_path
+        assert Path(loaded_path).resolve() == Path(saved_path).resolve()
 
 
 def test_model_store_integrity_check_failure() -> None:
