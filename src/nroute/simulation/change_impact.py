@@ -138,6 +138,9 @@ class AnalyticalEngine:
     @staticmethod
     def get_active_graph(topology: Topology) -> nx.DiGraph:
         """Return a subgraph containing only *up* nodes and edges."""
+        if not topology.has_down_nodes and not topology.has_down_edges:
+            return topology.graph
+
         g = topology.graph
 
         active_nodes = [
@@ -155,6 +158,31 @@ class AnalyticalEngine:
         return sub
 
     @staticmethod
+    def compute_all_pairs_shortest_paths_and_lengths(
+        graph: nx.DiGraph,
+        weight: str = "latency",
+    ) -> tuple[dict[str, dict[str, list[str]]], dict[str, dict[str, float]]]:
+        """Compute shortest path and path length for every reachable pair simultaneously.
+
+        Returns:
+            Tuple of (paths, lengths):
+            paths: Nested dict ``{source: {dest: [path]}}``
+            lengths: Nested dict ``{source: {dest: length}}``
+        """
+        all_dijkstra = nx.all_pairs_dijkstra(graph, weight=weight)
+        paths: dict[str, dict[str, list[str]]] = {str(n): {} for n in graph.nodes}
+        lengths: dict[str, dict[str, float]] = {str(n): {} for n in graph.nodes}
+        for src, (src_lengths, src_paths) in all_dijkstra:
+            src_str = str(src)
+            paths[src_str] = {
+                str(dst): [str(n) for n in path] for dst, path in src_paths.items() if dst != src
+            }
+            lengths[src_str] = {
+                str(dst): float(length) for dst, length in src_lengths.items() if dst != src
+            }
+        return paths, lengths
+
+    @staticmethod
     def compute_all_pairs_shortest_paths(
         graph: nx.DiGraph,
         weight: str = "latency",
@@ -164,12 +192,9 @@ class AnalyticalEngine:
         Returns:
             Nested dict  ``{source: {dest: [path]}}``
         """
-        all_paths = nx.all_pairs_dijkstra_path(graph, weight=weight)
-        paths: dict[str, dict[str, list[str]]] = {str(n): {} for n in graph.nodes}
-        for src, src_paths in all_paths:
-            paths[str(src)] = {
-                str(dst): [str(n) for n in path] for dst, path in src_paths.items() if dst != src
-            }
+        paths, _ = AnalyticalEngine.compute_all_pairs_shortest_paths_and_lengths(
+            graph, weight=weight
+        )
         return paths
 
     @staticmethod
@@ -244,9 +269,13 @@ class ChangeImpactSimulator:
         before_g = AnalyticalEngine.get_active_graph(self.baseline)
         after_g = AnalyticalEngine.get_active_graph(modified)
 
-        # Compute all-pairs shortest paths
-        before_paths = AnalyticalEngine.compute_all_pairs_shortest_paths(before_g, weight=weight)
-        after_paths = AnalyticalEngine.compute_all_pairs_shortest_paths(after_g, weight=weight)
+        # Compute all-pairs shortest paths and lengths in a single pass
+        before_paths, before_lengths = (
+            AnalyticalEngine.compute_all_pairs_shortest_paths_and_lengths(before_g, weight=weight)
+        )
+        after_paths, after_lengths = AnalyticalEngine.compute_all_pairs_shortest_paths_and_lengths(
+            after_g, weight=weight
+        )
 
         # Collect all node pairs from the union of both graphs
         all_nodes = sorted(set(before_g.nodes) | set(after_g.nodes))
@@ -265,8 +294,12 @@ class ChangeImpactSimulator:
 
                 bp = before_paths.get(src, {}).get(dst)
                 ap = after_paths.get(src, {}).get(dst)
+                bl = before_lengths.get(src, {}).get(dst)
+                al = after_lengths.get(src, {}).get(dst)
 
-                delta = self._compute_pair_delta(src, dst, bp, ap, before_g, after_g, weight)
+                delta = self._compute_pair_delta(
+                    src, dst, bp, ap, before_g, after_g, weight, bl, al
+                )
                 self._update_blast_aggregates(blast, delta, latencies_before, latencies_after)
                 blast.path_deltas.append(delta)
 
@@ -294,21 +327,29 @@ class ChangeImpactSimulator:
         dst: str,
         bp: list[str] | None,
         ap: list[str] | None,
-        before_g: nx.DiGraph,
-        after_g: nx.DiGraph,
-        weight: str,
+        before_g: nx.DiGraph | None = None,
+        after_g: nx.DiGraph | None = None,
+        weight: str = "latency",
+        before_latency: float | None = None,
+        after_latency: float | None = None,
     ) -> PathDelta:
         """Compute path delta for a single source-destination pair."""
         delta = PathDelta(source=src, destination=dst)
         if bp:
             delta.before_path = bp
             delta.before_hops = len(bp) - 1
-            delta.before_latency = AnalyticalEngine.compute_path_latency(before_g, bp, weight)
+            if before_latency is not None:
+                delta.before_latency = before_latency
+            elif before_g is not None:
+                delta.before_latency = AnalyticalEngine.compute_path_latency(before_g, bp, weight)
 
         if ap:
             delta.after_path = ap
             delta.after_hops = len(ap) - 1
-            delta.after_latency = AnalyticalEngine.compute_path_latency(after_g, ap, weight)
+            if after_latency is not None:
+                delta.after_latency = after_latency
+            elif after_g is not None:
+                delta.after_latency = AnalyticalEngine.compute_path_latency(after_g, ap, weight)
 
         if bp and not ap:
             delta.became_unreachable = True
