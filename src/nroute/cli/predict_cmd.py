@@ -183,6 +183,23 @@ def _print_congestion_json(edge_ids: list[str], probs: list[Any], threshold: flo
     click.echo(json.dumps(out, indent=2))
 
 
+def _safe_predict_icons(encoding: str | None = None) -> tuple[str, str, str]:
+    """Return status icons ('🔴', '🟡', '🟢') if supported by the encoding, else ASCII fallback ('[!]', '[*]', '[OK]')."""
+    import sys
+
+    enc = (
+        encoding
+        or getattr(console.file, "encoding", None)
+        or getattr(sys.stdout, "encoding", None)
+        or "utf-8"
+    )
+    try:
+        "🔴🟡🟢".encode(enc)
+        return "🔴", "🟡", "🟢"
+    except (UnicodeEncodeError, LookupError):
+        return "[!]", "[*]", "[OK]"
+
+
 def _print_congestion_console(edge_ids: list[str], probs: list[Any], threshold: float) -> None:
     """Output congestion predictions as a table to the console."""
     console.print()
@@ -193,17 +210,19 @@ def _print_congestion_console(edge_ids: list[str], probs: list[Any], threshold: 
     table.add_column("Probability", justify="right")
     table.add_column("Status", justify="center")
 
+    icon_congested, icon_at_risk, icon_normal = _safe_predict_icons()
+
     for edge_id, prob in zip(edge_ids, probs, strict=True):
         p = float(prob) if not isinstance(prob, (int, float)) else prob
         if p >= threshold:
             prob_style = "bold red"
-            status = "🔴 [bold red]CONGESTED[/bold red]"
+            status = f"{icon_congested} [bold red]CONGESTED[/bold red]"
         elif p >= threshold * 0.7:
             prob_style = "yellow"
-            status = "🟡 [yellow]AT RISK[/yellow]"
+            status = f"{icon_at_risk} [yellow]AT RISK[/yellow]"
         else:
             prob_style = "green"
-            status = "🟢 [green]NORMAL[/green]"
+            status = f"{icon_normal} [green]NORMAL[/green]"
 
         table.add_row(edge_id, f"[{prob_style}]{p:.3f}[/{prob_style}]", status)
 
@@ -400,6 +419,8 @@ def _print_gnn_console(
     edges_sorted = sorted(topo.edges)
     congested_count = 0
 
+    icon_congested, icon_at_risk, icon_normal = _safe_predict_icons()
+
     for idx, (u, v) in enumerate(edges_sorted):
         prob = probs[idx]
         pred_l = predicted_latencies[idx]
@@ -410,14 +431,14 @@ def _print_gnn_console(
 
         if prob >= args.threshold:
             prob_style = "bold red"
-            status = "🔴 [bold red]CONGESTED[/bold red]"
+            status = f"{icon_congested} [bold red]CONGESTED[/bold red]"
             congested_count += 1
         elif prob >= args.threshold * 0.7:
             prob_style = "yellow"
-            status = "🟡 [yellow]AT RISK[/yellow]"
+            status = f"{icon_at_risk} [yellow]AT RISK[/yellow]"
         else:
             prob_style = "green"
-            status = "🟢 [green]NORMAL[/green]"
+            status = f"{icon_normal} [green]NORMAL[/green]"
 
         table.add_row(
             f"{u} -> {v}",
