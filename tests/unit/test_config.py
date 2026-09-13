@@ -71,11 +71,17 @@ def test_load_config_nonexistent_path_falls_back_to_defaults(tmp_path: Path) -> 
     """load_config() with a path that doesn't exist falls back to defaults, not an error.
 
     The load_config() implementation only raises ConfigError when the file exists
-    but cannot be parsed.  A missing explicit path silently uses default values.
+    but cannot be parsed. A missing explicit path silently uses default values.
     """
     cfg = load_config(path=tmp_path / "missing.yaml")
     assert isinstance(cfg, NRouteConfig)
     assert cfg.general.log_level == "INFO"
+
+
+def test_load_config_null_byte_path_raises_config_error() -> None:
+    """load_config() with null bytes in path raises ConfigError."""
+    with pytest.raises(ConfigError, match="Invalid configuration path"):
+        load_config(path="nroute\0.yaml")
 
 
 # ---------------------------------------------------------------------------
