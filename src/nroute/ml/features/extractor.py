@@ -57,25 +57,28 @@ class DefaultGraphFeatureExtractor(BaseFeatureExtractor):
         succ = graph._succ
 
         # Build node features: [capacity, status, degree]
-        node_features = []
-        for node in nodes:
+        n_nodes = len(nodes)
+        node_features_arr = np.empty((n_nodes, 3), dtype=np.float32)
+        for i, node in enumerate(nodes):
             attrs = node_attrs[node]
             cap = float(attrs.get("capacity", 1000.0)) / 1000.0
             st_val = attrs.get("status", "up")
             status = 1.0 if st_val in ("up", "UP") or str(st_val).lower() == "up" else 0.0
             degree = float(len(succ[node]))  # O(1) degree lookup avoiding list allocation
-            node_features.append([cap, status, degree])
-        node_features_arr = np.array(node_features, dtype=np.float32)
+            node_features_arr[i, 0] = cap
+            node_features_arr[i, 1] = status
+            node_features_arr[i, 2] = degree
 
         # Build edge index and edge features: [bandwidth, latency, utilization, packet_loss, status]
-        if edges:
-            src_indices = [node_to_idx[src] for src, _ in edges]
-            dst_indices = [node_to_idx[dst] for _, dst in edges]
-            edge_index_arr = np.array([src_indices, dst_indices], dtype=np.int64)
+        n_edges = len(edges)
+        if n_edges > 0:
+            edge_index_arr = np.empty((2, n_edges), dtype=np.int64)
+            edge_features_arr = np.empty((n_edges, 5), dtype=np.float32)
 
             adj = graph._adj
-            edge_features = []
-            for src, dst in edges:
+            for i, (src, dst) in enumerate(edges):
+                edge_index_arr[0, i] = node_to_idx[src]
+                edge_index_arr[1, i] = node_to_idx[dst]
                 attrs = adj[src][dst]
                 bw = float(attrs.get("bandwidth", 1000.0)) / 1000.0
                 lat = float(attrs.get("latency", 5.0)) / 100.0
@@ -83,8 +86,11 @@ class DefaultGraphFeatureExtractor(BaseFeatureExtractor):
                 loss = float(attrs.get("packet_loss", 0.0))
                 st_val = attrs.get("status", "up")
                 status = 1.0 if st_val in ("up", "UP") or str(st_val).lower() == "up" else 0.0
-                edge_features.append([bw, lat, util, loss, status])
-            edge_features_arr = np.array(edge_features, dtype=np.float32)
+                edge_features_arr[i, 0] = bw
+                edge_features_arr[i, 1] = lat
+                edge_features_arr[i, 2] = util
+                edge_features_arr[i, 3] = loss
+                edge_features_arr[i, 4] = status
         else:
             edge_index_arr = np.empty((2, 0), dtype=np.int64)
             edge_features_arr = np.empty((0, 5), dtype=np.float32)
