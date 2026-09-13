@@ -62,29 +62,10 @@ class PreFlightValidator:
     """Core validator executing deterministic pre-flight network change gating."""
 
     @staticmethod
-    def validate(
-        topology: Topology,
+    def _parse_change_input(
         change: ConfigChange | dict[str, Any] | str | Path,
-        policy: PolicyGateConfig | dict[str, Any] | str | Path | None = None,
-        weight: str = "latency",
-    ) -> ValidationResult:
-        """Run pre-flight validation on a proposed change against a safety policy.
-
-        Args:
-            topology: The baseline network topology.
-            change: Proposed configuration change (ConfigChange, dict, or file path).
-            policy: Declarative safety policy (PolicyGateConfig, dict, file path, or None).
-            weight: Edge attribute used as routing weight metric (default: 'latency').
-
-        Returns:
-            A validated ``ValidationResult`` instance.
-        """
-        t0 = time.perf_counter()
-
-        # 1. Parse and validate change patch
-        change_raw: dict[str, Any] = {}
-        change_id: str = "CHG-ANONYMOUS"
-
+    ) -> tuple[ConfigChange, str, str]:
+        """Parse change input and compute change patch hash and ID."""
         if isinstance(change, (str, Path)):
             p = Path(change)
             if not p.is_file():
@@ -111,7 +92,13 @@ class PreFlightValidator:
         else:
             raise TypeError(f"Unsupported change input type: {type(change)}")
 
-        # 2. Parse and validate policy configuration
+        return config_change, str(change_id), change_hash
+
+    @staticmethod
+    def _parse_policy_input(
+        policy: PolicyGateConfig | dict[str, Any] | str | Path | None,
+    ) -> tuple[PolicyGateConfig, str]:
+        """Parse policy configuration and compute policy hash."""
         if policy is None:
             gate_policy = PolicyGateConfig()
             policy_hash = _compute_sha256(gate_policy.model_dump())
@@ -136,15 +123,14 @@ class PreFlightValidator:
         else:
             raise TypeError(f"Unsupported policy input type: {type(policy)}")
 
-        # 3. Baseline topology provenance
-        topo_dict = topology.to_dict()
-        baseline_hash = _compute_sha256(topo_dict)
+        return gate_policy, policy_hash
 
-        # 4. Execute analytical change simulation
-        simulator = ChangeImpactSimulator(topology)
-        blast: BlastRadius = simulator.simulate(config_change, weight=weight)
-
-        # 5. Evaluate declarative policy rules
+    @staticmethod
+    def _evaluate_policy_rules(
+        blast: BlastRadius,
+        gate_policy: PolicyGateConfig,
+    ) -> tuple[list[str], list[str], float]:
+        """Evaluate declarative policy rules on blast radius simulation results."""
         blocking_violations: list[str] = []
         warning_violations: list[str] = []
 
@@ -197,7 +183,14 @@ class PreFlightValidator:
                 f"Path change ratio ({path_changed_ratio * 100:.1f}%) exceeds warning threshold ({gate_policy.max_path_changed_ratio_warn * 100:.1f}%)."
             )
 
-        # 6. Assign Verdict based on strict precedence: BLOCK > WARN > PASS
+        return blocking_violations, warning_violations, path_changed_ratio
+
+    @staticmethod
+    def _determine_verdict(
+        blocking_violations: list[str],
+        warning_violations: list[str],
+    ) -> tuple[ValidationVerdict, bool, str]:
+        """Determine validation verdict and summary string based on strict precedence."""
         if blocking_violations:
             verdict = ValidationVerdict.BLOCK
             gate_passed = False
@@ -211,9 +204,15 @@ class PreFlightValidator:
             gate_passed = True
             summary = "PASSED: Proposed change cleared all declarative safety gates."
 
-        exec_duration_ms = (time.perf_counter() - t0) * 1000.0
+        return verdict, gate_passed, summary
 
-        # 7. Construct Blast-Radius Summary & Critical Path Deltas
+    @staticmethod
+    def _build_blast_summary_and_critical_deltas(
+        blast: BlastRadius,
+        gate_policy: PolicyGateConfig,
+        path_changed_ratio: float,
+    ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        """Construct blast radius summary dictionary and critical path deltas list."""
         blast_summary = {
             "total_pairs_analysed": blast.total_pairs_analysed,
             "unreachable_pairs_before": blast.unreachable_pairs_before,
@@ -249,7 +248,57 @@ class PreFlightValidator:
             )
         ]
 
-        # 8. Assemble Provenance & Return ValidationResult
+        return blast_summary, critical_deltas
+
+    @staticmethod
+    def validate(
+        topology: Topology,
+        change: ConfigChange | dict[str, Any] | str | Path,
+        policy: PolicyGateConfig | dict[str, Any] | str | Path | None = None,
+        weight: str = "latency",
+    ) -> ValidationResult:
+        """Run pre-flight validation on a proposed change against a safety policy.
+
+        Args:
+            topology: The baseline network topology.
+            change: Proposed configuration change (ConfigChange, dict, or file path).
+            policy: Declarative safety policy (PolicyGateConfig, dict, file path, or None).
+            weight: Edge attribute used as routing weight metric (default: 'latency').
+
+        Returns:
+            A validated ``ValidationResult`` instance.
+        """
+        t0 = time.perf_counter()
+
+        # 1. Parse change patch & policy configuration
+        config_change, change_id, change_hash = PreFlightValidator._parse_change_input(change)
+        gate_policy, policy_hash = PreFlightValidator._parse_policy_input(policy)
+
+        # 2. Baseline topology provenance
+        baseline_hash = _compute_sha256(topology.to_dict())
+
+        # 3. Execute analytical change simulation
+        simulator = ChangeImpactSimulator(topology)
+        blast: BlastRadius = simulator.simulate(config_change, weight=weight)
+
+        # 4. Evaluate declarative policy rules & determine verdict
+        blocking_violations, warning_violations, path_changed_ratio = (
+            PreFlightValidator._evaluate_policy_rules(blast, gate_policy)
+        )
+        verdict, gate_passed, summary = PreFlightValidator._determine_verdict(
+            blocking_violations, warning_violations
+        )
+
+        exec_duration_ms = (time.perf_counter() - t0) * 1000.0
+
+        # 5. Construct Blast-Radius Summary & Critical Path Deltas
+        blast_summary, critical_deltas = (
+            PreFlightValidator._build_blast_summary_and_critical_deltas(
+                blast, gate_policy, path_changed_ratio
+            )
+        )
+
+        # 6. Assemble Provenance & Return ValidationResult
         provenance = {
             "baseline_topology_hash": baseline_hash,
             "change_patch_hash": change_hash,
@@ -260,7 +309,7 @@ class PreFlightValidator:
 
         return ValidationResult(
             schema_version="1.0",
-            change_id=str(change_id),
+            change_id=change_id,
             evaluation_timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
             execution_duration_ms=round(exec_duration_ms, 3),
             verdict=verdict,
