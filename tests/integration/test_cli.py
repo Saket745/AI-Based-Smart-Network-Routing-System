@@ -572,3 +572,94 @@ class TestNewCLIFeatures:
         assert "total_nodes" in data
         assert "total_edges" in data
         assert "active_nodes" in data
+
+
+# ── twin export commands ──────────────────────────────────────
+
+
+class TestTwinExportCLI:
+    """Tests for export file creation visual feedback in `nroute twin` subcommands."""
+
+    def test_twin_impact_output_feedback(
+        self, runner: CliRunner, topo_file: str, tmp_path: Path
+    ) -> None:
+        """twin impact --output should print styled success feedback with impacted count."""
+        change_file = tmp_path / "change.json"
+        change_file.write_text(
+            json.dumps({"down_nodes": [], "down_edges": [["0", "1"]]}), encoding="utf-8"
+        )
+        output_file = str(tmp_path / "impact_report.json")
+
+        result = runner.invoke(
+            cli,
+            ["twin", "impact", "-t", topo_file, "-ch", str(change_file), "-o", output_file],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+        assert "+" in result.output
+        assert "Blast-radius report written to" in result.output
+        assert output_file in result.output
+        assert "impacted pair(s)" in result.output
+        assert os.path.exists(output_file)
+
+    def test_twin_rca_output_feedback(
+        self, runner: CliRunner, topo_file: str, tmp_path: Path
+    ) -> None:
+        """twin rca --output should print styled success feedback with root cause count."""
+        events_file = tmp_path / "events.json"
+        events_file.write_text(
+            json.dumps([{"event_id": "e1", "node_id": "0", "event_type": "link_down"}]),
+            encoding="utf-8",
+        )
+        output_file = str(tmp_path / "rca_report.json")
+
+        result = runner.invoke(
+            cli,
+            ["twin", "rca", "-t", topo_file, "-e", str(events_file), "-o", output_file],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+        assert "+" in result.output
+        assert "RCA report written to" in result.output
+        assert output_file in result.output
+        assert "root cause(s)" in result.output
+        assert os.path.exists(output_file)
+
+    def test_twin_reachability_output_feedback(
+        self, runner: CliRunner, topo_file: str, tmp_path: Path
+    ) -> None:
+        """twin reachability --output should print styled success feedback with pair details."""
+        output_file = str(tmp_path / "reachability.json")
+
+        result = runner.invoke(
+            cli,
+            ["twin", "reachability", "-t", topo_file, "-o", output_file],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+        assert "+" in result.output
+        assert "Reachability matrix written to" in result.output
+        assert output_file in result.output
+        assert "reachable pairs across" in result.output
+        assert os.path.exists(output_file)
+
+    def test_twin_audit_output_feedback(self, runner: CliRunner, tmp_path: Path) -> None:
+        """twin audit --output should print styled success feedback with record count."""
+        log_file = tmp_path / "audit.ndjson"
+        log_file.write_text(
+            json.dumps({"action": "test_action", "timestamp": "2026-01-01T00:00:00Z"}) + "\n",
+            encoding="utf-8",
+        )
+        output_file = str(tmp_path / "audit_export.json")
+
+        result = runner.invoke(
+            cli,
+            ["twin", "audit", "-l", str(log_file), "-o", output_file],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+        assert "+" in result.output
+        assert "Exported" in result.output
+        assert output_file in result.output
+        assert "audit record(s)" in result.output
+        assert os.path.exists(output_file)

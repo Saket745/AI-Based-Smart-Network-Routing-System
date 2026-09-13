@@ -214,7 +214,11 @@ def impact_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
-        click.echo(f"Blast-radius report written to {args.output}")
+        impacted_count = result.newly_unreachable_pairs + result.path_changed_pairs
+        console.print(
+            f"[green]+[/green] Blast-radius report written to [bold]{args.output}[/bold] "
+            f"({impacted_count} impacted pair(s))"
+        )
     else:
         click.echo(json.dumps(report, indent=2))
 
@@ -261,7 +265,11 @@ def rca_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
-        click.echo(f"RCA report written to {args.output}")
+        root_cause_count = 1 if result.root_cause else 0
+        console.print(
+            f"[green]+[/green] RCA report written to [bold]{args.output}[/bold] "
+            f"({root_cause_count} root cause(s))"
+        )
     else:
         click.echo(json.dumps(report, indent=2, default=str))
 
@@ -300,13 +308,16 @@ def reachability_cmd(
     # Convert sets to sorted lists for JSON serialization
     serializable = {k: sorted(v) for k, v in reach.items()}
 
+    total_pairs = sum(len(v) for v in serializable.values())
     if output:
         Path(output).parent.mkdir(parents=True, exist_ok=True)
         with open(output, "w", encoding="utf-8") as f:
             json.dump(serializable, f, indent=2)
-        click.echo(f"Reachability matrix written to {output}")
+        console.print(
+            f"[green]+[/green] Reachability matrix written to [bold]{output}[/bold] "
+            f"({total_pairs} reachable pairs across {len(serializable)} nodes)"
+        )
     else:
-        total_pairs = sum(len(v) for v in serializable.values())
         click.echo(f"Reachability: {len(serializable)} nodes, {total_pairs} reachable pairs")
         click.echo(json.dumps(serializable, indent=2))
 
@@ -358,7 +369,9 @@ def audit_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", encoding="utf-8") as f:
             json.dump(records, f, indent=2)
-        click.echo(f"Exported {len(records)} audit records to {args.output}")
+        console.print(
+            f"[green]+[/green] Exported {len(records)} audit record(s) to [bold]{args.output}[/bold]"
+        )
     else:
         click.echo(f"Audit trail: {len(records)} record(s)")
         click.echo(json.dumps(records, indent=2))
