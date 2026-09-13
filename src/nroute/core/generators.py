@@ -108,16 +108,16 @@ class TopologyGenerator:
         # Direct node dictionary access bypassing NodeView descriptor overhead
         node_dict = getattr(graph, "_node", graph.nodes)
 
-        for node in graph.nodes:
-            node_attrs = {
-                "type": node_type,
-                "capacity": capacity_val,
-                "status": status_val,
-                "location": location_val,
-            }
-            if extra_attrs:
-                node_attrs.update(extra_attrs)
+        node_attrs = {
+            "type": node_type,
+            "capacity": capacity_val,
+            "status": status_val,
+            "location": location_val,
+        }
+        if extra_attrs:
+            node_attrs.update(extra_attrs)
 
+        for node in graph.nodes:
             node_dict[node].update(node_attrs)
 
     @staticmethod
