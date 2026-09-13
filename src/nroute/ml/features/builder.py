@@ -71,8 +71,10 @@ class FeatureBuilder:
             max_degree = 1
 
         node_attrs = getattr(graph, "_node", graph.nodes)
-        node_features = []
-        for node in nodes:
+        n_nodes = len(nodes)
+        node_features_arr = np.empty((n_nodes, 8), dtype=np.float32)
+
+        for i, node in enumerate(nodes):
             attrs = node_attrs[node]
 
             # Capacity (normalized by 1000.0)
@@ -97,20 +99,16 @@ class FeatureBuilder:
             btw_cent = betweenness.get(node, 0.0)
             cls_cent = closeness.get(node, 0.0)
 
-            node_features.append(
-                [
-                    cap,
-                    status,
-                    degree,
-                    queue_len / 100.0,  # Scaled queue length
-                    packet_load / 1000.0,  # Scaled packet load
-                    congestion_score,
-                    btw_cent,
-                    cls_cent,
-                ]
-            )
+            node_features_arr[i, 0] = cap
+            node_features_arr[i, 1] = status
+            node_features_arr[i, 2] = degree
+            node_features_arr[i, 3] = queue_len / 100.0
+            node_features_arr[i, 4] = packet_load / 1000.0
+            node_features_arr[i, 5] = congestion_score
+            node_features_arr[i, 6] = btw_cent
+            node_features_arr[i, 7] = cls_cent
 
-        return np.array(node_features, dtype=np.float32)
+        return node_features_arr
 
     @staticmethod
     def _build_edge_features(
@@ -119,17 +117,21 @@ class FeatureBuilder:
         node_to_idx: dict[Any, int],
     ) -> tuple[np.ndarray, np.ndarray]:
         """Construct edge index and edge feature matrices."""
-        if not edges:
+        n_edges = len(edges)
+        if n_edges == 0:
             return np.empty((2, 0), dtype=np.int64), np.empty((0, 6), dtype=np.float32)
 
-        src_indices = [node_to_idx[src] for src, _ in edges]
-        dst_indices = [node_to_idx[dst] for _, dst in edges]
-        edge_index_arr = np.array([src_indices, dst_indices], dtype=np.int64)
+        edge_index_arr = np.empty((2, n_edges), dtype=np.int64)
+        edge_features_arr = np.empty((n_edges, 6), dtype=np.float32)
 
+        has_adj = hasattr(graph, "_adj")
         adj = getattr(graph, "_adj", graph.edges)
-        edge_features = []
-        for src, dst in edges:
-            attrs = adj[src][dst] if hasattr(graph, "_adj") else adj[src, dst]
+
+        for i, (src, dst) in enumerate(edges):
+            edge_index_arr[0, i] = node_to_idx[src]
+            edge_index_arr[1, i] = node_to_idx[dst]
+
+            attrs = adj[src][dst] if has_adj else adj[src, dst]
 
             # Bandwidth (normalized by 1000.0)
             bw = float(attrs.get("bandwidth", 1000.0)) / 1000.0
@@ -149,7 +151,11 @@ class FeatureBuilder:
             # Failure frequency
             failure_freq = float(attrs.get("failure_frequency", 0.0)) / 10.0
 
-            edge_features.append([bw, lat, util, loss, reliability, failure_freq])
+            edge_features_arr[i, 0] = bw
+            edge_features_arr[i, 1] = lat
+            edge_features_arr[i, 2] = util
+            edge_features_arr[i, 3] = loss
+            edge_features_arr[i, 4] = reliability
+            edge_features_arr[i, 5] = failure_freq
 
-        edge_features_arr = np.array(edge_features, dtype=np.float32)
         return edge_index_arr, edge_features_arr
