@@ -355,6 +355,71 @@ class CongestionPredictor:
                     "Secure serialization for arbitrary custom objects is not supported by default."
                 )
 
+    @staticmethod
+    def _load_pytorch_dict(path: str, allow_unsafe: bool) -> Any:
+        """Deserialize PyTorch model dictionary securely."""
+        torch, _, _, _, _ = _get_torch()
+        try:
+            return torch.load(
+                path,
+                map_location=torch.device("cpu"),
+                weights_only=not allow_unsafe,
+            )
+        except Exception as e:
+            if not allow_unsafe:
+                raise ModelError(
+                    "Failed to load PyTorch model securely. The file might be in a legacy "
+                    "format or contain unsafe objects. Set allow_unsafe=True if you trust "
+                    f"the source. Error: {e}"
+                ) from e
+            raise
+
+    def _load_zip_archive(self, path: str) -> None:
+        """Extract and load zipped XGBoost model package."""
+        with zipfile.ZipFile(path, "r") as zf:
+            with zf.open("metadata.json") as f:
+                metadata = json.load(f)
+
+            self.model_type = metadata["model_type"]
+            self.is_trained = metadata["is_trained"]
+
+            if self.model_type == "xgboost":
+                import xgboost as xgb
+
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    zf.extract("model.json", tmpdir)
+                    model_path = os.path.join(tmpdir, "model.json")
+                    self.model = xgb.XGBClassifier()
+                    self.model.load_model(model_path)
+            else:
+                raise ModelError(f"Unsupported model type in zip archive: {self.model_type}")
+
+    def _apply_loaded_dict(self, load_dict: dict[str, Any], path: str) -> None:
+        """Apply loaded dictionary state (PyTorch format or legacy joblib)."""
+        if "metadata" in load_dict:
+            metadata = load_dict["metadata"]
+            self.model_type = metadata["model_type"]
+            self.is_trained = metadata["is_trained"]
+            if self.model_type == "lstm":
+                self.model = PyTorchLSTM(input_dim=1, hidden_dim=32, num_layers=2)
+                self.model.load_state_dict(load_dict["state_dict"])
+                self.model.eval()
+        else:
+            self.model_type = load_dict["model_type"]
+            self.is_trained = load_dict["is_trained"]
+
+            if self.model_type == "xgboost":
+                self.model = load_dict["model"]
+            elif self.model_type == "lstm":
+                self.model = PyTorchLSTM(input_dim=1, hidden_dim=32, num_layers=2)
+                self.model.load_state_dict(load_dict["state_dict"])
+                self.model.eval()
+            elif self.model_type == "custom":
+                if "model" in load_dict:
+                    self.model = load_dict["model"]
+                elif hasattr(self.model, "load"):
+                    self.model.load(path)
+
     def load(self, path: str, allow_unsafe: bool = False) -> None:
         """
         Load model weights and type information from file.
@@ -370,50 +435,13 @@ class CongestionPredictor:
         if not os.path.exists(path):
             raise ModelError(f"Model file not found: {path}")
 
-        # Attempt to detect if it's a new format (zip for xgboost/legacy-compatible, or pt)
         try:
             if path.endswith(".pt") or path.endswith(".pth"):
-                torch, _, _, _, _ = _get_torch()
-                # Use weights_only=True for PyTorch to prevent arbitrary code execution
-                try:
-                    load_dict = torch.load(
-                        path,
-                        map_location=torch.device("cpu"),
-                        weights_only=not allow_unsafe,
-                    )
-                except Exception as e:
-                    if not allow_unsafe:
-                        raise ModelError(
-                            "Failed to load PyTorch model securely. The file might be in a legacy "
-                            "format or contain unsafe objects. Set allow_unsafe=True if you trust "
-                            f"the source. Error: {e}"
-                        ) from e
-                    raise
+                load_dict = self._load_pytorch_dict(path, allow_unsafe)
             elif zipfile.is_zipfile(path):
-                # New XGBoost format
-                with zipfile.ZipFile(path, "r") as zf:
-                    with zf.open("metadata.json") as f:
-                        metadata = json.load(f)
-
-                    self.model_type = metadata["model_type"]
-                    self.is_trained = metadata["is_trained"]
-
-                    if self.model_type == "xgboost":
-                        import xgboost as xgb
-
-                        with tempfile.TemporaryDirectory() as tmpdir:
-                            zf.extract("model.json", tmpdir)
-                            model_path = os.path.join(tmpdir, "model.json")
-                            self.model = xgb.XGBClassifier()
-                            self.model.load_model(model_path)
-                        return
-                    else:
-                        # Fallback for other zipped models if any
-                        raise ModelError(
-                            f"Unsupported model type in zip archive: {self.model_type}"
-                        )
+                self._load_zip_archive(path)
+                return
             else:
-                # Legacy or other format
                 if not allow_unsafe:
                     raise ModelError(
                         "Insecure model file detected (joblib/pickle). Loading is blocked for "
@@ -421,32 +449,7 @@ class CongestionPredictor:
                     )
                 load_dict = joblib.load(path)
 
-            # Process load_dict (for PyTorch or Legacy)
-            if "metadata" in load_dict:
-                # New PyTorch format
-                metadata = load_dict["metadata"]
-                self.model_type = metadata["model_type"]
-                self.is_trained = metadata["is_trained"]
-                if self.model_type == "lstm":
-                    self.model = PyTorchLSTM(input_dim=1, hidden_dim=32, num_layers=2)
-                    self.model.load_state_dict(load_dict["state_dict"])
-                    self.model.eval()
-            else:
-                # Legacy format
-                self.model_type = load_dict["model_type"]
-                self.is_trained = load_dict["is_trained"]
-
-                if self.model_type == "xgboost":
-                    self.model = load_dict["model"]
-                elif self.model_type == "lstm":
-                    self.model = PyTorchLSTM(input_dim=1, hidden_dim=32, num_layers=2)
-                    self.model.load_state_dict(load_dict["state_dict"])
-                    self.model.eval()
-                elif self.model_type == "custom":
-                    if "model" in load_dict:
-                        self.model = load_dict["model"]
-                    elif hasattr(self.model, "load"):
-                        self.model.load(path)
+            self._apply_loaded_dict(load_dict, path)
 
         except ModelError:
             raise
