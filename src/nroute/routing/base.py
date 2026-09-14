@@ -114,21 +114,22 @@ class BaseRouter(ABC):
             )
 
         graph = topology.graph
+        nodes = graph._node if hasattr(graph, "_node") else graph.nodes
+        adj = graph._adj if hasattr(graph, "_adj") else graph.adj
+
         down_nodes: set[str] = getattr(topology, "_down_nodes", set())
         down_edges: set[tuple[str, str]] = getattr(topology, "_down_edges", set())
 
-        graph_nodes = graph.nodes
         for node in path:
-            if node not in graph_nodes:
+            if node not in nodes:
                 raise RoutingError(f"Node '{node}' in path does not exist in topology.")
-            if node in down_nodes or graph_nodes[node].get("status") == "down":
+            if node in down_nodes or nodes[node].get("status") == "down":
                 raise RoutingError(f"Node '{node}' in path is down.")
 
-        graph_edges = graph.edges
         for u, v in itertools.pairwise(path):
-            if not graph.has_edge(u, v):
+            if u not in adj or v not in adj[u]:
                 raise RoutingError(f"Edge '{u}->{v}' in path does not exist in topology.")
-            if (u, v) in down_edges or graph_edges[u, v].get("status") == "down":
+            if (u, v) in down_edges or adj[u][v].get("status") == "down":
                 raise RoutingError(f"Edge '{u}->{v}' in path is down.")
 
         return True
