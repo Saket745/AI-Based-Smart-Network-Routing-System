@@ -29,12 +29,12 @@ class FeatureBuilder:
         Returns:
             GraphTensorBundle containing normalized feature tensors.
         """
-        # Sort nodes and edges for deterministic ordering
-        nodes = sorted(topology.nodes)
-        edges = sorted(topology.edges)
+        graph = topology.graph
+        # BOLT OPTIMIZATION: Query graph views directly to avoid allocating temporary wrapper property lists.
+        nodes = sorted(graph.nodes)
+        edges = sorted(graph.edges)
         node_to_idx = {node: idx for idx, node in enumerate(nodes)}
 
-        graph = topology.graph
         betweenness, closeness = self._compute_centralities(graph)
         node_features_arr = self._build_node_features(
             graph, nodes, topology, betweenness, closeness
@@ -69,6 +69,7 @@ class FeatureBuilder:
         max_degree = max(len(succ[n]) for n in nodes) if nodes else 1
         if max_degree == 0:
             max_degree = 1
+        inv_max_degree = 1.0 / max_degree
 
         node_attrs = getattr(graph, "_node", graph.nodes)
         node_features = []
@@ -76,41 +77,47 @@ class FeatureBuilder:
             attrs = node_attrs[node]
 
             # Capacity (normalized by 1000.0)
-            cap = float(attrs.get("capacity", 1000.0)) / 1000.0
+            capacity_raw = float(attrs.get("capacity", 1000.0))
+            cap = capacity_raw / 1000.0
 
             # Status: 1.0 if up, 0.0 if down
             st_val = attrs.get("status", "up")
             status = 1.0 if st_val in ("up", "UP") or str(st_val).lower() == "up" else 0.0
 
             # Degree normalized (O(1) degree lookup avoiding list allocation)
-            degree = float(len(succ[node])) / max_degree
+            degree = float(len(succ[node])) * inv_max_degree
 
             # Queue length & Packet load & Congestion score (dynamic telemetry)
             queue_len = float(attrs.get("queue_length", 0.0))
             packet_load = float(attrs.get("packet_load", 0.0))
 
             # Congestion score = queue_length / capacity
-            capacity_raw = float(attrs.get("capacity", 1000.0))
-            congestion_score = queue_len / capacity_raw if capacity_raw > 0 else 0.0
+            congestion_score = queue_len / capacity_raw if capacity_raw > 0.0 else 0.0
 
             # Topological metrics
             btw_cent = betweenness.get(node, 0.0)
             cls_cent = closeness.get(node, 0.0)
 
+            # BOLT OPTIMIZATION: Append row tuples and convert in batch with np.array() in C
+            # to avoid scalar C-type unboxing and __setitem__ indexing overhead.
             node_features.append(
-                [
+                (
                     cap,
                     status,
                     degree,
-                    queue_len / 100.0,  # Scaled queue length
-                    packet_load / 1000.0,  # Scaled packet load
+                    queue_len / 100.0,
+                    packet_load / 1000.0,
                     congestion_score,
                     btw_cent,
                     cls_cent,
-                ]
+                )
             )
 
-        return np.array(node_features, dtype=np.float32)
+        return (
+            np.array(node_features, dtype=np.float32)
+            if node_features
+            else np.empty((0, 8), dtype=np.float32)
+        )
 
     @staticmethod
     def _build_edge_features(
@@ -126,10 +133,13 @@ class FeatureBuilder:
         dst_indices = [node_to_idx[dst] for _, dst in edges]
         edge_index_arr = np.array([src_indices, dst_indices], dtype=np.int64)
 
+        # BOLT OPTIMIZATION: Hoist `hasattr` reflection checks outside the edge loop.
         adj = getattr(graph, "_adj", graph.edges)
+        use_adj = hasattr(graph, "_adj")
+
         edge_features = []
         for src, dst in edges:
-            attrs = adj[src][dst] if hasattr(graph, "_adj") else adj[src, dst]
+            attrs = adj[src][dst] if use_adj else adj[src, dst]
 
             # Bandwidth (normalized by 1000.0)
             bw = float(attrs.get("bandwidth", 1000.0)) / 1000.0
@@ -149,7 +159,8 @@ class FeatureBuilder:
             # Failure frequency
             failure_freq = float(attrs.get("failure_frequency", 0.0)) / 10.0
 
-            edge_features.append([bw, lat, util, loss, reliability, failure_freq])
+            # BOLT OPTIMIZATION: Append tuple rows and convert in batch with np.array() in C.
+            edge_features.append((bw, lat, util, loss, reliability, failure_freq))
 
         edge_features_arr = np.array(edge_features, dtype=np.float32)
         return edge_index_arr, edge_features_arr
