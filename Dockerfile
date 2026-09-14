@@ -27,6 +27,9 @@ RUN groupadd -g 10001 nroute \
     && useradd -u 10001 -g nroute -m -s /sbin/nologin nroute \
     && chown -R nroute:nroute /app
 
+# Upgrade system packages to pull security patches for OS-level libraries (e.g. gzip, libpcre2, sqlite, perl)
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
+
 # Copy the built wheel from builder stage
 COPY --from=builder --chown=nroute:nroute /app/dist/*.whl ./
 
