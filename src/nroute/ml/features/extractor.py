@@ -46,15 +46,15 @@ class DefaultGraphFeatureExtractor(BaseFeatureExtractor):
         self.use_pytorch = use_pytorch
 
     def extract_features(self, topology: Topology) -> GraphTensorBundle:
-        # Sort nodes and edges deterministic ordering
-        nodes = sorted(topology.nodes)
-        edges = sorted(topology.edges)
-        node_to_idx = {node: idx for idx, node in enumerate(nodes)}
         graph = topology.graph
+        # BOLT OPTIMIZATION: Query graph views directly to avoid allocating temporary wrapper property lists.
+        nodes = sorted(graph.nodes)
+        edges = sorted(graph.edges)
+        node_to_idx = {node: idx for idx, node in enumerate(nodes)}
 
         # Fast direct dict access on NetworkX graph internals to avoid per-node/edge list allocations and view overhead
-        node_attrs = graph._node
-        succ = graph._succ
+        node_attrs = getattr(graph, "_node", graph.nodes)
+        succ = getattr(graph, "_succ", graph)
 
         # Build node features: [capacity, status, degree]
         node_features = []
@@ -64,8 +64,13 @@ class DefaultGraphFeatureExtractor(BaseFeatureExtractor):
             st_val = attrs.get("status", "up")
             status = 1.0 if st_val in ("up", "UP") or str(st_val).lower() == "up" else 0.0
             degree = float(len(succ[node]))  # O(1) degree lookup avoiding list allocation
-            node_features.append([cap, status, degree])
-        node_features_arr = np.array(node_features, dtype=np.float32)
+            # BOLT OPTIMIZATION: Append tuple rows and convert in batch with np.array() in C.
+            node_features.append((cap, status, degree))
+        node_features_arr = (
+            np.array(node_features, dtype=np.float32)
+            if node_features
+            else np.empty((0, 3), dtype=np.float32)
+        )
 
         # Build edge index and edge features: [bandwidth, latency, utilization, packet_loss, status]
         if edges:
@@ -73,17 +78,20 @@ class DefaultGraphFeatureExtractor(BaseFeatureExtractor):
             dst_indices = [node_to_idx[dst] for _, dst in edges]
             edge_index_arr = np.array([src_indices, dst_indices], dtype=np.int64)
 
-            adj = graph._adj
+            # BOLT OPTIMIZATION: Hoist `hasattr` reflection checks outside the edge loop.
+            adj = getattr(graph, "_adj", graph.edges)
+            use_adj = hasattr(graph, "_adj")
+
             edge_features = []
             for src, dst in edges:
-                attrs = adj[src][dst]
+                attrs = adj[src][dst] if use_adj else adj[src, dst]
                 bw = float(attrs.get("bandwidth", 1000.0)) / 1000.0
                 lat = float(attrs.get("latency", 5.0)) / 100.0
                 util = float(attrs.get("utilization", 0.0))
                 loss = float(attrs.get("packet_loss", 0.0))
                 st_val = attrs.get("status", "up")
                 status = 1.0 if st_val in ("up", "UP") or str(st_val).lower() == "up" else 0.0
-                edge_features.append([bw, lat, util, loss, status])
+                edge_features.append((bw, lat, util, loss, status))
             edge_features_arr = np.array(edge_features, dtype=np.float32)
         else:
             edge_index_arr = np.empty((2, 0), dtype=np.int64)
