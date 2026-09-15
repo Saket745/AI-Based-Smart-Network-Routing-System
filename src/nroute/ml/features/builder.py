@@ -30,11 +30,12 @@ class FeatureBuilder:
             GraphTensorBundle containing normalized feature tensors.
         """
         # Sort nodes and edges for deterministic ordering
-        nodes = sorted(topology.nodes)
-        edges = sorted(topology.edges)
+        # Query topology.graph directly to avoid list allocation overhead from topology.nodes/edges
+        graph = topology.graph
+        nodes = sorted(graph)
+        edges = sorted(graph.edges)
         node_to_idx = {node: idx for idx, node in enumerate(nodes)}
 
-        graph = topology.graph
         betweenness, closeness = self._compute_centralities(graph)
         node_features_arr = self._build_node_features(
             graph, nodes, topology, betweenness, closeness
@@ -65,50 +66,30 @@ class FeatureBuilder:
         closeness: dict[Any, float],
     ) -> np.ndarray:
         """Construct normalized node feature array."""
+        if not nodes:
+            return np.empty((0, 8), dtype=np.float32)
+
         succ = getattr(graph, "_succ", graph)
         max_degree = max(len(succ[n]) for n in nodes) if nodes else 1
         if max_degree == 0:
             max_degree = 1
 
         node_attrs = getattr(graph, "_node", graph.nodes)
-        node_features = []
-        for node in nodes:
-            attrs = node_attrs[node]
-
-            # Capacity (normalized by 1000.0)
-            cap = float(attrs.get("capacity", 1000.0)) / 1000.0
-
-            # Status: 1.0 if up, 0.0 if down
-            st_val = attrs.get("status", "up")
-            status = 1.0 if st_val in ("up", "UP") or str(st_val).lower() == "up" else 0.0
-
-            # Degree normalized (O(1) degree lookup avoiding list allocation)
-            degree = float(len(succ[node])) / max_degree
-
-            # Queue length & Packet load & Congestion score (dynamic telemetry)
-            queue_len = float(attrs.get("queue_length", 0.0))
-            packet_load = float(attrs.get("packet_load", 0.0))
-
-            # Congestion score = queue_length / capacity
-            capacity_raw = float(attrs.get("capacity", 1000.0))
-            congestion_score = queue_len / capacity_raw if capacity_raw > 0 else 0.0
-
-            # Topological metrics
-            btw_cent = betweenness.get(node, 0.0)
-            cls_cent = closeness.get(node, 0.0)
-
-            node_features.append(
-                [
-                    cap,
-                    status,
-                    degree,
-                    queue_len / 100.0,  # Scaled queue length
-                    packet_load / 1000.0,  # Scaled packet load
-                    congestion_score,
-                    btw_cent,
-                    cls_cent,
-                ]
+        node_features = [
+            (
+                (cap_raw := float(attrs.get("capacity", 1000.0))) / 1000.0,
+                1.0
+                if (st := attrs.get("status", "up")) in ("up", "UP") or str(st).lower() == "up"
+                else 0.0,
+                float(len(succ[node])) / max_degree,
+                (q_len := float(attrs.get("queue_length", 0.0))) / 100.0,
+                float(attrs.get("packet_load", 0.0)) / 1000.0,
+                q_len / cap_raw if cap_raw > 0 else 0.0,
+                betweenness.get(node, 0.0),
+                closeness.get(node, 0.0),
             )
+            for node, attrs in ((n, node_attrs[n]) for n in nodes)
+        ]
 
         return np.array(node_features, dtype=np.float32)
 
@@ -119,37 +100,28 @@ class FeatureBuilder:
         node_to_idx: dict[Any, int],
     ) -> tuple[np.ndarray, np.ndarray]:
         """Construct edge index and edge feature matrices."""
-        if not edges:
+        num_edges = len(edges)
+        if not num_edges:
             return np.empty((2, 0), dtype=np.int64), np.empty((0, 6), dtype=np.float32)
 
         src_indices = [node_to_idx[src] for src, _ in edges]
         dst_indices = [node_to_idx[dst] for _, dst in edges]
         edge_index_arr = np.array([src_indices, dst_indices], dtype=np.int64)
 
-        adj = getattr(graph, "_adj", graph.edges)
-        edge_features = []
-        for src, dst in edges:
-            attrs = adj[src][dst] if hasattr(graph, "_adj") else adj[src, dst]
+        has_adj = hasattr(graph, "_adj")
+        adj = graph._adj if has_adj else graph.edges
 
-            # Bandwidth (normalized by 1000.0)
-            bw = float(attrs.get("bandwidth", 1000.0)) / 1000.0
-
-            # Latency (normalized by 100.0)
-            lat = float(attrs.get("latency", 5.0)) / 100.0
-
-            # Utilization (0.0 to 1.0)
-            util = float(attrs.get("utilization", 0.0))
-
-            # Packet loss (0.0 to 1.0)
-            loss = float(attrs.get("packet_loss", 0.0))
-
-            # Reliability (default 1.0)
-            reliability = float(attrs.get("reliability", 1.0))
-
-            # Failure frequency
-            failure_freq = float(attrs.get("failure_frequency", 0.0)) / 10.0
-
-            edge_features.append([bw, lat, util, loss, reliability, failure_freq])
+        edge_features = [
+            (
+                float(attrs.get("bandwidth", 1000.0)) / 1000.0,
+                float(attrs.get("latency", 5.0)) / 100.0,
+                float(attrs.get("utilization", 0.0)),
+                float(attrs.get("packet_loss", 0.0)),
+                float(attrs.get("reliability", 1.0)),
+                float(attrs.get("failure_frequency", 0.0)) / 10.0,
+            )
+            for attrs in (adj[src][dst] if has_adj else adj[src, dst] for src, dst in edges)
+        ]
 
         edge_features_arr = np.array(edge_features, dtype=np.float32)
         return edge_index_arr, edge_features_arr
