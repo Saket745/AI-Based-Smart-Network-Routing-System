@@ -306,6 +306,59 @@ def test_digital_twin_engine_validate_method(tmp_path: Path) -> None:
 # ── CLI Contract & Exit Code Tests ────────────────────────────
 
 
+def test_cli_rich_formatting_validation_summary(tmp_path: Path) -> None:
+    """CLI must render a Rich summary table, visual status indicators, and violation sections."""
+    topo = _build_test_network()
+    topo_file = tmp_path / "topo.json"
+    topo_file.write_text(json.dumps(topo.to_dict()))
+
+    change_file = tmp_path / "change.json"
+    change_file.write_text(
+        json.dumps(
+            {
+                "description": "Warn change with output",
+                "link_changes": [{"src": "agg0", "dst": "core0", "status": "down"}],
+            }
+        )
+    )
+
+    policy_file = tmp_path / "policy.json"
+    policy_file.write_text(
+        json.dumps(
+            {
+                "max_latency_increase_warn_ms": 3.0,
+                "max_latency_increase_block_ms": 20.0,
+            }
+        )
+    )
+    report_out = tmp_path / "report.json"
+
+    runner = CliRunner()
+    res = runner.invoke(
+        cli,
+        [
+            "twin",
+            "validate",
+            "-t",
+            str(topo_file),
+            "-ch",
+            str(change_file),
+            "-p",
+            str(policy_file),
+            "-o",
+            str(report_out),
+        ],
+    )
+
+    assert res.exit_code == 0
+    assert "[WARN]" in res.output
+    assert "Validation Overview" in res.output
+    assert "Change ID" in res.output
+    assert "Pairs Analysed" in res.output
+    assert "Warning Violations" in res.output
+    assert "Full report written to" in res.output
+
+
 def test_cli_exit_codes_pass(tmp_path: Path) -> None:
     """CLI must exit with code 0 on PASS."""
     topo = _build_test_network()

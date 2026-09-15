@@ -465,40 +465,70 @@ def validate_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
     if args.json_output:
         click.echo(json.dumps(report, indent=2))
     else:
-        # Human-readable summary
+        # Human-readable summary using Rich formatting
         verdict = result.verdict
-        badge = f"[{verdict.value}]"
-        click.echo("=" * 70)
-        click.echo(f"NROUTE PRE-FLIGHT VALIDATION: {badge} - {result.summary}")
-        click.echo("=" * 70)
-        click.echo(f"Change ID:             {result.change_id}")
-        click.echo(f"Execution Duration:    {result.execution_duration_ms:.2f} ms")
-        click.echo(
-            f"Pairs Analysed:        {result.blast_radius_summary.get('total_pairs_analysed', 0)}"
+        enc = getattr(console.file, "encoding", None) or getattr(sys.stdout, "encoding", None) or "utf-8"
+        try:
+            "🟢🟡🔴".encode(enc)
+            has_unicode = True
+        except (UnicodeEncodeError, LookupError):
+            has_unicode = False
+
+        if verdict == ValidationVerdict.PASS:
+            icon = "🟢 " if has_unicode else ""
+            badge = f"[bold green]{icon}[PASS][/bold green]"
+        elif verdict == ValidationVerdict.WARN:
+            icon = "🟡 " if has_unicode else ""
+            badge = f"[bold yellow]{icon}[WARN][/bold yellow]"
+        else:
+            icon = "🔴 " if has_unicode else ""
+            badge = f"[bold red]{icon}[BLOCK][/bold red]"
+
+        console.print()
+        console.rule(f"[bold cyan]NRoute Pre-Flight Validation: {badge} - {result.summary}[/bold cyan]")
+
+        summary_table = Table(title="Validation Overview", show_header=True, header_style="bold magenta")
+        summary_table.add_column("Metric", style="cyan")
+        summary_table.add_column("Value", style="green", justify="right")
+
+        summary_table.add_row("Change ID", result.change_id)
+        summary_table.add_row("Execution Duration", f"{result.execution_duration_ms:.2f} ms")
+        summary_table.add_row(
+            "Pairs Analysed", str(result.blast_radius_summary.get("total_pairs_analysed", 0))
         )
-        click.echo(
-            f"Newly Unreachable:     {result.blast_radius_summary.get('newly_unreachable_pairs', 0)}"
+
+        unreachable_count = result.blast_radius_summary.get("newly_unreachable_pairs", 0)
+        unreachable_str = (
+            f"[bold red]{unreachable_count}[/bold red]"
+            if unreachable_count > 0
+            else f"[green]{unreachable_count}[/green]"
         )
+        summary_table.add_row("Newly Unreachable Pairs", unreachable_str)
+
         changed_count = result.blast_radius_summary.get("path_changed_pairs", 0)
         changed_ratio = result.blast_radius_summary.get("path_changed_ratio", 0.0) * 100
-        click.echo(f"Path Changed Pairs:    {changed_count} ({changed_ratio:.1f}%)")
-        click.echo(
-            f"Max Latency Increase:  +{result.blast_radius_summary.get('max_latency_increase_ms', 0.0):.2f} ms"
-        )
+        summary_table.add_row("Path Changed Pairs", f"{changed_count} ({changed_ratio:.1f}%)")
+
+        max_lat_inc = result.blast_radius_summary.get("max_latency_increase_ms", 0.0)
+        summary_table.add_row("Max Latency Increase", f"+{max_lat_inc:.2f} ms")
+
+        console.print(summary_table)
 
         if result.blocking_violations:
-            click.echo("\n[BLOCKING VIOLATIONS]")
+            console.print()
+            console.rule("[bold red]Blocking Violations[/bold red]")
             for v in result.blocking_violations:
-                click.echo(f"  * [BLOCK] {v}")
+                console.print(f"  [bold red]✖ [BLOCK][/bold red] {v}")
 
         if result.warning_violations:
-            click.echo("\n[WARNING VIOLATIONS]")
+            console.print()
+            console.rule("[bold yellow]Warning Violations[/bold yellow]")
             for v in result.warning_violations:
-                click.echo(f"  * [WARN]  {v}")
+                console.print(f"  [bold yellow]⚠ [WARN][/bold yellow]  {v}")
 
         if args.output:
-            click.echo(f"\nFull report written to {args.output}")
-        click.echo("=" * 70)
+            console.print(f"\n[green]+[/green] Full report written to [bold]{args.output}[/bold]")
+        console.print()
 
     # Determine exit code according to exit code contract
     if result.verdict == ValidationVerdict.BLOCK:
