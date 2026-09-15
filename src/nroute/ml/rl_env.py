@@ -78,7 +78,25 @@ class NetworkRoutingEnv(_EnvBase):  # type: ignore[misc]
             "fairness": 2.0,  # Jain's fairness index bonus weight
         }
 
-        # Keep deterministic sort of nodes and edges
+        self._init_topology_mappings()
+        self._init_spaces()
+
+        # Episode state variables
+        self.current_node = self.nodes[0]
+        self.destination = self.nodes[0]
+        self.path: list[str] = []
+        self.hops = 0
+        # Track visit counts per node for graduated loop penalty
+        self._visit_counts: dict[str, int] = {}
+
+        # Precompute all-pairs shortest path distances for proximity reward
+        self._shortest_distances: dict[str, dict[str, int]] = {}
+        self._precompute_distances()
+
+        self._init_original_edge_attrs()
+
+    def _init_topology_mappings(self) -> None:
+        """Initialize deterministic node and edge index mappings."""
         self.nodes = sorted(self.topology.nodes)
         self.edges = sorted(self.topology.edges)
 
@@ -91,7 +109,8 @@ class NetworkRoutingEnv(_EnvBase):  # type: ignore[misc]
         self.node_to_idx = {node: idx for idx, node in enumerate(self.nodes)}
         self.edge_to_idx = {edge: idx for idx, edge in enumerate(self.edges)}
 
-        # Determine max out-degree in graph
+    def _init_spaces(self) -> None:
+        """Initialize action and observation spaces for the environment."""
         out_degrees = [len(list(self.topology.neighbors(node))) for node in self.nodes]
         self.max_out_degree = max(out_degrees) if out_degrees else 1
         if self.max_out_degree == 0:
@@ -114,19 +133,8 @@ class NetworkRoutingEnv(_EnvBase):  # type: ignore[misc]
             dtype=np.float32,
         )
 
-        # Episode state variables
-        self.current_node = self.nodes[0]
-        self.destination = self.nodes[0]
-        self.path: list[str] = []
-        self.hops = 0
-        # Track visit counts per node for graduated loop penalty
-        self._visit_counts: dict[str, int] = {}
-
-        # Precompute all-pairs shortest path distances for proximity reward
-        self._shortest_distances: dict[str, dict[str, int]] = {}
-        self._precompute_distances()
-
-        # Store original edge attributes for training-mode perturbation
+    def _init_original_edge_attrs(self) -> None:
+        """Store original edge attributes for training-mode perturbation."""
         self._original_edge_attrs: dict[tuple[str, str], dict[str, float]] = {}
         if self.training_mode:
             for src, dst in self.edges:
