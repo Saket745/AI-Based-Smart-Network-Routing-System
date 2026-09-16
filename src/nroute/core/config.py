@@ -9,7 +9,8 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
-from nroute.exceptions import ConfigError
+from nroute.exceptions import ConfigError, ValidationError
+from nroute.utils.validators import validate_file_path
 
 DEFAULT_CORS_ORIGINS = [
     "http://localhost:3000",
@@ -137,7 +138,11 @@ def _load_config_from_file(path: str | Path | None) -> dict[str, Any]:
     config_dict: dict[str, Any] = {}
     paths_to_try: list[Path] = []
     if path is not None:
-        paths_to_try.append(Path(path))
+        try:
+            validated_p = validate_file_path(path, must_exist=False)
+            paths_to_try.append(validated_p)
+        except ValidationError as e:
+            raise ConfigError(f"Invalid configuration file path '{path}': {e}") from e
     else:
         paths_to_try.extend(
             [

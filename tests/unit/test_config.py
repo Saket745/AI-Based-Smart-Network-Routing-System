@@ -78,6 +78,12 @@ def test_load_config_nonexistent_path_falls_back_to_defaults(tmp_path: Path) -> 
     assert cfg.general.log_level == "INFO"
 
 
+def test_load_config_invalid_path_with_null_bytes() -> None:
+    """load_config() with a path containing null bytes raises ConfigError."""
+    with pytest.raises(ConfigError, match="Invalid configuration file path"):
+        load_config(path="config.yaml\0")
+
+
 # ---------------------------------------------------------------------------
 # Environment variable overrides
 # ---------------------------------------------------------------------------
