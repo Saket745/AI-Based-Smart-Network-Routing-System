@@ -275,8 +275,8 @@ class ChangeImpactSimulator:
         before_paths, before_lengths = (
             AnalyticalEngine.compute_all_pairs_shortest_paths_and_lengths(before_g, weight=weight)
         )
-        after_paths, after_lengths = (
-            AnalyticalEngine.compute_all_pairs_shortest_paths_and_lengths(after_g, weight=weight)
+        after_paths, after_lengths = AnalyticalEngine.compute_all_pairs_shortest_paths_and_lengths(
+            after_g, weight=weight
         )
 
         # Collect all node pairs from the union of both graphs
