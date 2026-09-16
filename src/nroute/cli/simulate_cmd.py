@@ -202,8 +202,10 @@ def run_sim(ctx: click.Context, /, **kwargs: Any) -> None:
                     transient=True,
                 ) as progress:
                     task = progress.add_task("[cyan]Simulating ticks...", total=args.duration)
+
                     def _update_progress(step: int, total: int) -> None:
                         progress.update(task, completed=step)
+
                     result = engine.run(
                         duration_ticks=args.duration,
                         seed=seed,
