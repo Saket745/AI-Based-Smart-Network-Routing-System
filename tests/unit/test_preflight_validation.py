@@ -259,6 +259,17 @@ def test_malformed_change_patch() -> None:
         PreFlightValidator.validate(topo, change="non_existent_file.yaml")
 
 
+def test_preflight_validator_invalid_path_with_null_bytes() -> None:
+    """PreFlightValidator.validate with null bytes in change or policy path raises FileNotFoundError."""
+    topo = _build_test_network()
+    with pytest.raises(FileNotFoundError, match="Change patch file not found"):
+        PreFlightValidator.validate(topo, change="change.yaml\0")
+
+    change = ConfigChange(description="Pass change")
+    with pytest.raises(FileNotFoundError, match="Policy configuration file not found"):
+        PreFlightValidator.validate(topo, change=change, policy="policy.yaml\0")
+
+
 def test_deterministic_repeated_evaluation() -> None:
     """Two evaluations on identical inputs must yield identical decision fields."""
     topo = _build_test_network()
