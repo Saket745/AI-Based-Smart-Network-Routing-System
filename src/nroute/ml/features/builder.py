@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from heapq import heappop, heappush
+from itertools import count
 from typing import TYPE_CHECKING, Any
 
-import networkx as nx
 import numpy as np
 
 from nroute.ml.graph.bundle import GraphTensorBundle
@@ -51,9 +52,84 @@ class FeatureBuilder:
 
     @staticmethod
     def _compute_centralities(graph: Any) -> tuple[dict[Any, float], dict[Any, float]]:
-        """Compute topological centrality metrics using NetworkX on topology.graph."""
-        betweenness: dict[Any, float] = nx.betweenness_centrality(graph, weight="latency")
-        closeness: dict[Any, float] = nx.closeness_centrality(graph, distance="latency")
+        """Compute topological centrality metrics (betweenness and closeness) in a single pass."""
+        adj = getattr(graph, "_adj", graph)
+        adj_weights = {}
+        for u in graph:
+            adj_weights[u] = [(v, float(d.get("latency", 1.0))) for v, d in adj[u].items()]
+
+        nodes = list(graph)
+        n = len(nodes)
+        betweenness = dict.fromkeys(nodes, 0.0)
+        inward_sum = dict.fromkeys(nodes, 0.0)
+        inward_count = dict.fromkeys(nodes, 0)
+
+        for s in nodes:
+            s_stack = []
+            pred_map: dict[Any, list[Any]] = {v: [] for v in nodes}
+            sigma = dict.fromkeys(nodes, 0.0)
+            dist_map: dict[Any, float] = {}
+            sigma[s] = 1.0
+            seen = {s: 0.0}
+            c = count()
+            pq = [(0.0, next(c), None, s)]
+
+            while pq:
+                dist, _, pred, v = heappop(pq)
+                if v in dist_map:
+                    continue
+                if pred is not None:
+                    sigma[v] += sigma[pred]
+                s_stack.append(v)
+                dist_map[v] = dist
+
+                for w, weight_vw in adj_weights[v]:
+                    vw_dist = dist + weight_vw
+                    if w not in dist_map and (w not in seen or vw_dist < seen[w]):
+                        seen[w] = vw_dist
+                        heappush(pq, (vw_dist, next(c), v, w))
+                        sigma[w] = 0.0
+                        pred_map[w] = [v]
+                    elif vw_dist == seen[w]:
+                        sigma[w] += sigma[v]
+                        pred_map[w].append(v)
+
+            delta = dict.fromkeys(nodes, 0.0)
+            while s_stack:
+                w = s_stack.pop()
+                coeff = (1.0 + delta[w]) / sigma[w]
+                for v in pred_map[w]:
+                    delta[v] += sigma[v] * coeff
+                if w != s:
+                    betweenness[w] += delta[w]
+
+            for v, dist in dist_map.items():
+                if v != s:
+                    inward_sum[v] += dist
+                    inward_count[v] += 1
+
+        is_directed = graph.is_directed()
+        if not is_directed:
+            for v in betweenness:
+                betweenness[v] *= 0.5
+
+        if n > 2:
+            scale = 1.0 / ((n - 1) * (n - 2)) if is_directed else 2.0 / ((n - 1) * (n - 2))
+        else:
+            scale = 1.0
+
+        for v in betweenness:
+            betweenness[v] *= scale
+
+        closeness = {}
+        for v in nodes:
+            totsp = inward_sum[v]
+            cnt = inward_count[v]
+            if totsp > 0.0 and n > 1:
+                closeness[v] = (cnt / totsp) * (cnt / (n - 1))
+            else:
+                closeness[v] = 0.0
+
         return betweenness, closeness
 
     @staticmethod
