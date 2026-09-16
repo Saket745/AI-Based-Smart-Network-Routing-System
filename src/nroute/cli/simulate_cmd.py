@@ -185,7 +185,13 @@ def run_sim(ctx: click.Context, /, **kwargs: Any) -> None:
                     f"{topo.node_count} nodes, {args.duration} ticks, "
                     f"{args.traffic_model} traffic ({args.flows_per_tick} flows/tick)\n"
                 )
-                from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+                from rich.progress import (
+                    BarColumn,
+                    Progress,
+                    SpinnerColumn,
+                    TaskProgressColumn,
+                    TextColumn,
+                )
 
                 with Progress(
                     SpinnerColumn(),
