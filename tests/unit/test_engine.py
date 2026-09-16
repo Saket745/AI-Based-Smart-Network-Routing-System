@@ -140,6 +140,24 @@ def test_engine_progress_bar_usage(small_graph_data: dict[str, Any]) -> None:
         assert mock_instance.add_task.called
 
 
+def test_engine_progress_callback(small_graph_data: dict[str, Any]) -> None:
+    """Test engine with custom progress_callback."""
+    topo = _get_topo(small_graph_data)
+    router = MagicMock()
+    traffic = MagicMock(spec=TrafficGenerator)
+    traffic.generate.return_value = []
+    traffic.model = "mock"
+
+    progress_mock = MagicMock()
+    engine = SimulationEngine(topo, router, traffic)
+    engine.run(duration_ticks=3, show_progress=False, progress_callback=progress_mock)
+
+    assert progress_mock.call_count == 3
+    progress_mock.assert_any_call(1, 3)
+    progress_mock.assert_any_call(2, 3)
+    progress_mock.assert_any_call(3, 3)
+
+
 def test_engine_ingress_routing_failure(small_graph_data: dict[str, Any]) -> None:
     """Test engine when initial routing fails at ingress."""
     topo = _get_topo(small_graph_data)

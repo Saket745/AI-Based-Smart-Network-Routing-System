@@ -9,3 +9,7 @@
 ## 2026-08-18 - [Export CLI visual feedback consistency and summary metadata]
 **Learning:** Plain `click.echo` messages for CLI file export commands lack visual feedback and leave users uncertain about the volume of data exported until they inspect the file.
 **Action:** Use Rich console formatting (`Console().print`) with status indicators (`[green]+[/green]`) and append summary statistics (e.g., node/edge counts or record counts) to provide instant visual verification of output size and format.
+
+## 2026-08-25 - [Transient Progress Indicators for Long-Running CLI Simulations]
+**Learning:** Running batch simulation CLI commands without feedback makes terminal sessions appear frozen during multi-tick executions, diminishing user confidence.
+**Action:** Use transient Rich `Progress` bars with progress callbacks during long-running background tasks so progress is visible during execution and cleanly cleaned up when results are displayed.
