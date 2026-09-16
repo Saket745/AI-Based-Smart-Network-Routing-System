@@ -92,6 +92,10 @@ class TestSimulateRunCLI:
         mock_topo_load.assert_called_once_with(topo_file)
         mock_get_router.assert_called_once()
         mock_engine.run.assert_called_once()
+        # Verify progress_callback and show_progress parameters
+        kwargs = mock_engine.run.call_args.kwargs
+        assert "progress_callback" in kwargs
+        assert kwargs["show_progress"] is False
 
     @patch("nroute.cli.simulate_cmd.Topology.load")
     def test_run_topology_load_fail(

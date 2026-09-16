@@ -185,7 +185,39 @@ def run_sim(ctx: click.Context, /, **kwargs: Any) -> None:
                     f"{topo.node_count} nodes, {args.duration} ticks, "
                     f"{args.traffic_model} traffic ({args.flows_per_tick} flows/tick)\n"
                 )
-            result = engine.run(duration_ticks=args.duration, seed=seed)
+                from rich.progress import (
+                    BarColumn,
+                    Progress,
+                    SpinnerColumn,
+                    TaskProgressColumn,
+                    TextColumn,
+                )
+
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    TaskProgressColumn(),
+                    console=console,
+                    transient=True,
+                ) as progress:
+                    task = progress.add_task("[cyan]Simulating ticks...", total=args.duration)
+
+                    def _update_progress(step: int, total: int) -> None:
+                        progress.update(task, completed=step)
+
+                    result = engine.run(
+                        duration_ticks=args.duration,
+                        seed=seed,
+                        progress_callback=_update_progress,
+                        show_progress=False,
+                    )
+            else:
+                result = engine.run(
+                    duration_ticks=args.duration,
+                    seed=seed,
+                    show_progress=False,
+                )
 
     except SimulationError as e:
         console.print(f"[red]x Simulation error:[/red] {e}")

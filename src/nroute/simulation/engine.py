@@ -70,6 +70,7 @@ class SimulationEngine:
         duration_ticks: int,
         seed: int | None = None,
         callback: Callable[[int, SimulationEngine], None] | None = None,
+        progress_callback: Callable[[int, int], None] | None = None,
         show_progress: bool = True,
     ) -> MetricsCollectionResult:
         """
@@ -79,6 +80,7 @@ class SimulationEngine:
             duration_ticks: Total number of ticks to simulate.
             seed: Optional random seed for reproducibility.
             callback: Optional callback invoked after each tick.
+            progress_callback: Optional progress callback (current_step, total_steps).
             show_progress: Whether to show the default Rich progress bar.
 
         Returns:
@@ -120,6 +122,9 @@ class SimulationEngine:
 
                 if callback is not None:
                     callback(tick, self)
+
+                if progress_callback is not None:
+                    progress_callback(tick + 1, duration_ticks)
 
                 if progress is not None and task is not None:
                     progress.update(task, advance=1)
