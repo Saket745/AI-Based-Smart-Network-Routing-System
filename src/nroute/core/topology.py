@@ -176,7 +176,7 @@ class Topology:
         """
         if node_id not in self._graph:
             raise TopologyError(f"Node '{node_id}' does not exist.")
-        return dict(self._graph.nodes[node_id])
+        return cast("NodeDict", self._graph.nodes[node_id])
 
     def add_edge(self, src: str, dst: str, **attrs: Any) -> None:
         """
@@ -256,7 +256,7 @@ class Topology:
         """
         if not self._graph.has_edge(src, dst):
             raise TopologyError(f"Edge from '{src}' to '{dst}' does not exist.")
-        return dict(self._graph.edges[src, dst])
+        return cast("EdgeDict", self._graph.edges[src, dst])
 
     def update_edge(self, src: str, dst: str, **attrs: Any) -> None:
         """

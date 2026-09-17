@@ -56,6 +56,7 @@ class SimulationEngine:
 
         self.collector = MetricsCollector()
         self.rng = get_rng()
+        self._active_utilized_edges: set[tuple[str, str]] = set()
 
         # List of active flows in-flight
         # Each flow dict has keys:
@@ -280,23 +281,23 @@ class SimulationEngine:
 
         try:
             node_data = self.topology.get_node(v)
-            if node_data.get("status", "up") == "down":
-                return True
+            return bool(node_data.get("status", "up") == "down")
         except Exception:
             return True
-
-        return False
 
     def _update_link_utilizations(self) -> None:
         """
         Recalculate link utilization metrics based on current active flows.
         """
-        # 1. Reset all edges to 0 utilization directly in networkx graph for performance
         g = self.topology.graph
-        for u, v in g.edges:
-            g.edges[u, v]["utilization"] = 0.0
+        # Reset previously utilized edges instead of scanning all |E| edges
+        if self._active_utilized_edges:
+            for u, v in self._active_utilized_edges:
+                if g.has_edge(u, v):
+                    g.edges[u, v]["utilization"] = 0.0
+            self._active_utilized_edges.clear()
 
-        # 2. Accumulate bandwidth demands of in-flight flows on their active link
+        # Accumulate bandwidth demands of in-flight flows on their active link
         # Flow bandwidth demand = (bytes * 8) / (duration * 1e6) in Mbps.
         # If duration is 0, default to 1s.
         link_demands: dict[tuple[str, str], float] = defaultdict(float)
@@ -313,7 +314,7 @@ class SimulationEngine:
                 mbps = (flow.bytes * 8.0) / (duration * 1e6)
                 link_demands[(u, v)] += mbps
 
-        # 3. Update edge utilization ratios directly in networkx graph to bypass
+        # Update edge utilization ratios directly in networkx graph to bypass
         # slow schema validation, looping, and function call overhead on the simulation hot-path.
         # Note: utilization is a pure numeric attribute that does not affect topology down-tracking
         # sets (_down_nodes / _down_edges), making direct mutation safe and desync-free.
@@ -324,3 +325,4 @@ class SimulationEngine:
                 util = demand / bandwidth if bandwidth > 0.0 else 0.0
                 # Clamp to [0.0, 1.0] to satisfy schema constraints
                 edge_data["utilization"] = min(1.0, max(0.0, util))
+                self._active_utilized_edges.add((u, v))
