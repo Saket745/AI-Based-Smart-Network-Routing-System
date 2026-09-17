@@ -5,10 +5,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from fastapi.testclient import TestClient
-from nroute.api.server import app, _FALLBACK_TOKEN
-from nroute.core.topology import Topology
 import networkx as nx
+from fastapi.testclient import TestClient
+
+from nroute.api.server import _FALLBACK_TOKEN, app
+from nroute.core.topology import Topology
 
 
 def _build_test_network() -> Topology:
