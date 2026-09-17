@@ -56,6 +56,7 @@ class SimulationEngine:
 
         self.collector = MetricsCollector()
         self.rng = get_rng()
+        self._active_utilized_edges: set[tuple[str, str]] = set()
 
         # List of active flows in-flight
         # Each flow dict has keys:
@@ -280,7 +281,7 @@ class SimulationEngine:
 
         try:
             node_data = self.topology.get_node(v)
-            return node_data.get("status", "up") == "down"
+            return bool(node_data.get("status", "up") == "down")
         except Exception:
             return True
 
@@ -290,15 +291,11 @@ class SimulationEngine:
         """
         g = self.topology.graph
         # Reset previously utilized edges instead of scanning all |E| edges
-        if hasattr(self, "_active_utilized_edges"):
+        if self._active_utilized_edges:
             for u, v in self._active_utilized_edges:
                 if g.has_edge(u, v):
                     g.edges[u, v]["utilization"] = 0.0
             self._active_utilized_edges.clear()
-        else:
-            self._active_utilized_edges = set()
-            for u, v in g.edges:
-                g.edges[u, v]["utilization"] = 0.0
 
         # Accumulate bandwidth demands of in-flight flows on their active link
         # Flow bandwidth demand = (bytes * 8) / (duration * 1e6) in Mbps.
