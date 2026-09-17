@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from nroute.exceptions import IngestionError
+from nroute.exceptions import IngestionError, ValidationError
 from nroute.ingestion.csv_json import (
     CSVTopologyImporter,
     CSVTrafficImporter,
@@ -17,6 +17,7 @@ from nroute.ingestion.csv_json import (
 from nroute.ingestion.netflow import NetFlowParser
 from nroute.ingestion.pcap import PcapParser
 from nroute.ingestion.snmp import SNMPParser
+from nroute.utils.validators import validate_file_path
 
 if TYPE_CHECKING:
     from nroute.core.topology import Topology
@@ -111,7 +112,11 @@ def ingest(path: str | Path, format: str | None = None) -> Topology | TrafficMat
     Raises:
         IngestionError: If file not found, parsing fails, or format is unknown.
     """
-    p = Path(path)
+    try:
+        p = validate_file_path(path, must_exist=True)
+    except ValidationError as e:
+        raise IngestionError(f"Ingestion source file not found: {path}") from e
+
     if not p.is_file():
         raise IngestionError(f"Ingestion source file not found: {path}")
 

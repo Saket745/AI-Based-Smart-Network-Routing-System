@@ -231,6 +231,14 @@ def test_pcap_parser_security_path_validation(tmp_path: Path) -> None:
         PcapParser.parse("test\0.pcap")
 
 
+def test_unified_ingest_path_validation_security() -> None:
+    """Test ingest() path validation against invalid paths such as empty strings, null bytes, and missing files."""
+    invalid_paths = ["", "   ", "non_existent.csv", "\0nullbyte.json"]
+    for path in invalid_paths:
+        with pytest.raises(IngestionError, match="source file not found"):
+            ingest(path)
+
+
 def test_unified_ingest_explicit_and_auto_detect(tmp_path: Path) -> None:
     """Test the unified ingest() function with format overrides and auto-detection."""
     # 1. Non-existent file
