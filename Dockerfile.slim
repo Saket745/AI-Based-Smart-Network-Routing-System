@@ -28,7 +28,8 @@ RUN groupadd -g 10001 nroute \
     && chown -R nroute:nroute /app
 
 # Upgrade system-level site-packages in /usr/local/ as root to resolve Trivy security scan findings
-RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
+RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" \
+    && rm -rf /usr/local/lib/python3.10/site-packages/setuptools-70.3.0.dist-info
 
 # Copy the built wheel from builder stage
 COPY --from=builder --chown=nroute:nroute /app/dist/*.whl ./
