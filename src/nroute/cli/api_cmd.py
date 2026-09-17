@@ -34,7 +34,9 @@ def start_server(host: str, port: int) -> None:
     from nroute.api.server import get_active_api_token
 
     token, is_fallback = get_active_api_token()
-    console.print(f"[green]+[/green] Starting API server on [bold cyan]http://{host}:{port}[/bold cyan]...")
+    console.print(
+        f"[green]+[/green] Starting API server on [bold cyan]http://{host}:{port}[/bold cyan]..."
+    )
     if is_fallback:
         panel_content = (
             "[bold yellow]INFO:[/bold yellow] No NROUTE_API_TOKEN configured. "
