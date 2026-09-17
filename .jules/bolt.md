@@ -30,3 +30,7 @@
 ## 2026-09-01 - MetricsCollector.record_tick Fast-Path Optimization
 **Learning:** In per-tick simulation metrics collection, checking whether down-tracking sets (`down_edges`) are non-empty allows bypassing `(u, v)` tuple key construction and set membership lookups on every edge hop when no links are down. Accessing the underlying NetworkX graph adjacency dictionary (`topology.graph._adj`) directly avoids `AdjacencyView` descriptor overhead and yields up to a ~4.25x speedup in `record_tick` execution time and a ~1.63x overall simulation tick rate speedup on 1000-node topologies.
 **Action:** Use fast-path conditionals when down-tracking sets are empty in hot simulation loops to bypass tuple allocations and set lookups.
+
+## 2026-09-17 - Active Utilized Edges Tracking Optimization
+**Learning:** In discrete-event simulation loops where link metrics like bandwidth utilization are updated per tick, iterating over all $|E|$ edges in the graph every tick to reset utilization to `0.0` creates $O(|E|)$ overhead per tick regardless of sparse traffic volume. Initializing all edges to `0.0` once at start of run and tracking active non-zero utilization edges (`_active_utilized_edges`) allows resetting only previously active edges each tick, yielding up to a ~2.32x simulation tick rate speedup on 1,000-node topologies.
+**Action:** When updating dynamic graph attributes across sparse state changes in hot loops, track modified elements and reset only active items instead of scanning all graph elements every iteration.
