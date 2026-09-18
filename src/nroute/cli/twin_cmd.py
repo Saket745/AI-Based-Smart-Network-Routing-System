@@ -218,8 +218,7 @@ def impact_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
         with out_path.open("w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
         console.print(
-            f"[green]+[/green] Blast-radius report written to: "
-            f"[bold]{args.output}[/bold] {summary}"
+            f"[green]+[/green] Blast-radius report written to: [bold]{args.output}[/bold] {summary}"
         )
     else:
         click.echo(json.dumps(report, indent=2))
@@ -271,8 +270,7 @@ def rca_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
         with out_path.open("w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
         console.print(
-            f"[green]+[/green] RCA report written to: "
-            f"[bold]{args.output}[/bold] {summary}"
+            f"[green]+[/green] RCA report written to: [bold]{args.output}[/bold] {summary}"
         )
     else:
         click.echo(json.dumps(report, indent=2, default=str))
@@ -330,8 +328,7 @@ def reachability_cmd(
         with open(output, "w", encoding="utf-8") as f:
             json.dump(serializable, f, indent=2)
         console.print(
-            f"[green]+[/green] Reachability matrix written to: "
-            f"[bold]{output}[/bold] {summary}"
+            f"[green]+[/green] Reachability matrix written to: [bold]{output}[/bold] {summary}"
         )
     elif is_json:
         click.echo(json.dumps(serializable, indent=2))
@@ -405,8 +402,7 @@ def audit_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
         with out_path.open("w", encoding="utf-8") as f:
             json.dump(records, f, indent=2)
         console.print(
-            f"[green]+[/green] Exported audit trail to: "
-            f"[bold]{args.output}[/bold] {summary}"
+            f"[green]+[/green] Exported audit trail to: [bold]{args.output}[/bold] {summary}"
         )
     else:
         click.echo(json.dumps(records, indent=2))
