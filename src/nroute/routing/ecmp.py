@@ -174,7 +174,8 @@ class ECMPRouter(BaseRouter):
     ) -> list[str]:
         """
         Compute a single path. Uses ECMP (equal-cost paths) and selects one
-        deterministically using the hash of flow_key.
+        deterministically using the hash of flow_key if provided, or computes
+        a single shortest path directly.
 
         Args:
             topology: The network topology.
@@ -184,21 +185,40 @@ class ECMPRouter(BaseRouter):
             **kwargs: Additional parameters including 'flow_key'.
         """
         flow_key = kwargs.get("flow_key")
-        query = RoutingQuery(
-            source=source,
-            destination=destination,
-            weight=weight,
-            flow_key=flow_key,
-        )
-        paths = self.compute_all_equal_cost_paths(topology, query)
-        if not paths:
-            raise RoutingError(f"No path found between '{source}' and '{destination}'.")
-
-        # Select path using flow_key hashing
         if flow_key is not None:
+            query = RoutingQuery(
+                source=source,
+                destination=destination,
+                weight=weight,
+                flow_key=flow_key,
+            )
+            paths = self.compute_all_equal_cost_paths(topology, query)
+            if not paths:
+                raise RoutingError(f"No path found between '{source}' and '{destination}'.")
+
             hash_val = int(hashlib.sha256(str(flow_key).encode("utf-8")).hexdigest(), 16)
             index = hash_val % len(paths)
             return paths[index]
 
-        # Default: return the first shortest path
-        return paths[0]
+        # Fast path when flow_key is not provided: compute single shortest path directly
+        subgraph = self._get_validated_active_subgraph(topology, source, destination)
+        weight_func = self._resolve_weight_function(weight)
+
+        try:
+            path = nx.shortest_path(
+                subgraph,
+                source=source,
+                target=destination,
+                weight=weight_func,
+            )
+            res_path = list(path)
+            self.validate_path(topology, res_path, source, destination)
+            return res_path
+        except nx.NetworkXNoPath as e:
+            raise RoutingError(
+                f"No active path found between '{source}' and '{destination}'."
+            ) from e
+        except Exception as e:
+            if isinstance(e, RoutingError):
+                raise
+            raise RoutingError(f"ECMP route computation failed: {e}") from e
