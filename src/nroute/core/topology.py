@@ -137,7 +137,24 @@ class Topology:
         attrs["status"] = status
         attrs["location"] = location
 
-        self._graph.add_node(validated_id, **attrs)
+        # Fast direct graph dictionary lookup / insertion for DiGraph
+        graph = self._graph
+        if (
+            graph.is_directed()
+            and hasattr(graph, "_node")
+            and hasattr(graph, "_pred")
+            and hasattr(graph, "_adj")
+        ):
+            node_dict = graph._node
+            if validated_id not in node_dict:
+                node_dict[validated_id] = attrs.copy() if attrs else {}
+                graph._adj[validated_id] = graph.adjlist_inner_dict_factory()
+                graph._pred[validated_id] = graph.adjlist_inner_dict_factory()
+            else:
+                node_dict[validated_id].update(attrs)
+        else:
+            graph.add_node(validated_id, **attrs)
+
         if status == "down":
             self._down_nodes.add(validated_id)
         else:
@@ -174,9 +191,14 @@ class Topology:
         Raises:
             TopologyError: If the node does not exist.
         """
-        if node_id not in self._graph:
+        graph = self._graph
+        if hasattr(graph, "_node"):
+            if node_id not in graph._node:
+                raise TopologyError(f"Node '{node_id}' does not exist.")
+            return dict(graph._node[node_id])
+        if node_id not in graph:
             raise TopologyError(f"Node '{node_id}' does not exist.")
-        return dict(self._graph.nodes[node_id])
+        return dict(graph.nodes[node_id])
 
     def add_edge(self, src: str, dst: str, **attrs: Any) -> None:
         """
@@ -191,10 +213,17 @@ class Topology:
             ValidationError: If attributes are invalid.
             TopologyError: If src or dst nodes do not exist.
         """
-        if src not in self._graph:
-            raise TopologyError(f"Source node '{src}' does not exist.")
-        if dst not in self._graph:
-            raise TopologyError(f"Destination node '{dst}' does not exist.")
+        graph = self._graph
+        if hasattr(graph, "_node"):
+            if src not in graph._node:
+                raise TopologyError(f"Source node '{src}' does not exist.")
+            if dst not in graph._node:
+                raise TopologyError(f"Destination node '{dst}' does not exist.")
+        else:
+            if src not in graph:
+                raise TopologyError(f"Source node '{src}' does not exist.")
+            if dst not in graph:
+                raise TopologyError(f"Destination node '{dst}' does not exist.")
 
         bandwidth = validate_positive_float(attrs.get("bandwidth", 1000.0), "bandwidth")
         latency = validate_positive_float(attrs.get("latency", 5.0), "latency")
@@ -218,7 +247,16 @@ class Topology:
         attrs["weight"] = weight
         attrs["status"] = status
 
-        self._graph.add_edge(src, dst, **attrs)
+        if graph.is_directed() and hasattr(graph, "_adj") and hasattr(graph, "_pred"):
+            if dst not in graph._adj[src]:
+                edge_dict = attrs.copy() if attrs else {}
+                graph._adj[src][dst] = edge_dict
+                graph._pred[dst][src] = edge_dict
+            else:
+                graph._adj[src][dst].update(attrs)
+        else:
+            graph.add_edge(src, dst, **attrs)
+
         if status == "down":
             self._down_edges.add((src, dst))
         else:
@@ -254,9 +292,15 @@ class Topology:
         Raises:
             TopologyError: If the edge does not exist.
         """
-        if not self._graph.has_edge(src, dst):
+        graph = self._graph
+        if hasattr(graph, "_adj"):
+            if src not in graph._adj or dst not in graph._adj[src]:
+                raise TopologyError(f"Edge from '{src}' to '{dst}' does not exist.")
+            return dict(graph._adj[src][dst])
+
+        if not graph.has_edge(src, dst):
             raise TopologyError(f"Edge from '{src}' to '{dst}' does not exist.")
-        return dict(self._graph.edges[src, dst])
+        return dict(graph.edges[src, dst])
 
     def update_edge(self, src: str, dst: str, **attrs: Any) -> None:
         """

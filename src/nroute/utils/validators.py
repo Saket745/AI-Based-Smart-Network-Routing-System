@@ -25,6 +25,12 @@ def validate_node_id(node_id: Any) -> str:
     Raises:
         ValidationError: If the node ID is invalid.
     """
+    if type(node_id) is str:
+        cleaned = node_id.strip()
+        if not cleaned:
+            raise ValidationError("Node ID cannot be an empty or whitespace-only string.")
+        return cleaned
+
     if isinstance(node_id, bool):
         raise ValidationError("Node ID cannot be a boolean.")
 
@@ -57,12 +63,18 @@ def validate_positive_float(value: Any, name: str) -> float:
     Raises:
         ValidationError: If the value is negative or not a number.
     """
-    try:
+    t = type(value)
+    if t is float:
+        val: float = value
+    elif t is int and not isinstance(value, bool):
         val = float(value)
-    except (TypeError, ValueError) as e:
-        raise ValidationError(
-            f"Parameter '{name}' must be a number, got type {type(value).__name__}."
-        ) from e
+    else:
+        try:
+            val = float(value)
+        except (TypeError, ValueError) as e:
+            raise ValidationError(
+                f"Parameter '{name}' must be a number, got type {type(value).__name__}."
+            ) from e
 
     if val < 0.0 or math.isnan(val):
         raise ValidationError(f"Parameter '{name}' must be a non-negative number, got {val}.")
@@ -83,12 +95,18 @@ def validate_probability(value: Any) -> float:
     Raises:
         ValidationError: If the value is not a valid probability.
     """
-    try:
+    t = type(value)
+    if t is float:
+        val: float = value
+    elif t is int and not isinstance(value, bool):
         val = float(value)
-    except (TypeError, ValueError) as e:
-        raise ValidationError(
-            f"Probability must be a number, got type {type(value).__name__}."
-        ) from e
+    else:
+        try:
+            val = float(value)
+        except (TypeError, ValueError) as e:
+            raise ValidationError(
+                f"Probability must be a number, got type {type(value).__name__}."
+            ) from e
 
     if not (0.0 <= val <= 1.0):
         raise ValidationError(f"Probability must be between 0.0 and 1.0, got {val}.")
