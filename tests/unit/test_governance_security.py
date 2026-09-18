@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import os
 import tempfile
+from pathlib import Path
 
 import joblib
 import pytest
@@ -72,6 +73,7 @@ def test_anomaly_detector_pytorch_secure_loading_failure() -> None:
         with open(path, "wb") as f:
             f.write(b"dummy")
 
+        resolved_path = str(Path(path).resolve())
         with patch("torch.load", side_effect=RuntimeError("Security breach!")):
             with pytest.raises(ModelError) as excinfo:
                 detector.load(path, allow_unsafe=False)
@@ -80,7 +82,9 @@ def test_anomaly_detector_pytorch_secure_loading_failure() -> None:
 
             with pytest.raises(ModelError) as excinfo:
                 detector.load(path, allow_unsafe=True)
-            assert f"Failed to load model from {path}" in str(excinfo.value)
+            assert f"Failed to load model from {path}" in str(
+                excinfo.value
+            ) or f"Failed to load model from {resolved_path}" in str(excinfo.value)
             assert "Security breach!" in str(excinfo.value)
 
 
@@ -94,6 +98,7 @@ def test_congestion_predictor_pytorch_secure_loading_failure() -> None:
         with open(path, "wb") as f:
             f.write(b"dummy")
 
+        resolved_path = str(Path(path).resolve())
         with patch("torch.load", side_effect=RuntimeError("Security breach!")):
             with pytest.raises(ModelError) as excinfo:
                 predictor.load(path, allow_unsafe=False)
@@ -102,7 +107,9 @@ def test_congestion_predictor_pytorch_secure_loading_failure() -> None:
 
             with pytest.raises(ModelError) as excinfo:
                 predictor.load(path, allow_unsafe=True)
-            assert f"Failed to load model from {path}" in str(excinfo.value)
+            assert f"Failed to load model from {path}" in str(
+                excinfo.value
+            ) or f"Failed to load model from {resolved_path}" in str(excinfo.value)
             assert "Security breach!" in str(excinfo.value)
 
 
