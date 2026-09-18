@@ -209,12 +209,18 @@ def impact_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
     result = twin.simulate_change(args.change, weight=args.weight)
     report = result.to_dict()
 
+    impacted_pairs = len(report.get("impacted_pairs", []))
+    summary = f"({impacted_pairs} impacted pair{'s' if impacted_pairs != 1 else ''})"
+
     if args.output:
         out_path = Path(args.output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
-        click.echo(f"Blast-radius report written to {args.output}")
+        console.print(
+            f"[green]+[/green] Blast-radius report written to: "
+            f"[bold]{args.output}[/bold] {summary}"
+        )
     else:
         click.echo(json.dumps(report, indent=2))
 
@@ -256,12 +262,18 @@ def rca_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
     result = twin.diagnose(args.events)
     report = result.to_dict()
 
+    root_causes = len(report.get("root_causes", []))
+    summary = f"({root_causes} root cause{'s' if root_causes != 1 else ''})"
+
     if args.output:
         out_path = Path(args.output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
-        click.echo(f"RCA report written to {args.output}")
+        console.print(
+            f"[green]+[/green] RCA report written to: "
+            f"[bold]{args.output}[/bold] {summary}"
+        )
     else:
         click.echo(json.dumps(report, indent=2, default=str))
 
@@ -284,11 +296,20 @@ def rca_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
     default=None,
     help="Write reachability matrix to JSON file.",
 )
+@click.option(
+    "--json",
+    "-j",
+    "json_output",
+    is_flag=True,
+    default=False,
+    help="Emit machine-readable JSON to stdout.",
+)
 @click.pass_context
 def reachability_cmd(
     ctx: click.Context,
     topology: str,
     output: str | None,
+    json_output: bool,
 ) -> None:
     """Compute pairwise reachability matrix."""
     from nroute.simulation.digital_twin import DigitalTwinEngine
@@ -300,15 +321,38 @@ def reachability_cmd(
     # Convert sets to sorted lists for JSON serialization
     serializable = {k: sorted(v) for k, v in reach.items()}
 
+    is_json = json_output or (ctx.obj is not None and ctx.obj.get("output_format") == "json")
+    total_pairs = sum(len(v) for v in serializable.values())
+    summary = f"({len(serializable)} nodes, {total_pairs} reachable pairs)"
+
     if output:
         Path(output).parent.mkdir(parents=True, exist_ok=True)
         with open(output, "w", encoding="utf-8") as f:
             json.dump(serializable, f, indent=2)
-        click.echo(f"Reachability matrix written to {output}")
-    else:
-        total_pairs = sum(len(v) for v in serializable.values())
-        click.echo(f"Reachability: {len(serializable)} nodes, {total_pairs} reachable pairs")
+        console.print(
+            f"[green]+[/green] Reachability matrix written to: "
+            f"[bold]{output}[/bold] {summary}"
+        )
+    elif is_json:
         click.echo(json.dumps(serializable, indent=2))
+    else:
+        # Rich formatted summary table for interactive console mode
+        console.print()
+        console.rule(f"[bold cyan]Pairwise Reachability Matrix {summary}[/bold cyan]")
+
+        table = Table(title="Reachability Overview", show_header=True, header_style="bold magenta")
+        table.add_column("Source Node", style="cyan")
+        table.add_column("Reachable Count", style="green", justify="right")
+        table.add_column("Target Nodes", style="dim")
+
+        for src, targets in sorted(serializable.items()):
+            target_preview = ", ".join(targets[:5])
+            if len(targets) > 5:
+                target_preview += f" (+{len(targets) - 5} more)"
+            table.add_row(src, f"[green]+[/green] {len(targets)}", target_preview or "None")
+
+        console.print(table)
+        console.print()
 
 
 # ── twin audit ───────────────────────────────────────────────
@@ -353,14 +397,18 @@ def audit_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
     if args.action:
         records = [r for r in records if r.get("action") == args.action]
 
+    summary = f"({len(records)} audit record{'s' if len(records) != 1 else ''})"
+
     if args.output:
         out_path = Path(args.output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", encoding="utf-8") as f:
             json.dump(records, f, indent=2)
-        click.echo(f"Exported {len(records)} audit records to {args.output}")
+        console.print(
+            f"[green]+[/green] Exported audit trail to: "
+            f"[bold]{args.output}[/bold] {summary}"
+        )
     else:
-        click.echo(f"Audit trail: {len(records)} record(s)")
         click.echo(json.dumps(records, indent=2))
 
 
