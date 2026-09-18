@@ -19,6 +19,7 @@ from pathlib import Path
 import pytest
 
 from nroute.audit import AuditAction, AuditTrail
+from nroute.exceptions import ValidationError
 from nroute.core.openconfig import (
     BGPConfig,
     BGPNeighborConfig,
@@ -419,6 +420,20 @@ class TestAuditTrail:
         summary = trail.summary()
         assert summary["total_records"] == 3
         assert summary["action_counts"]["config_change"] == 2
+
+    def test_audit_trail_path_validation_security(self) -> None:
+        with pytest.raises(ValidationError, match="null bytes are not allowed"):
+            AuditTrail(log_file="audit\0invalid.ndjson")
+
+        with pytest.raises(ValidationError, match="File path cannot be empty"):
+            AuditTrail(log_file="")
+
+        trail = AuditTrail()
+        with pytest.raises(ValidationError, match="null bytes are not allowed"):
+            trail.export_json("export\0invalid.json")
+
+        with pytest.raises(ValidationError, match="File path cannot be empty"):
+            trail.export_json("")
 
 
 # ── 7. Digital Twin Engine Integration ──────────────────────
