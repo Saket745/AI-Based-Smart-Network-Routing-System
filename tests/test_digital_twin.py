@@ -19,7 +19,6 @@ from pathlib import Path
 import pytest
 
 from nroute.audit import AuditAction, AuditTrail
-from nroute.exceptions import ValidationError
 from nroute.core.openconfig import (
     BGPConfig,
     BGPNeighborConfig,
@@ -31,6 +30,7 @@ from nroute.core.openconfig import (
     OSPFInterfaceConfig,
 )
 from nroute.core.topology import Topology
+from nroute.exceptions import ValidationError
 from nroute.ingestion.config_parser import ConfigParser
 from nroute.simulation.change_impact import (
     AnalyticalEngine,
