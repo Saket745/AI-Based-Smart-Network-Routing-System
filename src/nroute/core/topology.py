@@ -139,7 +139,12 @@ class Topology:
 
         # Fast direct graph dictionary lookup / insertion for DiGraph
         graph = self._graph
-        if graph.is_directed() and hasattr(graph, "_node") and hasattr(graph, "_pred") and hasattr(graph, "_adj"):
+        if (
+            graph.is_directed()
+            and hasattr(graph, "_node")
+            and hasattr(graph, "_pred")
+            and hasattr(graph, "_adj")
+        ):
             node_dict = graph._node
             if validated_id not in node_dict:
                 node_dict[validated_id] = attrs.copy() if attrs else {}
