@@ -284,6 +284,19 @@ class LiveSimulationConsole:
             Layout(name="throughput_plot", ratio=1),
             Layout(name="latency_plot", ratio=1),
         )
+
+        algo_name = self.engine.router.__class__.__name__
+        layout["header"].update(self._build_header(None, None, algo_name))
+        layout["left"].update(Panel(self._build_link_status_table(self.engine), style="magenta"))
+        layout["right"]["throughput_plot"].update(
+            Panel(PlotextRenderable(self.plot_throughput), style="cyan")
+        )
+        layout["right"]["latency_plot"].update(
+            Panel(PlotextRenderable(self.plot_latency), style="yellow")
+        )
+        layout["footer"].update(
+            Panel(Text("Initializing simulation..."), title="Real-Time Event Log", style="white")
+        )
         return layout
 
     def run(self) -> MetricsCollectionResult:
