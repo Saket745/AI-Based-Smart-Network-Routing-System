@@ -300,3 +300,26 @@ def test_live_console_normal_completion_preserved() -> None:
         mock_run.assert_called_once()
         assert result == expected_result
         assert console_viz.status == "Completed"
+
+
+def test_live_console_create_layout_initialization() -> None:
+    """Verify _create_layout initializes all layout sections with placeholder content on startup."""
+    topo = Topology()
+    topo.add_node("A", type="router")
+    topo.add_node("B", type="router")
+    topo.add_edge("A", "B", bandwidth=1000, latency=5)
+
+    router = DijkstraRouter()
+    traffic = TrafficGenerator(model="uniform", n_flows_per_tick=1)
+    engine = SimulationEngine(topo, router, traffic)
+
+    console_viz = LiveSimulationConsole(engine, duration_ticks=5, delay=0.0)
+    layout = console_viz._create_layout()
+
+    # Verify all layout elements are updated and non-empty
+    assert layout["header"].renderable is not None
+    assert layout["left"].renderable is not None
+    assert layout["right"]["throughput_plot"].renderable is not None
+    assert layout["right"]["latency_plot"].renderable is not None
+    assert layout["footer"].renderable is not None
+    assert "Initializing simulation..." in layout["footer"].renderable.renderable.plain
