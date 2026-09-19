@@ -166,10 +166,11 @@ nroute twin validate --help
 ```python
 from fastapi.testclient import TestClient
 from nroute.api.server import app, get_active_api_token
+
 # Post validation request to /api/twin/validate
-res = client.post('/api/twin/validate', json=req_body, headers={'Authorization': f'Bearer {token}'})
+res = client.post("/api/twin/validate", json=req_body, headers={"Authorization": f"Bearer {token}"})
 assert res.status_code == 200
-assert res.json()['verdict'] == 'PASS'
+assert res.json()["verdict"] == "PASS"
 ```
 - **Result**: **PASSED (`200 OK`, `verdict="PASS"`, `gate_passed=True`)**
 
