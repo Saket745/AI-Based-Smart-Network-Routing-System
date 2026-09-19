@@ -243,7 +243,7 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
 
     events: list[NetworkEvent] = []
     for idx, item in enumerate(raw):
-        if type(item) is not dict:
+        if not isinstance(item, dict):
             continue
         try:
             eid = item.get("event_id")
@@ -281,26 +281,19 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
             msg = item.get("message")
             message = str(msg) if msg is not None else ""
 
-            if category is EventCategory.UNKNOWN and event_type:
-                et_lower = event_type.lower().strip()
-                res = _classify_type_string(et_lower)
-                if res is not None:
-                    category, severity = res
-
-            events.append(
-                NetworkEvent(
-                    event_id=event_id,
-                    timestamp=timestamp,
-                    node_id=node_id,
-                    interface=interface,
-                    peer_node=peer_node,
-                    event_type=event_type,
-                    category=category,
-                    severity=severity,
-                    message=message,
-                    raw=item,
-                )
+            evt = NetworkEvent(
+                event_id=event_id,
+                timestamp=timestamp,
+                node_id=node_id,
+                interface=interface,
+                peer_node=peer_node,
+                event_type=event_type,
+                category=category,
+                severity=severity,
+                message=message,
+                raw=item,
             )
+            events.append(classify_event(evt))
         except Exception:
             logger.warning("Skipping unparseable event", index=idx)
 
