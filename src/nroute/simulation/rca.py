@@ -58,6 +58,9 @@ class EventCategory(str, Enum):
 _VALID_CATEGORIES: set[str] = {c.value for c in EventCategory}
 _VALID_SEVERITIES: set[str] = {s.value for s in EventSeverity}
 
+_CATEGORY_MAP: dict[str, EventCategory] = {c.value: c for c in EventCategory}
+_SEVERITY_MAP: dict[str, EventSeverity] = {s.value: s for s in EventSeverity}
+
 
 # Priority mapping  (lower = higher priority)
 _CATEGORY_PRIORITY: dict[EventCategory, int] = {
@@ -240,24 +243,64 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
 
     events: list[NetworkEvent] = []
     for idx, item in enumerate(raw):
-        if not isinstance(item, dict):
+        if type(item) is not dict:
             continue
         try:
-            cat = item.get("category", "unknown")
-            sev = item.get("severity", "info")
-            evt = NetworkEvent(
-                event_id=str(item.get("event_id", f"evt_{idx}")),
-                timestamp=float(item.get("timestamp", idx)),
-                node_id=str(item.get("node_id", "")),
-                interface=str(item.get("interface", "")),
-                peer_node=str(item.get("peer_node", "")),
-                event_type=str(item.get("event_type", "")),
-                category=EventCategory(cat) if cat in _VALID_CATEGORIES else EventCategory.UNKNOWN,
-                severity=EventSeverity(sev) if sev in _VALID_SEVERITIES else EventSeverity.INFO,
-                message=str(item.get("message", "")),
-                raw=item,
+            eid = item.get("event_id")
+            event_id = str(eid) if eid is not None else f"evt_{idx}"
+
+            ts = item.get("timestamp")
+            timestamp = float(ts) if ts is not None else float(idx)
+
+            nid = item.get("node_id")
+            node_id = str(nid) if nid is not None else ""
+
+            iface = item.get("interface")
+            interface = str(iface) if iface is not None else ""
+
+            peer = item.get("peer_node")
+            peer_node = str(peer) if peer is not None else ""
+
+            et = item.get("event_type")
+            event_type = str(et) if et is not None else ""
+
+            cat_val = item.get("category")
+            category = (
+                _CATEGORY_MAP.get(cat_val, EventCategory.UNKNOWN)
+                if cat_val is not None
+                else EventCategory.UNKNOWN
             )
-            events.append(classify_event(evt))
+
+            sev_val = item.get("severity")
+            severity = (
+                _SEVERITY_MAP.get(sev_val, EventSeverity.INFO)
+                if sev_val is not None
+                else EventSeverity.INFO
+            )
+
+            msg = item.get("message")
+            message = str(msg) if msg is not None else ""
+
+            if category is EventCategory.UNKNOWN and event_type:
+                et_lower = event_type.lower().strip()
+                res = _classify_type_string(et_lower)
+                if res is not None:
+                    category, severity = res
+
+            events.append(
+                NetworkEvent(
+                    event_id=event_id,
+                    timestamp=timestamp,
+                    node_id=node_id,
+                    interface=interface,
+                    peer_node=peer_node,
+                    event_type=event_type,
+                    category=category,
+                    severity=severity,
+                    message=message,
+                    raw=item,
+                )
+            )
         except Exception:
             logger.warning("Skipping unparseable event", index=idx)
 
