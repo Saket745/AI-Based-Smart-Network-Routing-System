@@ -181,5 +181,10 @@ def test_anomaly_detector_pytorch_secure_loading_failure() -> None:
 
             with pytest.raises(ModelError) as excinfo:
                 detector.load(path, allow_unsafe=True)
-            assert f"Failed to load model from {path}" in str(excinfo.value)
-            assert "Security breach!" in str(excinfo.value)
+            err_msg = str(excinfo.value)
+            real_path = os.path.realpath(path)
+            assert (
+                f"Failed to load model from {path}" in err_msg
+                or f"Failed to load model from {real_path}" in err_msg
+            )
+            assert "Security breach!" in err_msg
