@@ -7,8 +7,6 @@ import uvicorn
 from rich.console import Console
 from rich.panel import Panel
 
-console = Console()
-
 
 @click.group(name="api", help="Manage the Digital Twin API server.")
 def api_cmd() -> None:
@@ -34,9 +32,7 @@ def start_server(host: str, port: int) -> None:
     from nroute.api.server import get_active_api_token
 
     token, is_fallback = get_active_api_token()
-    console.print(
-        f"[cyan]Starting Digital Twin API server on [bold]http://{host}:{port}[/bold]...[/cyan]\n"
-    )
+    click.echo(f"Starting API server on http://{host}:{port}...")
     if is_fallback:
         token_msg = (
             f"[bold yellow]INFO:[/bold yellow] No [bold]NROUTE_API_TOKEN[/bold] configured. "
@@ -44,7 +40,7 @@ def start_server(host: str, port: int) -> None:
             f"  [bold green]Bearer {token}[/bold green]\n\n"
             f"[dim]Include header 'Authorization: Bearer <token>' in API requests.[/dim]"
         )
-        console.print(
+        Console().print(
             Panel(
                 token_msg,
                 title="[bold cyan]Digital Twin API Auth[/bold cyan]",
