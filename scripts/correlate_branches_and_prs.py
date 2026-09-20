@@ -36,16 +36,6 @@ def main():
             "base_ref": pr.get("base", {}).get("ref", ""),
         }
 
-    # Analyze categories
-    categories = {
-        "jules_agent": 0,
-        "security_patches": 0,
-        "testing_improvements": 0,
-        "refactoring": 0,
-        "features": 0,
-        "other": 0,
-    }
-
     annotated_branches = []
     for b in branch_inventory:
         c_name = b.get("clean_name", b["name"])
