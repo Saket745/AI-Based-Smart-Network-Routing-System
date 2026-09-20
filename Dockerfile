@@ -22,8 +22,10 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Upgrade base system site-packages as root to fix Trivy vulnerability findings
-RUN pip install --no-cache-dir --upgrade "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
+# Upgrade base system site-packages as root and purge stale pre-installed dist-info to fix Trivy vulnerability findings
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir --upgrade "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" \
+    && rm -rf /usr/local/lib/python3.10/site-packages/setuptools-70.3.0*
 
 # Create a non-root user and group
 RUN groupadd -g 10001 nroute \
@@ -33,6 +35,9 @@ RUN groupadd -g 10001 nroute \
 # Copy the built wheel from builder stage
 COPY --from=builder --chown=nroute:nroute /app/dist/*.whl ./
 
+# Ensure local user bin is on path (where the wheel installs the entry points)
+ENV PATH="/home/nroute/.local/bin:${PATH}"
+
 # Switch to the non-root user
 USER nroute
 
@@ -40,9 +45,6 @@ USER nroute
 RUN pip install --user --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" \
     && pip install --user --no-cache-dir *.whl \
     && rm *.whl
-
-# Ensure local user bin is on path (where the wheel installs the entry points)
-ENV PATH="/home/nroute/.local/bin:${PATH}"
 
 # Expose FastAPI port
 EXPOSE 8000
