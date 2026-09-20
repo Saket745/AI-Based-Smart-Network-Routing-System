@@ -69,6 +69,8 @@ def test_api_security_headers(client: TestClient) -> None:
     assert response.headers.get("X-Frame-Options") == "DENY"
     assert response.headers.get("X-XSS-Protection") == "1; mode=block"
     assert response.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
+    assert response.headers.get("Permissions-Policy") == "geolocation=(), microphone=(), camera=()"
+    assert response.headers.get("Content-Security-Policy") == "default-src 'self'"
 
 
 def test_api_endpoints_succeed_with_configured_config_token(
@@ -138,6 +140,8 @@ def test_api_responses_include_security_headers(client: TestClient) -> None:
     assert response.headers["X-Frame-Options"] == "DENY"
     assert response.headers["X-XSS-Protection"] == "1; mode=block"
     assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+    assert response.headers["Permissions-Policy"] == "geolocation=(), microphone=(), camera=()"
+    assert response.headers["Content-Security-Policy"] == "default-src 'self'"
 
 
 # ── Path Traversal Tests (with Authentication) ──
