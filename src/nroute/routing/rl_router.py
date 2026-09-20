@@ -144,25 +144,8 @@ class RLRouter(BaseRouter):
 
         return True, "compatible"
 
-    def train(
-        self,
-        traffic_data: Any = None,
-        episodes: int = 1000,
-        seed: int | None = None,
-    ) -> dict[str, Any]:
-        """
-        Train the RL routing agent in the Gymnasium environment.
-
-        Args:
-            traffic_data: Unused, kept for API compatibility.
-            episodes: Number of episodes to train for.
-            seed: Global random seed.
-
-        Returns:
-            Dictionary of training metrics.
-        """
-        dqn_cls, ppo_cls = _get_sb3()
-
+    def _setup_training_env(self, seed: int | None) -> Any:
+        """Initialize Gymnasium environment and cache topology metadata."""
         if self.topology is None:
             raise ModelError("Cannot train RLRouter without a topology context.")
 
@@ -184,16 +167,17 @@ class RLRouter(BaseRouter):
         if seed is not None:
             env.reset(seed=seed)
 
-        # Estimate timesteps needed
-        # We assume average episode duration is max_hops (20)
-        total_timesteps = episodes * env.max_hops
+        return env
 
-        logger.info(
-            f"Training RL agent using {self.algorithm.upper()} for {episodes} episodes ({total_timesteps} steps)..."
-        )
-
-        # Scale n_steps relative to topology size to avoid too-few-updates problem
-        n_steps = min(256, max(64, env.max_hops * 4))
+    def _instantiate_agent_model(
+        self,
+        env: Any,
+        seed: int | None,
+        total_timesteps: int,
+        n_steps: int,
+    ) -> Any:
+        """Instantiate PPO or DQN model with scaled parameters."""
+        dqn_cls, ppo_cls = _get_sb3()
 
         if self.algorithm == "ppo":
             # Ensure batch_size divides n_steps evenly
@@ -201,7 +185,7 @@ class RLRouter(BaseRouter):
             while n_steps % batch_size != 0 and batch_size > 1:
                 batch_size -= 1
 
-            self.model = ppo_cls(
+            return ppo_cls(
                 "MlpPolicy",
                 env,
                 verbose=0,
@@ -213,7 +197,7 @@ class RLRouter(BaseRouter):
                 ent_coef=0.01,  # Encourage exploration
             )
         else:  # dqn
-            self.model = dqn_cls(
+            return dqn_cls(
                 "MlpPolicy",
                 env,
                 verbose=0,
@@ -224,6 +208,43 @@ class RLRouter(BaseRouter):
                 learning_starts=max(100, n_steps),
                 exploration_fraction=0.3,
             )
+
+    def train(
+        self,
+        traffic_data: Any = None,
+        episodes: int = 1000,
+        seed: int | None = None,
+    ) -> dict[str, Any]:
+        """
+        Train the RL routing agent in the Gymnasium environment.
+
+        Args:
+            traffic_data: Unused, kept for API compatibility.
+            episodes: Number of episodes to train for.
+            seed: Global random seed.
+
+        Returns:
+            Dictionary of training metrics.
+        """
+        env = self._setup_training_env(seed=seed)
+
+        # Estimate timesteps needed
+        # We assume average episode duration is max_hops (20)
+        total_timesteps = episodes * env.max_hops
+
+        logger.info(
+            f"Training RL agent using {self.algorithm.upper()} for {episodes} episodes ({total_timesteps} steps)..."
+        )
+
+        # Scale n_steps relative to topology size to avoid too-few-updates problem
+        n_steps = min(256, max(64, env.max_hops * 4))
+
+        self.model = self._instantiate_agent_model(
+            env=env,
+            seed=seed,
+            total_timesteps=total_timesteps,
+            n_steps=n_steps,
+        )
 
         self.model.learn(total_timesteps=total_timesteps)
         self.is_trained = True
