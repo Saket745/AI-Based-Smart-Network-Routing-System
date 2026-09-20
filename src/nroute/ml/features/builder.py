@@ -5,7 +5,6 @@ from __future__ import annotations
 from heapq import heappop, heappush
 from typing import TYPE_CHECKING, Any
 
-import networkx as nx
 import numpy as np
 
 from nroute.ml.graph.bundle import GraphTensorBundle
@@ -70,22 +69,22 @@ class FeatureBuilder:
         adj = getattr(graph, "_adj", graph.adj)
 
         for s in nodes:
-            S = []
-            P: dict[Any, list[Any]] = {w: [] for w in nodes}
+            stack = []
+            predecessors: dict[Any, list[Any]] = {w: [] for w in nodes}
             sigma: dict[Any, float] = {w: 0.0 for w in nodes}
             sigma[s] = 1.0
             d: dict[Any, float] = {w: float("inf") for w in nodes}
             d[s] = 0.0
 
-            Q: list[tuple[float, Any]] = []
-            heappush(Q, (0.0, s))
+            pq: list[tuple[float, Any]] = []
+            heappush(pq, (0.0, s))
             seen = {s: 0.0}
 
-            while Q:
-                dist, v = heappop(Q)
+            while pq:
+                dist, v = heappop(pq)
                 if dist > seen[v]:
                     continue
-                S.append(v)
+                stack.append(v)
 
                 # Accumulate inward distance & reachability for Wasserman-Faust closeness
                 if v != s:
@@ -99,19 +98,19 @@ class FeatureBuilder:
                     if d_w < d[w]:
                         d[w] = d_w
                         sigma[w] = sigma[v]
-                        P[w] = [v]
+                        predecessors[w] = [v]
                         seen[w] = d_w
-                        heappush(Q, (d_w, w))
+                        heappush(pq, (d_w, w))
                     elif d_w == d[w]:
                         sigma[w] += sigma[v]
-                        P[w].append(v)
+                        predecessors[w].append(v)
 
             # Accumulation for betweenness centrality
             delta: dict[Any, float] = {w: 0.0 for w in nodes}
-            while S:
-                w = S.pop()
+            while stack:
+                w = stack.pop()
                 coeff = (1.0 + delta[w]) / sigma[w]
-                for v in P[w]:
+                for v in predecessors[w]:
                     delta[v] += sigma[v] * coeff
                 if w != s:
                     betweenness[w] += delta[w]
