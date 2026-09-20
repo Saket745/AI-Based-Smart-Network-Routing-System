@@ -73,7 +73,7 @@ class FeatureBuilder:
 
         for s in nodes:
             stack = []
-            pred = {w: [] for w in nodes}
+            pred: dict[Any, list[Any]] = {w: [] for w in nodes}
             sigma = {w: 0.0 for w in nodes}
             sigma[s] = 1.0
             d = {w: float("inf") for w in nodes}
