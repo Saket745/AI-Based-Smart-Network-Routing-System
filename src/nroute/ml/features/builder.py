@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import networkx as nx
 import numpy as np
 
 from nroute.ml.graph.bundle import GraphTensorBundle
@@ -51,9 +50,88 @@ class FeatureBuilder:
 
     @staticmethod
     def _compute_centralities(graph: Any) -> tuple[dict[Any, float], dict[Any, float]]:
-        """Compute topological centrality metrics using NetworkX on topology.graph."""
-        betweenness: dict[Any, float] = nx.betweenness_centrality(graph, weight="latency")
-        closeness: dict[Any, float] = nx.closeness_centrality(graph, distance="latency")
+        """Compute topological centrality metrics (betweenness and closeness) in a single pass."""
+        import heapq
+
+        nodes = list(graph)
+        n = len(nodes)
+        if n <= 1:
+            return {v: 0.0 for v in nodes}, {v: 0.0 for v in nodes}
+
+        adj = getattr(graph, "_adj", graph)
+        adj_weights = {}
+        for v in nodes:
+            adj_weights[v] = [
+                (w, edge_data.get("latency", 1.0))
+                for w, edge_data in adj[v].items()
+                if edge_data.get("latency", 1.0) is not None
+            ]
+
+        betweenness = {v: 0.0 for v in nodes}
+        total_inward_dist = {v: 0.0 for v in nodes}
+        reachable_inward_count = {v: 0 for v in nodes}
+
+        for s in nodes:
+            stack = []
+            pred: dict[Any, list[Any]] = {w: [] for w in nodes}
+            sigma = {w: 0.0 for w in nodes}
+            sigma[s] = 1.0
+            d = {w: float("inf") for w in nodes}
+            d[s] = 0.0
+
+            heap = [(0.0, s)]
+
+            while heap:
+                dist_v, v = heapq.heappop(heap)
+                if dist_v > d[v]:
+                    continue
+                stack.append(v)
+
+                for w, cost in adj_weights[v]:
+                    d_w = dist_v + cost
+
+                    if d_w < d[w]:
+                        d[w] = d_w
+                        heapq.heappush(heap, (d_w, w))
+                        sigma[w] = sigma[v]
+                        pred[w] = [v]
+                    elif d_w == d[w]:
+                        sigma[w] += sigma[v]
+                        pred[w].append(v)
+
+            for w, dist_w in d.items():
+                if dist_w < float("inf") and w != s:
+                    total_inward_dist[w] += dist_w
+                    reachable_inward_count[w] += 1
+
+            delta = {w: 0.0 for w in nodes}
+            while stack:
+                w = stack.pop()
+                coeff = (1.0 + delta[w]) / sigma[w]
+                for v in pred[w]:
+                    delta[v] += sigma[v] * coeff
+                if w != s:
+                    betweenness[w] += delta[w]
+
+        is_directed = graph.is_directed() if hasattr(graph, "is_directed") else True
+        if is_directed:
+            scale = 1.0 / ((n - 1) * (n - 2)) if n > 2 else 1.0
+        else:
+            scale = 1.0 / ((n - 1) * (n - 2)) if n > 2 else 1.0
+            scale *= 0.5
+
+        for v in betweenness:
+            betweenness[v] *= scale
+
+        closeness = {}
+        for v in nodes:
+            cnt = reachable_inward_count[v]
+            totsp = total_inward_dist[v]
+            if totsp > 0.0 and n > 1:
+                closeness[v] = (cnt / totsp) * (cnt / (n - 1))
+            else:
+                closeness[v] = 0.0
+
         return betweenness, closeness
 
     @staticmethod
