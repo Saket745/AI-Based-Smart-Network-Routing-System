@@ -30,3 +30,7 @@
 ## 2026-09-01 - MetricsCollector.record_tick Fast-Path Optimization
 **Learning:** In per-tick simulation metrics collection, checking whether down-tracking sets (`down_edges`) are non-empty allows bypassing `(u, v)` tuple key construction and set membership lookups on every edge hop when no links are down. Accessing the underlying NetworkX graph adjacency dictionary (`topology.graph._adj`) directly avoids `AdjacencyView` descriptor overhead and yields up to a ~4.25x speedup in `record_tick` execution time and a ~1.63x overall simulation tick rate speedup on 1000-node topologies.
 **Action:** Use fast-path conditionals when down-tracking sets are empty in hot simulation loops to bypass tuple allocations and set lookups.
+
+## 2026-09-03 - Combined Centrality Traversal in Feature Engineering Optimization
+**Learning:** Computing betweenness centrality (`nx.betweenness_centrality`) and closeness centrality (`nx.closeness_centrality`) separately runs two independent sets of single-source Dijkstra traversals over all $V$ nodes. Accumulating inward shortest path distances and reachable node counts during Brandes' betweenness centrality Dijkstra pass allows computing Wasserman-Faust closeness centrality simultaneously in a single pass over $V$, yielding a ~2.63x speedup on GNN topology feature building.
+**Action:** Combine multi-metric graph traversals (such as betweenness and closeness centralities) into a single Dijkstra pass when feature engineering on network topologies.
