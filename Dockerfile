@@ -22,6 +22,9 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
+# Upgrade system python site-packages (including setuptools and msgpack) as root
+RUN pip install --no-cache-dir --upgrade "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
+
 # Create a non-root user and group
 RUN groupadd -g 10001 nroute \
     && useradd -u 10001 -g nroute -m -s /sbin/nologin nroute \
@@ -30,15 +33,11 @@ RUN groupadd -g 10001 nroute \
 # Copy the built wheel from builder stage
 COPY --from=builder --chown=nroute:nroute /app/dist/*.whl ./
 
-# Upgrade root site-packages before switching user to resolve system-level vulnerabilities detected by Trivy
-RUN pip install --no-cache-dir --upgrade "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
-
 # Switch to the non-root user
 USER nroute
 
-# Install the wheel package locally and upgrade vulnerable indirect dependencies
-RUN pip install --user --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" \
-    && pip install --user --no-cache-dir *.whl \
+# Install the wheel package locally
+RUN pip install --user --no-cache-dir *.whl \
     && rm *.whl
 
 # Ensure local user bin is on path (where the wheel installs the entry points)
