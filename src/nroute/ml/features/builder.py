@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import networkx as nx
 import numpy as np
 
 from nroute.ml.graph.bundle import GraphTensorBundle
@@ -51,9 +50,54 @@ class FeatureBuilder:
 
     @staticmethod
     def _compute_centralities(graph: Any) -> tuple[dict[Any, float], dict[Any, float]]:
-        """Compute topological centrality metrics using NetworkX on topology.graph."""
-        betweenness: dict[Any, float] = nx.betweenness_centrality(graph, weight="latency")
-        closeness: dict[Any, float] = nx.closeness_centrality(graph, distance="latency")
+        """Compute topological centrality metrics using NetworkX on topology.graph.
+
+        Optimized to compute betweenness and closeness centralities in a single pass of
+        Dijkstra traversals across all source nodes.
+        """
+        from networkx.algorithms.centrality.betweenness import (
+            _accumulate_basic,
+            _rescale,
+            _single_source_dijkstra_path_basic,
+        )
+
+        is_directed = graph.is_directed()
+        n = len(graph)
+        nodes = list(graph)
+
+        betweenness: dict[Any, float] = {node: 0.0 for node in nodes}
+        closeness: dict[Any, float] = {node: 0.0 for node in nodes}
+
+        if n <= 1:
+            return betweenness, closeness
+
+        in_dist_sum: dict[Any, float] = {node: 0.0 for node in nodes}
+        in_reach_cnt: dict[Any, int] = {node: 0 for node in nodes}
+
+        for s in nodes:
+            stack, pred, sigma, dist_map = _single_source_dijkstra_path_basic(graph, s, "latency")
+            betweenness, _ = _accumulate_basic(betweenness, stack, pred, sigma, s)
+
+            for v, dist in dist_map.items():
+                in_dist_sum[v] += dist
+                in_reach_cnt[v] += 1
+
+        for u in nodes:
+            totsp = in_dist_sum[u]
+            len_sp = in_reach_cnt[u]
+            if totsp > 0.0 and n > 1:
+                cls_val = (len_sp - 1.0) / totsp
+                cls_val *= (len_sp - 1.0) / (n - 1.0)
+                closeness[u] = cls_val
+
+        betweenness = _rescale(
+            betweenness,
+            n,
+            normalized=True,
+            directed=is_directed,
+            endpoints=False,
+        )
+
         return betweenness, closeness
 
     @staticmethod
