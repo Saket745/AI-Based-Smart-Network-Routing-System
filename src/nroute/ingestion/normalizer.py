@@ -73,10 +73,11 @@ class Normalizer:
             src_str = str(src)
             dst_str = str(dst)
 
-            # Ensure nodes exist in topology, if not auto-create them with defaults
-            if src_str not in topo.nodes:
+            # Ensure nodes exist in topology, if not auto-create them with defaults.
+            # Query topo.graph directly to avoid O(V) topo.nodes list allocations per edge.
+            if src_str not in topo.graph:
                 topo.add_node(src_str)
-            if dst_str not in topo.nodes:
+            if dst_str not in topo.graph:
                 topo.add_node(dst_str)
 
             # Clean and map edge attributes to standard keys
