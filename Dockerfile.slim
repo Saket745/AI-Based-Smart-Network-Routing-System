@@ -29,7 +29,7 @@ LABEL org.opencontainers.image.licenses="MIT"
 WORKDIR /app
 
 # Upgrade system site-packages as root to resolve Trivy CVE findings in /usr/local/
-RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
+RUN pip install --no-cache-dir --upgrade --force-reinstall pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
 
 # Create a non-root user and group
 RUN groupadd -g 10001 nroute \
