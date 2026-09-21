@@ -224,3 +224,69 @@ def test_cli_export_invalid_format(sample_metrics: MetricsCollectionResult, tmp_
 
     assert result.exit_code != 0
     assert "GraphML format is not supported for simulation metrics" in result.output
+
+
+def test_cli_export_json_format(
+    sample_topology: Topology, sample_metrics: MetricsCollectionResult, tmp_path: Path
+) -> None:
+    """Test CLI command export with global -f json output format."""
+    from nroute.cli import cli
+
+    runner = CliRunner()
+
+    # 1. Topology export with -f json
+    topo_in = tmp_path / "in_topo.json"
+    sample_topology.save(topo_in)
+    topo_out = tmp_path / "out_topo.graphml"
+
+    res_topo = runner.invoke(
+        cli,
+        [
+            "-f",
+            "json",
+            "export",
+            "--type",
+            "topology",
+            "--format",
+            "graphml",
+            "--input",
+            str(topo_in),
+            "--output",
+            str(topo_out),
+        ],
+    )
+    assert res_topo.exit_code == 0
+    topo_data = json.loads(res_topo.output)
+    assert topo_data["status"] == "success"
+    assert topo_data["type"] == "topology"
+    assert topo_data["format"] == "graphml"
+    assert topo_data["nodes"] == 2
+    assert topo_data["edges"] == 1
+
+    # 2. Metrics export with -f json
+    metrics_in = tmp_path / "in_metrics.json"
+    sample_metrics.to_json(metrics_in)
+    metrics_out = tmp_path / "out_metrics.csv"
+
+    res_metrics = runner.invoke(
+        cli,
+        [
+            "-f",
+            "json",
+            "export",
+            "--type",
+            "metrics",
+            "--format",
+            "csv",
+            "--input",
+            str(metrics_in),
+            "--output",
+            str(metrics_out),
+        ],
+    )
+    assert res_metrics.exit_code == 0
+    metrics_data = json.loads(res_metrics.output)
+    assert metrics_data["status"] == "success"
+    assert metrics_data["type"] == "metrics"
+    assert metrics_data["format"] == "csv"
+    assert metrics_data["records"] == 2
