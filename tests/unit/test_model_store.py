@@ -60,9 +60,9 @@ def test_model_store_save_and_load_default() -> None:
 
         loaded_model = DummyModel(model_type="xgboost")
         loaded_path = store.load_model(loaded_model, name="test_model", version="1.0.0")
-        assert loaded_path == saved_path
+        assert Path(loaded_path).resolve() == Path(saved_path).resolve()
         assert loaded_model.load_called
-        assert loaded_model.loaded_path == loaded_path
+        assert Path(loaded_model.loaded_path).resolve() == Path(loaded_path).resolve()
 
 
 def test_model_store_save_custom_extension() -> None:
@@ -77,7 +77,7 @@ def test_model_store_save_custom_extension() -> None:
 
         loaded_model = DummyModel(model_type="my_nn")
         loaded_path = store.load_model(loaded_model, name="nn_model", version="2.1.0")
-        assert loaded_path == saved_path
+        assert Path(loaded_path).resolve() == Path(saved_path).resolve()
 
 
 def test_model_store_integrity_check_failure() -> None:
@@ -164,3 +164,30 @@ def test_model_store_list_models() -> None:
         assert len(models) == 2
         names = {m["name"] for m in models}
         assert names == {"model_a", "model_b"}
+
+
+def test_model_store_path_traversal_prevention() -> None:
+    """Test that load_model blocks path traversal attempts in metadata file_path."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        models_dir = Path(tmpdir) / "models"
+        models_dir.mkdir()
+        store = ModelStore(base_dir=models_dir)
+
+        # Create metadata pointing outside models_dir
+        secret_file = Path(tmpdir) / "secret.joblib"
+        secret_file.write_text("secret_content", encoding="utf-8")
+
+        meta_content = {
+            "name": "traversal_test",
+            "version": "1.0.0",
+            "file_path": str(secret_file),
+            "sha256": "dummy_sha",
+            "timestamp": "2025-01-01T00:00:00Z",
+            "model_type": "custom",
+        }
+        meta_path = models_dir / "traversal_test_1.0.0.metadata.json"
+        meta_path.write_text(json.dumps(meta_content), encoding="utf-8")
+
+        model = DummyModel()
+        with pytest.raises(ModelError, match="Invalid model file path or path traversal detected"):
+            store.load_model(model, name="traversal_test", version="1.0.0")
