@@ -44,8 +44,10 @@ console = Console()
     required=True,
     help="Path to write the exported file(s).",
 )
-def export_cmd(type: str, format: str, input: str, output: str) -> None:
+@click.pass_context
+def export_cmd(ctx: click.Context, type: str, format: str, input: str, output: str) -> None:
     """Export network topology or simulation metrics to JSON, CSV, or GraphML."""
+    is_json = ctx.obj is not None and ctx.obj.get("output_format") == "json"
     input_path = Path(input)
     output_path = Path(output)
 
@@ -53,30 +55,86 @@ def export_cmd(type: str, format: str, input: str, output: str) -> None:
         try:
             topo = Topology.from_json(input_path)
         except Exception as exc:
+            if is_json:
+                click.echo(
+                    json.dumps({"error": f"Failed to load topology from {input_path}: {exc}"}),
+                    err=True,
+                )
+                raise SystemExit(1) from exc
             raise click.ClickException(f"Failed to load topology from {input_path}: {exc}") from exc
 
         summary = f"({topo.node_count} nodes, {topo.edge_count} edges)"
         if format == "json":
             TopologyExporter.to_json(topo, output_path)
-            console.print(
-                f"[green]+[/green] Successfully exported topology to JSON: "
-                f"[bold]{output_path}[/bold] {summary}"
-            )
+            if is_json:
+                click.echo(
+                    json.dumps(
+                        {
+                            "status": "success",
+                            "type": "topology",
+                            "format": format,
+                            "output": str(output_path),
+                            "nodes": topo.node_count,
+                            "edges": topo.edge_count,
+                        }
+                    )
+                )
+            else:
+                console.print(
+                    f"[green]+[/green] Successfully exported topology to JSON: "
+                    f"[bold]{output_path}[/bold] {summary}"
+                )
         elif format == "graphml":
             TopologyExporter.to_graphml(topo, output_path)
-            console.print(
-                f"[green]+[/green] Successfully exported topology to GraphML: "
-                f"[bold]{output_path}[/bold] {summary}"
-            )
+            if is_json:
+                click.echo(
+                    json.dumps(
+                        {
+                            "status": "success",
+                            "type": "topology",
+                            "format": format,
+                            "output": str(output_path),
+                            "nodes": topo.node_count,
+                            "edges": topo.edge_count,
+                        }
+                    )
+                )
+            else:
+                console.print(
+                    f"[green]+[/green] Successfully exported topology to GraphML: "
+                    f"[bold]{output_path}[/bold] {summary}"
+                )
         elif format == "csv":
             TopologyExporter.to_csv(topo, output_path)
-            console.print(
-                f"[green]+[/green] Successfully exported topology to CSV files using base path: "
-                f"[bold]{output_path}[/bold] {summary}"
-            )
+            if is_json:
+                click.echo(
+                    json.dumps(
+                        {
+                            "status": "success",
+                            "type": "topology",
+                            "format": format,
+                            "output": str(output_path),
+                            "nodes": topo.node_count,
+                            "edges": topo.edge_count,
+                        }
+                    )
+                )
+            else:
+                console.print(
+                    f"[green]+[/green] Successfully exported topology to CSV files using base path: "
+                    f"[bold]{output_path}[/bold] {summary}"
+                )
 
     elif type == "metrics":
         if format == "graphml":
+            if is_json:
+                click.echo(
+                    json.dumps(
+                        {"error": "GraphML format is not supported for simulation metrics."}
+                    ),
+                    err=True,
+                )
+                raise SystemExit(1)
             raise click.BadParameter("GraphML format is not supported for simulation metrics.")
 
         try:
@@ -88,22 +146,62 @@ def export_cmd(type: str, format: str, input: str, output: str) -> None:
             elif isinstance(data, list):
                 metrics_col = MetricsCollectionResult(results=data)
             else:
+                if is_json:
+                    click.echo(
+                        json.dumps(
+                            {"error": "Input file does not contain valid simulation metrics format."}
+                        ),
+                        err=True,
+                    )
+                    raise SystemExit(1)
                 raise click.ClickException(
                     "Input file does not contain valid simulation metrics format."
                 )
         except Exception as exc:
+            if is_json:
+                click.echo(
+                    json.dumps({"error": f"Failed to load metrics from {input_path}: {exc}"}),
+                    err=True,
+                )
+                raise SystemExit(1) from exc
             raise click.ClickException(f"Failed to load metrics from {input_path}: {exc}") from exc
 
         records_summary = f"({len(metrics_col.results)} records)"
         if format == "json":
             MetricsExporter.to_json(metrics_col, output_path)
-            console.print(
-                f"[green]+[/green] Successfully exported metrics to JSON: "
-                f"[bold]{output_path}[/bold] {records_summary}"
-            )
+            if is_json:
+                click.echo(
+                    json.dumps(
+                        {
+                            "status": "success",
+                            "type": "metrics",
+                            "format": format,
+                            "output": str(output_path),
+                            "records": len(metrics_col.results),
+                        }
+                    )
+                )
+            else:
+                console.print(
+                    f"[green]+[/green] Successfully exported metrics to JSON: "
+                    f"[bold]{output_path}[/bold] {records_summary}"
+                )
         elif format == "csv":
             MetricsExporter.to_csv(metrics_col, output_path)
-            console.print(
-                f"[green]+[/green] Successfully exported metrics to CSV: "
-                f"[bold]{output_path}[/bold] {records_summary}"
-            )
+            if is_json:
+                click.echo(
+                    json.dumps(
+                        {
+                            "status": "success",
+                            "type": "metrics",
+                            "format": format,
+                            "output": str(output_path),
+                            "records": len(metrics_col.results),
+                        }
+                    )
+                )
+            else:
+                console.print(
+                    f"[green]+[/green] Successfully exported metrics to CSV: "
+                    f"[bold]{output_path}[/bold] {records_summary}"
+                )
