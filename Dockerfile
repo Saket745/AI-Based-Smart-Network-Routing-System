@@ -23,7 +23,7 @@ LABEL org.opencontainers.image.licenses="MIT"
 WORKDIR /app
 
 # Upgrade system-level python packages as root to resolve Trivy CVE findings in /usr/local/
-RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
+RUN pip install --no-cache-dir --upgrade --force-reinstall pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
 
 # Create a non-root user and group
 RUN groupadd -g 10001 nroute \
@@ -38,7 +38,7 @@ USER nroute
 
 # Install the wheel package locally and upgrade vulnerable indirect dependencies
 RUN pip install --user --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" \
-    && pip install --user --no-cache-dir *.whl \
+    && pip install --user --no-cache-dir *.whl "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" \
     && rm *.whl
 
 # Ensure local user bin is on path (where the wheel installs the entry points)
