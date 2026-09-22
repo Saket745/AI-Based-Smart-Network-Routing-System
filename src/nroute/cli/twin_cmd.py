@@ -18,6 +18,8 @@ from typing import Any
 import click
 from pydantic import BaseModel
 from rich.console import Console
+from rich.markup import escape
+from rich.panel import Panel
 from rich.table import Table
 
 from nroute.utils.logging import configure_logging
@@ -367,6 +369,93 @@ def audit_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
 # ── twin validate ────────────────────────────────────────────
 
 
+def _safe_verdict_badge(verdict_val: str, encoding: str | None = None) -> tuple[str, str]:
+    """Return an encoding-safe visual status badge and color style for a validation verdict."""
+    enc = (
+        encoding
+        or getattr(console.file, "encoding", None)
+        or getattr(sys.stdout, "encoding", None)
+        or "utf-8"
+    )
+    try:
+        "🟢🟡🔴".encode(enc)
+        has_unicode = True
+    except (UnicodeEncodeError, LookupError):
+        has_unicode = False
+
+    val = verdict_val.upper()
+    if val == "PASS":
+        badge = "🟢 [PASS]" if has_unicode else "[PASS]"
+        style = "green"
+    elif val == "WARN":
+        badge = "🟡 [WARN]" if has_unicode else "[WARN]"
+        style = "yellow"
+    else:
+        badge = "🔴 [BLOCK]" if has_unicode else "[BLOCK]"
+        style = "bold red"
+
+    return badge, style
+
+
+def _render_validate_console(result: Any, output_path: str | None = None) -> None:
+    """Render Rich formatted validation report in human-readable console mode."""
+    badge, style = _safe_verdict_badge(result.verdict.value)
+    safe_summary = escape(str(result.summary))
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold]Verdict:[/bold] [{style}]{badge}[/{style}] - {safe_summary}",
+            title="[bold cyan]Nroute Pre-Flight Validation[/bold cyan]",
+            border_style=style,
+        )
+    )
+
+    # Overview Metrics Table
+    table = Table(
+        title="Pre-Flight Validation Overview", show_header=True, header_style="bold magenta"
+    )
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green", justify="right")
+
+    table.add_row("Change ID", escape(str(result.change_id)))
+    table.add_row("Execution Duration", f"{result.execution_duration_ms:.2f} ms")
+    table.add_row("Pairs Analysed", str(result.blast_radius_summary.get("total_pairs_analysed", 0)))
+
+    unreach = result.blast_radius_summary.get("newly_unreachable_pairs", 0)
+    unreach_style = "red" if unreach > 0 else "green"
+    table.add_row("Newly Unreachable Pairs", f"[{unreach_style}]{unreach}[/{unreach_style}]")
+
+    changed_count = result.blast_radius_summary.get("path_changed_pairs", 0)
+    changed_ratio = result.blast_radius_summary.get("path_changed_ratio", 0.0) * 100
+    table.add_row("Path Changed Pairs", f"{changed_count} ({changed_ratio:.1f}%)")
+
+    max_lat = result.blast_radius_summary.get("max_latency_increase_ms", 0.0)
+    lat_style = "yellow" if max_lat > 0 else "green"
+    table.add_row("Max Latency Increase", f"[{lat_style}]+{max_lat:.2f} ms[/{lat_style}]")
+
+    console.print(table)
+
+    # Policy Violation Panels
+    if result.blocking_violations:
+        console.print()
+        console.print("[bold red]Blocking Violations:[/bold red]")
+        for v in result.blocking_violations:
+            console.print(f"  [red]🔴 [BLOCK][/red] {escape(str(v))}")
+
+    if result.warning_violations:
+        console.print()
+        console.print("[bold yellow]Warning Violations:[/bold yellow]")
+        for v in result.warning_violations:
+            console.print(f"  [yellow]🟡 [WARN][/yellow]  {escape(str(v))}")
+
+    if output_path:
+        console.print(
+            f"\n[green]+[/green] Full validation report written to [bold]{escape(str(output_path))}[/bold]"
+        )
+    console.print()
+
+
 @twin_cmd.command("validate")
 @click.option(
     "--topology",
@@ -465,40 +554,8 @@ def validate_cmd(ctx: click.Context, /, **kwargs: Any) -> None:
     if args.json_output:
         click.echo(json.dumps(report, indent=2))
     else:
-        # Human-readable summary
-        verdict = result.verdict
-        badge = f"[{verdict.value}]"
-        click.echo("=" * 70)
-        click.echo(f"NROUTE PRE-FLIGHT VALIDATION: {badge} - {result.summary}")
-        click.echo("=" * 70)
-        click.echo(f"Change ID:             {result.change_id}")
-        click.echo(f"Execution Duration:    {result.execution_duration_ms:.2f} ms")
-        click.echo(
-            f"Pairs Analysed:        {result.blast_radius_summary.get('total_pairs_analysed', 0)}"
-        )
-        click.echo(
-            f"Newly Unreachable:     {result.blast_radius_summary.get('newly_unreachable_pairs', 0)}"
-        )
-        changed_count = result.blast_radius_summary.get("path_changed_pairs", 0)
-        changed_ratio = result.blast_radius_summary.get("path_changed_ratio", 0.0) * 100
-        click.echo(f"Path Changed Pairs:    {changed_count} ({changed_ratio:.1f}%)")
-        click.echo(
-            f"Max Latency Increase:  +{result.blast_radius_summary.get('max_latency_increase_ms', 0.0):.2f} ms"
-        )
-
-        if result.blocking_violations:
-            click.echo("\n[BLOCKING VIOLATIONS]")
-            for v in result.blocking_violations:
-                click.echo(f"  * [BLOCK] {v}")
-
-        if result.warning_violations:
-            click.echo("\n[WARNING VIOLATIONS]")
-            for v in result.warning_violations:
-                click.echo(f"  * [WARN]  {v}")
-
-        if args.output:
-            click.echo(f"\nFull report written to {args.output}")
-        click.echo("=" * 70)
+        # Human-readable summary using Rich table and panel
+        _render_validate_console(result, args.output)
 
     # Determine exit code according to exit code contract
     if result.verdict == ValidationVerdict.BLOCK:
