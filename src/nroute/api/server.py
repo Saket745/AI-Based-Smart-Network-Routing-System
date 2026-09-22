@@ -137,13 +137,18 @@ app.add_middleware(
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next: Any) -> Any:
-    """Inject standard HTTP security response headers for defense-in-depth."""
     """Inject defense-in-depth security headers on HTTP responses."""
     response = await call_next(request)
+    # Prevent MIME type sniffing attacks
     response.headers["X-Content-Type-Options"] = "nosniff"
+    # Prevent clickjacking attacks by disallowing frame embedding
     response.headers["X-Frame-Options"] = "DENY"
+    # Enable browser XSS filter in blocking mode
     response.headers["X-XSS-Protection"] = "1; mode=block"
+    # Restrict referrer information sent on cross-origin requests
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # Content Security Policy (CSP) restricts resource loading to 'self' for defense against XSS
+    response.headers["Content-Security-Policy"] = "default-src 'self'"
     return response
 
 
