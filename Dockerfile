@@ -23,7 +23,8 @@ LABEL org.opencontainers.image.licenses="MIT"
 WORKDIR /app
 
 # Upgrade system-wide python packages as root to resolve Trivy security scanner CVEs in /usr/local/
-RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
+RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" \
+    && rm -rf /usr/local/lib/python3.10/site-packages/setuptools-70*
 
 # Create a non-root user and group
 RUN groupadd -g 10001 nroute \
