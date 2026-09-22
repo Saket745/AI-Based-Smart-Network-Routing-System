@@ -412,7 +412,9 @@ def _render_validate_console(result: Any, output_path: str | None = None) -> Non
     )
 
     # Overview Metrics Table
-    table = Table(title="Pre-Flight Validation Overview", show_header=True, header_style="bold magenta")
+    table = Table(
+        title="Pre-Flight Validation Overview", show_header=True, header_style="bold magenta"
+    )
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green", justify="right")
 
@@ -448,7 +450,9 @@ def _render_validate_console(result: Any, output_path: str | None = None) -> Non
             console.print(f"  [yellow]🟡 [WARN][/yellow]  {escape(str(v))}")
 
     if output_path:
-        console.print(f"\n[green]+[/green] Full validation report written to [bold]{escape(str(output_path))}[/bold]")
+        console.print(
+            f"\n[green]+[/green] Full validation report written to [bold]{escape(str(output_path))}[/bold]"
+        )
     console.print()
 
 
