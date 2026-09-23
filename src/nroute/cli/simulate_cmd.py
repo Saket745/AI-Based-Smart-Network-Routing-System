@@ -5,7 +5,10 @@ from __future__ import annotations
 import inspect
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 import click
 from pydantic import BaseModel
@@ -333,20 +336,69 @@ def compare(ctx: click.Context, /, **kwargs: Any) -> None:
 
     results: dict[str, Any] = {}
 
-    for algo in algo_list:
-        try:
-            router = _setup_router(
-                algo, topo, args.allow_unsafe, args.custom_router, args.model_path, is_json
-            )
-            traffic_gen = TrafficGenerator(
-                model=args.traffic_model, n_flows_per_tick=args.flows_per_tick
-            )
-            engine = SimulationEngine(topo, router, traffic_gen)
-            result = engine.run(duration_ticks=args.duration, seed=seed)
-            results[algo] = result
-        except Exception as e:
-            console.print(f"[yellow]⚠ {algo.upper()} failed:[/yellow] {e}")
-            results[algo] = None
+    if not is_json:
+        from rich.progress import (
+            BarColumn,
+            Progress,
+            SpinnerColumn,
+            TaskID,
+            TaskProgressColumn,
+            TextColumn,
+        )
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+            transient=True,
+        ) as progress:
+            for algo in algo_list:
+                task = progress.add_task(
+                    f"Simulating [bold cyan]{algo.upper()}[/bold cyan]...", total=args.duration
+                )
+
+                def _make_callback(
+                    t_task: TaskID,
+                ) -> Callable[[int, SimulationEngine], None]:
+                    def _on_tick(current_tick: int, _eng: SimulationEngine) -> None:
+                        progress.update(t_task, completed=current_tick + 1)
+
+                    return _on_tick
+
+                try:
+                    router = _setup_router(
+                        algo, topo, args.allow_unsafe, args.custom_router, args.model_path, is_json
+                    )
+                    traffic_gen = TrafficGenerator(
+                        model=args.traffic_model, n_flows_per_tick=args.flows_per_tick
+                    )
+                    engine = SimulationEngine(topo, router, traffic_gen)
+                    result = engine.run(
+                        duration_ticks=args.duration,
+                        seed=seed,
+                        callback=_make_callback(task),
+                        show_progress=False,
+                    )
+                    results[algo] = result
+                except Exception as e:
+                    console.print(f"[yellow]⚠ {algo.upper()} failed:[/yellow] {e}")
+                    results[algo] = None
+    else:
+        for algo in algo_list:
+            try:
+                router = _setup_router(
+                    algo, topo, args.allow_unsafe, args.custom_router, args.model_path, is_json
+                )
+                traffic_gen = TrafficGenerator(
+                    model=args.traffic_model, n_flows_per_tick=args.flows_per_tick
+                )
+                engine = SimulationEngine(topo, router, traffic_gen)
+                result = engine.run(duration_ticks=args.duration, seed=seed, show_progress=False)
+                results[algo] = result
+            except Exception:
+                results[algo] = None
 
     # Build comparison data once using helper function
     comparison_export_data = _build_comparison_data(results, algo_list)
