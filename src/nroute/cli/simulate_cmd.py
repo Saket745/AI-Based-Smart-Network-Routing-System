@@ -379,7 +379,7 @@ def compare(ctx: click.Context, /, **kwargs: Any) -> None:
                 engine = SimulationEngine(topo, router, traffic_gen)
                 result = engine.run(duration_ticks=args.duration, seed=seed)
                 results[algo] = result
-            except Exception as e:
+            except Exception:
                 results[algo] = None
 
     # Build comparison data once using helper function
