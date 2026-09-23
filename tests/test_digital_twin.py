@@ -30,6 +30,7 @@ from nroute.core.openconfig import (
     OSPFInterfaceConfig,
 )
 from nroute.core.topology import Topology
+from nroute.exceptions import ValidationError
 from nroute.ingestion.config_parser import ConfigParser
 from nroute.simulation.change_impact import (
     AnalyticalEngine,
@@ -419,6 +420,18 @@ class TestAuditTrail:
         summary = trail.summary()
         assert summary["total_records"] == 3
         assert summary["action_counts"]["config_change"] == 2
+
+    def test_path_validation_invalid_inputs(self) -> None:
+        """AuditTrail log_file and export_json paths are validated against invalid inputs."""
+        with pytest.raises(ValidationError, match="null bytes"):
+            AuditTrail(log_file="audit\0.ndjson")
+
+        trail = AuditTrail()
+        with pytest.raises(ValidationError, match="null bytes"):
+            trail.export_json("export\0.json")
+
+        with pytest.raises(ValidationError, match="empty"):
+            trail.export_json("")
 
 
 # ── 7. Digital Twin Engine Integration ──────────────────────
