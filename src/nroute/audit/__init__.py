@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from nroute.utils.logging import get_logger
+from nroute.utils.validators import validate_file_path
 
 logger = get_logger(__name__)
 
@@ -118,7 +119,7 @@ class AuditTrail:
         self._log_path: Path | None = None
 
         if log_file is not None:
-            self._log_path = Path(log_file)
+            self._log_path = validate_file_path(log_file, must_exist=False)
             self._log_path.parent.mkdir(parents=True, exist_ok=True)
 
     # ── Recording ────────────────────────────────────────
@@ -230,7 +231,7 @@ class AuditTrail:
 
     def export_json(self, path: str | Path) -> None:
         """Export the full audit trail to a JSON file."""
-        p = Path(path)
+        p = validate_file_path(path, must_exist=False)
         p.parent.mkdir(parents=True, exist_ok=True)
         with open(p, "w", encoding="utf-8") as f:
             json.dump([r.to_dict() for r in self._records], f, indent=2)
