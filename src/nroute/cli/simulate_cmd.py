@@ -5,7 +5,10 @@ from __future__ import annotations
 import inspect
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 import click
 from pydantic import BaseModel
@@ -334,7 +337,14 @@ def compare(ctx: click.Context, /, **kwargs: Any) -> None:
     results: dict[str, Any] = {}
 
     if not is_json:
-        from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
+        from rich.progress import (
+            BarColumn,
+            Progress,
+            SpinnerColumn,
+            TaskID,
+            TaskProgressColumn,
+            TextColumn,
+        )
 
         with Progress(
             SpinnerColumn(),
@@ -349,8 +359,13 @@ def compare(ctx: click.Context, /, **kwargs: Any) -> None:
                     f"Simulating [bold cyan]{algo.upper()}[/bold cyan]...", total=args.duration
                 )
 
-                def _on_tick(current: int, total: int, t_task=task) -> None:
-                    progress.update(t_task, completed=current)
+                def _make_callback(
+                    t_task: TaskID,
+                ) -> Callable[[int, SimulationEngine], None]:
+                    def _on_tick(current_tick: int, _eng: SimulationEngine) -> None:
+                        progress.update(t_task, completed=current_tick + 1)
+
+                    return _on_tick
 
                 try:
                     router = _setup_router(
@@ -361,7 +376,10 @@ def compare(ctx: click.Context, /, **kwargs: Any) -> None:
                     )
                     engine = SimulationEngine(topo, router, traffic_gen)
                     result = engine.run(
-                        duration_ticks=args.duration, seed=seed, progress_callback=_on_tick
+                        duration_ticks=args.duration,
+                        seed=seed,
+                        callback=_make_callback(task),
+                        show_progress=False,
                     )
                     results[algo] = result
                 except Exception as e:
@@ -377,7 +395,7 @@ def compare(ctx: click.Context, /, **kwargs: Any) -> None:
                     model=args.traffic_model, n_flows_per_tick=args.flows_per_tick
                 )
                 engine = SimulationEngine(topo, router, traffic_gen)
-                result = engine.run(duration_ticks=args.duration, seed=seed)
+                result = engine.run(duration_ticks=args.duration, seed=seed, show_progress=False)
                 results[algo] = result
             except Exception:
                 results[algo] = None
