@@ -266,65 +266,79 @@ class PilotMetricsRecorder:
                 return offset
         return len(self.tick_throughputs) - self.failure_tick
 
-    def compute_summary(self, router_instrument: InstrumentedRouter) -> dict[str, Any]:
-        """Aggregate all collected metrics into a structured summary dictionary."""
+    def _compute_flow_latency_metrics(self) -> dict[str, float | int]:
         durations = self.completed_flow_durations
+        return {
+            "total_completed_flows": len(durations),
+            "mean_latency_ms": float(np.mean(durations)) if durations else 0.0,
+            "p50_latency_ms": float(np.percentile(durations, 50)) if durations else 0.0,
+            "p90_latency_ms": float(np.percentile(durations, 90)) if durations else 0.0,
+            "p95_latency_ms": float(np.percentile(durations, 95)) if durations else 0.0,
+            "p99_latency_ms": float(np.percentile(durations, 99)) if durations else 0.0,
+        }
+
+    def _compute_path_stretch_metrics(self) -> dict[str, float]:
         stretches = self.flow_stretches
+        return {
+            "mean_path_stretch": float(np.mean(stretches)) if stretches else 1.0,
+            "max_path_stretch": float(np.max(stretches)) if stretches else 1.0,
+        }
 
-        p50_lat = float(np.percentile(durations, 50)) if durations else 0.0
-        p90_lat = float(np.percentile(durations, 90)) if durations else 0.0
-        p95_lat = float(np.percentile(durations, 95)) if durations else 0.0
-        p99_lat = float(np.percentile(durations, 99)) if durations else 0.0
-        mean_lat = float(np.mean(durations)) if durations else 0.0
+    def _compute_utilization_and_fairness_metrics(self) -> dict[str, float]:
+        return {
+            "mean_jain_fairness": (
+                float(np.mean(self.tick_jain_indices)) if self.tick_jain_indices else 1.0
+            ),
+            "mean_peak_utilization": (
+                float(np.mean(self.tick_peak_utils)) if self.tick_peak_utils else 0.0
+            ),
+            "max_peak_utilization": (
+                float(np.max(self.tick_peak_utils)) if self.tick_peak_utils else 0.0
+            ),
+        }
 
-        mean_stretch = float(np.mean(stretches)) if stretches else 1.0
-        max_stretch = float(np.max(stretches)) if stretches else 1.0
-
-        mean_jain = float(np.mean(self.tick_jain_indices)) if self.tick_jain_indices else 1.0
-        mean_peak_u = float(np.mean(self.tick_peak_utils)) if self.tick_peak_utils else 0.0
-        max_peak_u = float(np.max(self.tick_peak_utils)) if self.tick_peak_utils else 0.0
-
-        mean_throughput = float(np.mean(self.tick_throughputs)) if self.tick_throughputs else 0.0
-        total_throughput = float(np.sum(self.tick_throughputs)) if self.tick_throughputs else 0.0
-        mean_loss = float(np.mean(self.tick_loss_rates)) if self.tick_loss_rates else 0.0
-
+    def _compute_throughput_and_churn_metrics(self) -> dict[str, float | int | None]:
         total_churn = sum(self.tick_churn_counts)
         churn_rate = total_churn / len(self.tick_churn_counts) if self.tick_churn_counts else 0.0
+        return {
+            "mean_throughput_mbps": (
+                float(np.mean(self.tick_throughputs)) if self.tick_throughputs else 0.0
+            ),
+            "total_throughput_mbps": (
+                float(np.sum(self.tick_throughputs)) if self.tick_throughputs else 0.0
+            ),
+            "packet_loss_rate": (
+                float(np.mean(self.tick_loss_rates)) if self.tick_loss_rates else 0.0
+            ),
+            "route_churn_rate": churn_rate,
+            "recovery_time_ticks": self.compute_recovery_time_ticks(),
+        }
 
-        recovery_ticks = self.compute_recovery_time_ticks()
-
-        # Compute router timings
+    def _compute_router_timing_metrics(
+        self, router_instrument: InstrumentedRouter
+    ) -> dict[str, float | int]:
         compute_times = [r.total_latency_us for r in router_instrument.query_records]
         env_times = [r.predict_or_env_us for r in router_instrument.query_records]
         solve_times = [r.path_solve_us for r in router_instrument.query_records]
 
-        mean_compute_us = float(np.mean(compute_times)) if compute_times else 0.0
-        p95_compute_us = float(np.percentile(compute_times, 95)) if compute_times else 0.0
-        mean_env_us = float(np.mean(env_times)) if env_times else 0.0
-        mean_solve_us = float(np.mean(solve_times)) if solve_times else 0.0
-
         return {
-            "total_completed_flows": len(durations),
-            "mean_latency_ms": mean_lat,
-            "p50_latency_ms": p50_lat,
-            "p90_latency_ms": p90_lat,
-            "p95_latency_ms": p95_lat,
-            "p99_latency_ms": p99_lat,
-            "mean_throughput_mbps": mean_throughput,
-            "total_throughput_mbps": total_throughput,
-            "packet_loss_rate": mean_loss,
-            "mean_jain_fairness": mean_jain,
-            "mean_peak_utilization": mean_peak_u,
-            "max_peak_utilization": max_peak_u,
-            "mean_path_stretch": mean_stretch,
-            "max_path_stretch": max_stretch,
-            "route_churn_rate": churn_rate,
-            "recovery_time_ticks": recovery_ticks,
             "total_queries": router_instrument.total_queries,
             "fallback_count": router_instrument.fallback_count,
             "fallback_ratio": router_instrument.fallback_ratio,
-            "mean_compute_latency_us": mean_compute_us,
-            "p95_compute_latency_us": p95_compute_us,
-            "mean_env_overhead_us": mean_env_us,
-            "mean_path_solve_us": mean_solve_us,
+            "mean_compute_latency_us": (float(np.mean(compute_times)) if compute_times else 0.0),
+            "p95_compute_latency_us": (
+                float(np.percentile(compute_times, 95)) if compute_times else 0.0
+            ),
+            "mean_env_overhead_us": float(np.mean(env_times)) if env_times else 0.0,
+            "mean_path_solve_us": float(np.mean(solve_times)) if solve_times else 0.0,
         }
+
+    def compute_summary(self, router_instrument: InstrumentedRouter) -> dict[str, Any]:
+        """Aggregate all collected metrics into a structured summary dictionary."""
+        summary: dict[str, Any] = {}
+        summary.update(self._compute_flow_latency_metrics())
+        summary.update(self._compute_throughput_and_churn_metrics())
+        summary.update(self._compute_utilization_and_fairness_metrics())
+        summary.update(self._compute_path_stretch_metrics())
+        summary.update(self._compute_router_timing_metrics(router_instrument))
+        return summary
