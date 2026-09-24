@@ -184,6 +184,28 @@ class ECMPRouter(BaseRouter):
             **kwargs: Additional parameters including 'flow_key'.
         """
         flow_key = kwargs.get("flow_key")
+        if flow_key is None:
+            subgraph = self._get_validated_active_subgraph(topology, source, destination)
+            weight_func = self._resolve_weight_function(weight)
+            try:
+                path = nx.shortest_path(
+                    subgraph,
+                    source=source,
+                    target=destination,
+                    weight=weight_func,
+                )
+                res_path = list(path)
+                self.validate_path(topology, res_path, source, destination)
+                return res_path
+            except nx.NetworkXNoPath as e:
+                raise RoutingError(
+                    f"No path found between '{source}' and '{destination}'."
+                ) from e
+            except Exception as e:
+                if isinstance(e, RoutingError):
+                    raise
+                raise RoutingError(f"ECMP single path computation failed: {e}") from e
+
         query = RoutingQuery(
             source=source,
             destination=destination,
@@ -195,10 +217,6 @@ class ECMPRouter(BaseRouter):
             raise RoutingError(f"No path found between '{source}' and '{destination}'.")
 
         # Select path using flow_key hashing
-        if flow_key is not None:
-            hash_val = int(hashlib.sha256(str(flow_key).encode("utf-8")).hexdigest(), 16)
-            index = hash_val % len(paths)
-            return paths[index]
-
-        # Default: return the first shortest path
-        return paths[0]
+        hash_val = int(hashlib.sha256(str(flow_key).encode("utf-8")).hexdigest(), 16)
+        index = hash_val % len(paths)
+        return paths[index]
