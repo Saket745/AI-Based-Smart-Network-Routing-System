@@ -397,6 +397,37 @@ class AnomalyDetector:
                 save_dict["model"] = self.model
                 joblib.dump(save_dict, path)
 
+    @staticmethod
+    def _load_pytorch_model(path: str, allow_unsafe: bool) -> dict[str, Any]:
+        """Load a PyTorch state dictionary with security checks."""
+        torch, _, _, _, _ = _get_torch()
+        try:
+            return cast(
+                "dict[str, Any]",
+                torch.load(
+                    path,
+                    map_location=torch.device("cpu"),
+                    weights_only=not allow_unsafe,
+                ),
+            )
+        except Exception as e:
+            if not allow_unsafe:
+                raise ModelError(
+                    "Failed to load PyTorch model securely. Set allow_unsafe=True "
+                    f"if you trust the source. Error: {e}"
+                ) from e
+            raise
+
+    @staticmethod
+    def _load_joblib_model(path: str, allow_unsafe: bool) -> dict[str, Any]:
+        """Load a joblib state dictionary with security checks."""
+        if not allow_unsafe:
+            raise ModelError(
+                "Insecure model file detected (joblib/pickle). Loading is blocked for "
+                "security. Set allow_unsafe=True if you trust the source."
+            )
+        return cast("dict[str, Any]", joblib.load(path))
+
     def load(self, path: str, allow_unsafe: bool = False) -> None:
         """
         Load model configuration and weights.
@@ -411,33 +442,15 @@ class AnomalyDetector:
         """
         try:
             validated_path = validate_file_path(path, must_exist=True)
-            path = str(validated_path)
+            path_str = str(validated_path)
         except ValidationError as e:
             raise ModelError(str(e)) from e
 
         try:
-            if path.endswith(".pt") or path.endswith(".pth"):
-                torch, _, _, _, _ = _get_torch()
-                try:
-                    load_dict = torch.load(
-                        path,
-                        map_location=torch.device("cpu"),
-                        weights_only=not allow_unsafe,
-                    )
-                except Exception as e:
-                    if not allow_unsafe:
-                        raise ModelError(
-                            "Failed to load PyTorch model securely. Set allow_unsafe=True "
-                            f"if you trust the source. Error: {e}"
-                        ) from e
-                    raise
+            if path_str.endswith(".pt") or path_str.endswith(".pth"):
+                load_dict = self._load_pytorch_model(path_str, allow_unsafe)
             else:
-                if not allow_unsafe:
-                    raise ModelError(
-                        "Insecure model file detected (joblib/pickle). Loading is blocked for "
-                        "security. Set allow_unsafe=True if you trust the source."
-                    )
-                load_dict = joblib.load(path)
+                load_dict = self._load_joblib_model(path_str, allow_unsafe)
         except ModelError:
             raise
         except Exception as e:
@@ -457,8 +470,5 @@ class AnomalyDetector:
             self.model.load_state_dict(load_dict["state_dict"])
             self.reconstruction_threshold = load_dict["reconstruction_threshold"]
             self.model.eval()
-        elif self.model_type == "custom":
-            if "model" in load_dict:
-                self.model = load_dict["model"]
-            else:
-                pass
+        elif self.model_type == "custom" and "model" in load_dict:
+            self.model = load_dict["model"]
