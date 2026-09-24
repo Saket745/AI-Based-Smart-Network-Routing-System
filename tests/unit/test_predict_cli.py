@@ -13,7 +13,7 @@ import pytest
 import torch
 from click.testing import CliRunner
 
-from nroute.cli.predict_cmd import predict_cmd
+from nroute.cli.predict_cmd import _safe_prediction_status, predict_cmd
 
 
 @pytest.fixture
@@ -323,3 +323,32 @@ class TestGNNPredictCLI:
 
         assert result.exit_code != 0
         assert "Feature engineering failed" in result.output
+
+
+def test_safe_prediction_status_encodings() -> None:
+    """Test _safe_prediction_status across UTF-8 and ASCII/CP1252 encodings."""
+    # UTF-8 should include emojis
+    congested_utf8 = _safe_prediction_status("CONGESTED", encoding="utf-8")
+    assert "🔴" in congested_utf8
+    assert "CONGESTED" in congested_utf8
+
+    at_risk_utf8 = _safe_prediction_status("AT_RISK", encoding="utf-8")
+    assert "🟡" in at_risk_utf8
+    assert "AT RISK" in at_risk_utf8
+
+    normal_utf8 = _safe_prediction_status("NORMAL", encoding="utf-8")
+    assert "🟢" in normal_utf8
+    assert "NORMAL" in normal_utf8
+
+    # Non-UTF8 / ASCII encodings should use text fallback badges
+    congested_ascii = _safe_prediction_status("CONGESTED", encoding="ascii")
+    assert "[!]" in congested_ascii
+    assert "🔴" not in congested_ascii
+
+    at_risk_ascii = _safe_prediction_status("AT_RISK", encoding="cp1252")
+    assert "[*]" in at_risk_ascii
+    assert "🟡" not in at_risk_ascii
+
+    normal_ascii = _safe_prediction_status("NORMAL", encoding="ascii")
+    assert "[OK]" in normal_ascii
+    assert "🟢" not in normal_ascii
