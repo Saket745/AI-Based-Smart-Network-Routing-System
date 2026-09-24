@@ -22,8 +22,12 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Upgrade system python packages in /usr/local/ as root first to eliminate vulnerable base image packages
-RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
+# Remove stale base image package metadata and upgrade system python packages as root in /usr/local/
+RUN rm -rf /usr/local/lib/python3.10/site-packages/setuptools* \
+           /usr/local/lib/python3.10/site-packages/msgpack* \
+           /usr/local/lib/python3.10/site-packages/jaraco* \
+           /usr/local/lib/python3.10/site-packages/wheel* \
+    && pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
 
 # Create a non-root user and group
 RUN groupadd -g 10001 nroute \
