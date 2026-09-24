@@ -442,15 +442,15 @@ class AnomalyDetector:
         """
         try:
             validated_path = validate_file_path(path, must_exist=True)
-            path = str(validated_path)
+            path_str = str(validated_path)
         except ValidationError as e:
             raise ModelError(str(e)) from e
 
         try:
-            if path.endswith(".pt") or path.endswith(".pth"):
-                load_dict = self._load_pytorch_model(path, allow_unsafe)
+            if path_str.endswith(".pt") or path_str.endswith(".pth"):
+                load_dict = self._load_pytorch_model(path_str, allow_unsafe)
             else:
-                load_dict = self._load_joblib_model(path, allow_unsafe)
+                load_dict = self._load_joblib_model(path_str, allow_unsafe)
         except ModelError:
             raise
         except Exception as e:
