@@ -230,25 +230,12 @@ class GNNTrainer:
         }
 
     @staticmethod
-    def run_training_workflow(config: GNNTrainingConfig, logger_callback: Any | None = None) -> str:
-        """
-        Orchestrate the full GNN training workflow:
-        1. Load Topology
-        2. Generate Dataset
-        3. Prepare DataLoaders
-        4. Initialize Model
-        5. Train and Evaluate
-        6. Save Model
-        """
-
-        def log(msg: str) -> None:
-            if logger_callback:
-                logger_callback(msg)
-
-        # 1. Load Topology
+    def _prepare_datasets(
+        config: GNNTrainingConfig, log: Any
+    ) -> tuple[GNNGraphDataset, GNNGraphDataset]:
+        """Load topology, generate simulation traces, compile dataset, and split train/val."""
         topo = Topology.load(config.topo_path)
 
-        # 2. Generate Dataset
         log("Collecting simulation traces and compiling to Parquet...")
         if os.path.exists(config.dataset_dir):
             shutil.rmtree(config.dataset_dir, ignore_errors=True)
@@ -279,6 +266,56 @@ class GNNTrainer:
 
         train_dataset = GNNGraphDataset(train_node_df, train_edge_df)
         val_dataset = GNNGraphDataset(val_node_df, val_edge_df)
+        return train_dataset, val_dataset
+
+    @staticmethod
+    def _instantiate_model(config: GNNTrainingConfig) -> nn.Module:
+        """Instantiate GNN model (GCN or GraphSAGE) based on configuration."""
+        node_in_dim = 8
+        edge_in_dim = 6
+
+        if config.model_type.lower() == "gcn":
+            return GCNModel(
+                node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=config.hidden_dim
+            )
+        return GraphSAGEModel(
+            node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=config.hidden_dim
+        )
+
+    @staticmethod
+    def _execute_training(
+        trainer: GNNTrainer,
+        train_loader: DataLoader,
+        val_loader: DataLoader,
+        epochs: int,
+        log: Any,
+    ) -> None:
+        """Execute model training and evaluation loop across epochs."""
+        for epoch in range(1, epochs + 1):
+            train_metrics = trainer.train_epoch(train_loader)
+            val_metrics = trainer.evaluate(val_loader)
+            log(
+                f"  Epoch {epoch:02d}/{epochs:02d} | "
+                f"Loss: {train_metrics['loss']:.4f} (Cls: {train_metrics['cls_loss']:.4f}, Reg: {train_metrics['reg_loss']:.4f}) | "
+                f"Val Loss: {val_metrics['val_loss']:.4f}"
+            )
+
+    @staticmethod
+    def run_training_workflow(config: GNNTrainingConfig, logger_callback: Any | None = None) -> str:
+        """
+        Orchestrate the full GNN training workflow:
+        1. Load Topology & Generate Dataset
+        2. Prepare DataLoaders
+        3. Initialize Model
+        4. Train and Evaluate
+        5. Save Model
+        """
+
+        def log(msg: str) -> None:
+            if logger_callback:
+                logger_callback(msg)
+
+        train_dataset, val_dataset = GNNTrainer._prepare_datasets(config, log)
 
         train_loader = DataLoader(
             train_dataset,
@@ -293,34 +330,11 @@ class GNNTrainer:
             collate_fn=collate_dataset_batch,
         )
 
-        # 3. Initialize Model
-        node_in_dim = 8
-        edge_in_dim = 6
+        model = GNNTrainer._instantiate_model(config)
 
-        model: nn.Module
-        if config.model_type.lower() == "gcn":
-            model = GCNModel(
-                node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=config.hidden_dim
-            )
-        else:
-            model = GraphSAGEModel(
-                node_in_dim=node_in_dim, edge_in_dim=edge_in_dim, hidden_dim=config.hidden_dim
-            )
-
-        # 4. Train
         log(f"Training GNN model ({config.model_type.upper()})...")
         trainer = GNNTrainer(model=model, lr=config.lr)
+        GNNTrainer._execute_training(trainer, train_loader, val_loader, config.epochs, log)
 
-        for epoch in range(1, config.epochs + 1):
-            train_metrics = trainer.train_epoch(train_loader)
-            val_metrics = trainer.evaluate(val_loader)
-            log(
-                f"  Epoch {epoch:02d}/{config.epochs:02d} | "
-                f"Loss: {train_metrics['loss']:.4f} (Cls: {train_metrics['cls_loss']:.4f}, Reg: {train_metrics['reg_loss']:.4f}) | "
-                f"Val Loss: {val_metrics['val_loss']:.4f}"
-            )
-
-        # 5. Save
         model_store = ModelStore(base_dir=config.output_dir)
-        saved_path = model_store.save_model(model, name=config.model_type.lower(), version="1.0.0")
-        return saved_path
+        return model_store.save_model(model, name=config.model_type.lower(), version="1.0.0")
