@@ -420,6 +420,16 @@ class TestAuditTrail:
         assert summary["total_records"] == 3
         assert summary["action_counts"]["config_change"] == 2
 
+    def test_path_validation_rejection(self, tmp_dir: Path) -> None:
+        from nroute.exceptions import ValidationError
+
+        with pytest.raises(ValidationError, match="null bytes"):
+            AuditTrail(log_file="invalid\0log.ndjson")
+
+        trail = AuditTrail()
+        with pytest.raises(ValidationError, match="null bytes"):
+            trail.export_json("invalid\0export.json")
+
 
 # ── 7. Digital Twin Engine Integration ──────────────────────
 
