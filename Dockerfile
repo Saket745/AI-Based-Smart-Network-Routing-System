@@ -22,6 +22,9 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
+# Upgrade system-wide site-packages as root to fix Trivy scan CVEs in /usr/local/
+RUN pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1"
+
 # Create a non-root user and group
 RUN groupadd -g 10001 nroute \
     && useradd -u 10001 -g nroute -m -s /sbin/nologin nroute \
@@ -33,8 +36,8 @@ COPY --from=builder --chown=nroute:nroute /app/dist/*.whl ./
 # Switch to the non-root user
 USER nroute
 
-# Install the wheel package locally and upgrade vulnerable indirect dependencies
-RUN pip install --user --no-cache-dir --upgrade pip "setuptools>=75.8.0" "wheel>=0.46.2" "jaraco.context>=6.1.0" \
+# Install the wheel package locally
+RUN pip install --user --no-cache-dir --upgrade pip "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" "msgpack>=1.2.1" \
     && pip install --user --no-cache-dir *.whl \
     && rm *.whl
 
