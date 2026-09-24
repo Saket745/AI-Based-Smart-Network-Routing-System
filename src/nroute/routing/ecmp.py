@@ -198,9 +198,7 @@ class ECMPRouter(BaseRouter):
                 self.validate_path(topology, res_path, source, destination)
                 return res_path
             except nx.NetworkXNoPath as e:
-                raise RoutingError(
-                    f"No path found between '{source}' and '{destination}'."
-                ) from e
+                raise RoutingError(f"No path found between '{source}' and '{destination}'.") from e
             except Exception as e:
                 if isinstance(e, RoutingError):
                     raise
