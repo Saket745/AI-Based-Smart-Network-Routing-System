@@ -183,6 +183,32 @@ def _print_congestion_json(edge_ids: list[str], probs: list[Any], threshold: flo
     click.echo(json.dumps(out, indent=2))
 
 
+def _safe_prediction_status(status_type: str, encoding: str | None = None) -> str:
+    """Return an encoding-safe status badge for prediction console output."""
+    import sys
+
+    enc = (
+        encoding
+        or getattr(console.file, "encoding", None)
+        or getattr(sys.stdout, "encoding", None)
+        or "utf-8"
+    )
+    try:
+        "🔴🟡🟢".encode(enc)
+        has_unicode = True
+    except (UnicodeEncodeError, LookupError):
+        has_unicode = False
+
+    if status_type == "CONGESTED":
+        icon = "🔴" if has_unicode else "[!]"
+        return f"{icon} [bold red]CONGESTED[/bold red]"
+    if status_type == "AT_RISK":
+        icon = "🟡" if has_unicode else "[*]"
+        return f"{icon} [yellow]AT RISK[/yellow]"
+    icon = "🟢" if has_unicode else "[OK]"
+    return f"{icon} [green]NORMAL[/green]"
+
+
 def _print_congestion_console(edge_ids: list[str], probs: list[Any], threshold: float) -> None:
     """Output congestion predictions as a table to the console."""
     console.print()
@@ -197,13 +223,13 @@ def _print_congestion_console(edge_ids: list[str], probs: list[Any], threshold: 
         p = float(prob) if not isinstance(prob, (int, float)) else prob
         if p >= threshold:
             prob_style = "bold red"
-            status = "🔴 [bold red]CONGESTED[/bold red]"
+            status = _safe_prediction_status("CONGESTED")
         elif p >= threshold * 0.7:
             prob_style = "yellow"
-            status = "🟡 [yellow]AT RISK[/yellow]"
+            status = _safe_prediction_status("AT_RISK")
         else:
             prob_style = "green"
-            status = "🟢 [green]NORMAL[/green]"
+            status = _safe_prediction_status("NORMAL")
 
         table.add_row(edge_id, f"[{prob_style}]{p:.3f}[/{prob_style}]", status)
 
@@ -410,14 +436,14 @@ def _print_gnn_console(
 
         if prob >= args.threshold:
             prob_style = "bold red"
-            status = "🔴 [bold red]CONGESTED[/bold red]"
+            status = _safe_prediction_status("CONGESTED")
             congested_count += 1
         elif prob >= args.threshold * 0.7:
             prob_style = "yellow"
-            status = "🟡 [yellow]AT RISK[/yellow]"
+            status = _safe_prediction_status("AT_RISK")
         else:
             prob_style = "green"
-            status = "🟢 [green]NORMAL[/green]"
+            status = _safe_prediction_status("NORMAL")
 
         table.add_row(
             f"{u} -> {v}",
