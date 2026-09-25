@@ -253,7 +253,11 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
             sev_raw = item.get("severity")
 
             # Optimization: Fast dict lookups for Enum mapping instead of string checks/instantiation
-            cat = category_map.get(cat_raw, EventCategory.UNKNOWN) if cat_raw else EventCategory.UNKNOWN
+            cat = (
+                category_map.get(cat_raw, EventCategory.UNKNOWN)
+                if cat_raw
+                else EventCategory.UNKNOWN
+            )
             sev = severity_map.get(sev_raw, EventSeverity.INFO) if sev_raw else EventSeverity.INFO
 
             event_type = str(item.get("event_type", ""))
