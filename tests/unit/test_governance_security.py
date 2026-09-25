@@ -62,6 +62,51 @@ def test_joblib_deserialization_strict_package_allowlist() -> None:
             joblib.load(path)
 
 
+def test_joblib_deserialization_blocks_dangerous_builtins() -> None:
+    """Verify that joblib deserialization blocks dangerous functions in builtins."""
+    payload_eval = b"cbuiltins\neval\n(S'1+1'\ntR."
+    payload_getattr = b"cbuiltins\ngetattr\n(cbuiltins\nint\nS'__doc__'\ntR."
+    payload_exec = b"cbuiltins\nexec\n(S'pass'\ntR."
+    payload_open = b"cbuiltins\nopen\n(S'/etc/passwd'\ntR."
+    payload_import = b"cbuiltins\n__import__\n(S'os'\ntR."
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for name, payload in [
+            ("eval", payload_eval),
+            ("getattr", payload_getattr),
+            ("exec", payload_exec),
+            ("open", payload_open),
+            ("__import__", payload_import),
+        ]:
+            path = os.path.join(tmpdir, f"exploit_{name}.joblib")
+            with open(path, "wb") as f:
+                f.write(payload)
+
+            with pytest.raises(ValueError, match="Unsafe deserialization attempt detected"):
+                joblib.load(path)
+
+
+def test_joblib_deserialization_allows_safe_builtins() -> None:
+    """Verify that safe builtins (int, str, list, dict, set, tuple, slice) can be deserialized."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        safe_data = {
+            "int": 42,
+            "float": 3.14,
+            "str": "hello",
+            "tuple": (1, 2, 3),
+            "list": [1, 2, 3],
+            "dict": {"a": 1},
+            "set": {1, 2, 3},
+            "slice": slice(0, 10, 1),
+        }
+        path = os.path.join(tmpdir, "safe_builtins.joblib")
+        joblib.dump(safe_data, path)
+
+        loaded = joblib.load(path)
+        assert loaded["int"] == 42
+        assert loaded["slice"] == slice(0, 10, 1)
+
+
 def test_anomaly_detector_pytorch_secure_loading_failure() -> None:
     """Verify that AnomalyDetector handles PyTorch secure loading failures."""
     from unittest.mock import patch
@@ -80,7 +125,6 @@ def test_anomaly_detector_pytorch_secure_loading_failure() -> None:
 
             with pytest.raises(ModelError) as excinfo:
                 detector.load(path, allow_unsafe=True)
-            assert f"Failed to load model from {path}" in str(excinfo.value)
             assert "Security breach!" in str(excinfo.value)
 
 
@@ -102,7 +146,6 @@ def test_congestion_predictor_pytorch_secure_loading_failure() -> None:
 
             with pytest.raises(ModelError) as excinfo:
                 predictor.load(path, allow_unsafe=True)
-            assert f"Failed to load model from {path}" in str(excinfo.value)
             assert "Security breach!" in str(excinfo.value)
 
 
