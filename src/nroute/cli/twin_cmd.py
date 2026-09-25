@@ -74,6 +74,27 @@ def twin_cmd(ctx: click.Context) -> None:
 # ── twin health ──────────────────────────────────────────────
 
 
+def _safe_health_status(status_type: str, encoding: str | None = None) -> str:
+    """Return status label with icon ('🟢 HEALTHY', '🟡 DEGRADED', '🔴 UNHEALTHY') or ASCII fallback."""
+    enc = (
+        encoding
+        or getattr(console.file, "encoding", None)
+        or getattr(sys.stdout, "encoding", None)
+        or "utf-8"
+    )
+    try:
+        "🟢🟡🔴".encode(enc)
+        has_unicode = True
+    except (UnicodeEncodeError, LookupError):
+        has_unicode = False
+
+    if status_type == "healthy":
+        return "🟢 HEALTHY" if has_unicode else "[OK] HEALTHY"
+    if status_type == "degraded":
+        return "🟡 DEGRADED" if has_unicode else "[*] DEGRADED"
+    return "🔴 UNHEALTHY" if has_unicode else "[!] UNHEALTHY"
+
+
 @twin_cmd.command("health")
 @click.option(
     "--topology",
@@ -113,11 +134,11 @@ def health_cmd(ctx: click.Context, topology: str, config: str | None) -> None:
     is_connected = summary.get("is_strongly_connected", False)
 
     if not down_nodes and not down_edges and is_connected:
-        overall_status = "🟢 HEALTHY"
+        overall_status = _safe_health_status("healthy")
     elif is_connected:
-        overall_status = "🟡 DEGRADED"
+        overall_status = _safe_health_status("degraded")
     else:
-        overall_status = "🔴 UNHEALTHY"
+        overall_status = _safe_health_status("unhealthy")
 
     console.print()
     console.rule(f"[bold cyan]Digital Twin Health Summary ({overall_status})[/bold cyan]")
