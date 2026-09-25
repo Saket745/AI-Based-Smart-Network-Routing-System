@@ -58,6 +58,9 @@ class EventCategory(str, Enum):
 _VALID_CATEGORIES: set[str] = {c.value for c in EventCategory}
 _VALID_SEVERITIES: set[str] = {s.value for s in EventSeverity}
 
+_CATEGORY_MAP: dict[str, EventCategory] = {c.value: c for c in EventCategory}
+_SEVERITY_MAP: dict[str, EventSeverity] = {s.value: s for s in EventSeverity}
+
 
 # Priority mapping  (lower = higher priority)
 _CATEGORY_PRIORITY: dict[EventCategory, int] = {
@@ -239,25 +242,43 @@ def load_events(path: str | Path) -> list[NetworkEvent]:
             raise SimulationError("Events file must be a list of event records.")
 
     events: list[NetworkEvent] = []
+    category_map = _CATEGORY_MAP
+    severity_map = _SEVERITY_MAP
+
     for idx, item in enumerate(raw):
         if not isinstance(item, dict):
             continue
         try:
-            cat = item.get("category", "unknown")
-            sev = item.get("severity", "info")
-            evt = NetworkEvent(
-                event_id=str(item.get("event_id", f"evt_{idx}")),
-                timestamp=float(item.get("timestamp", idx)),
-                node_id=str(item.get("node_id", "")),
-                interface=str(item.get("interface", "")),
-                peer_node=str(item.get("peer_node", "")),
-                event_type=str(item.get("event_type", "")),
-                category=EventCategory(cat) if cat in _VALID_CATEGORIES else EventCategory.UNKNOWN,
-                severity=EventSeverity(sev) if sev in _VALID_SEVERITIES else EventSeverity.INFO,
-                message=str(item.get("message", "")),
-                raw=item,
+            cat_raw = item.get("category")
+            sev_raw = item.get("severity")
+
+            # Optimization: Fast dict lookups for Enum mapping instead of string checks/instantiation
+            cat = category_map.get(cat_raw, EventCategory.UNKNOWN) if cat_raw else EventCategory.UNKNOWN
+            sev = severity_map.get(sev_raw, EventSeverity.INFO) if sev_raw else EventSeverity.INFO
+
+            event_type = str(item.get("event_type", ""))
+
+            # Optimization: Perform event classification prior to NetworkEvent instantiation to eliminate
+            # temporary object creation, duplicate string parsing, and subsequent mutation overhead.
+            if cat == EventCategory.UNKNOWN and event_type:
+                res = _classify_type_string(event_type.lower().strip())
+                if res is not None:
+                    cat, sev = res
+
+            events.append(
+                NetworkEvent(
+                    event_id=str(item.get("event_id", f"evt_{idx}")),
+                    timestamp=float(item.get("timestamp", idx)),
+                    node_id=str(item.get("node_id", "")),
+                    interface=str(item.get("interface", "")),
+                    peer_node=str(item.get("peer_node", "")),
+                    event_type=event_type,
+                    category=cat,
+                    severity=sev,
+                    message=str(item.get("message", "")),
+                    raw=item,
+                )
             )
-            events.append(classify_event(evt))
         except Exception:
             logger.warning("Skipping unparseable event", index=idx)
 
