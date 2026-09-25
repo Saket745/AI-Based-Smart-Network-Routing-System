@@ -563,17 +563,18 @@ class TestNewCLIFeatures:
     def test_twin_health_restricted_encoding_safety(self, topo_file: str) -> None:
         """nroute twin health should render safe ASCII status fallback on restricted encoding streams."""
         from click.testing import CliRunner
+
         from nroute.cli.twin_cmd import _safe_health_status
 
         # Test helper directly with ASCII encoding
-        assert "[OK] HEALTHY" == _safe_health_status("healthy", encoding="ascii")
-        assert "[*] DEGRADED" == _safe_health_status("degraded", encoding="ascii")
-        assert "[!] UNHEALTHY" == _safe_health_status("unhealthy", encoding="ascii")
+        assert _safe_health_status("healthy", encoding="ascii") == "[OK] HEALTHY"
+        assert _safe_health_status("degraded", encoding="ascii") == "[*] DEGRADED"
+        assert _safe_health_status("unhealthy", encoding="ascii") == "[!] UNHEALTHY"
 
         # Test helper directly with UTF-8 encoding
-        assert "🟢 HEALTHY" == _safe_health_status("healthy", encoding="utf-8")
-        assert "🟡 DEGRADED" == _safe_health_status("degraded", encoding="utf-8")
-        assert "🔴 UNHEALTHY" == _safe_health_status("unhealthy", encoding="utf-8")
+        assert _safe_health_status("healthy", encoding="utf-8") == "🟢 HEALTHY"
+        assert _safe_health_status("degraded", encoding="utf-8") == "🟡 DEGRADED"
+        assert _safe_health_status("unhealthy", encoding="utf-8") == "🔴 UNHEALTHY"
 
         # Test CLI invocation
         runner = CliRunner()
