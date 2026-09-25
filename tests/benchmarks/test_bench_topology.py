@@ -85,3 +85,13 @@ def test_bench_update_edge(benchmark: Any) -> None:
             )
 
     benchmark(run_update_edges)
+
+
+
+@pytest.mark.benchmark
+def test_bench_fat_tree(benchmark: Any) -> None:
+    """Benchmark Fat-Tree topology generation."""
+    from nroute.core.generators import TopologyGenerator
+
+    gen = TopologyGenerator()
+    benchmark(gen.fat_tree, k=8)
