@@ -229,13 +229,10 @@ async def health() -> dict[str, Any]:
         }
 
 
-@app.post("/api/topology/load")
-async def load_topology(req: TopologyLoadRequest) -> dict[str, Any]:
-    """Load a topology from a file path."""
-    engine = get_engine()
-
+def _validate_and_check_path(path_str: str) -> Path:
+    """Validate path and verify existence on disk in worker thread."""
     try:
-        p = validate_file_path(req.path, must_exist=False).resolve()
+        p = validate_file_path(path_str, must_exist=False).resolve()
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -247,7 +244,18 @@ async def load_topology(req: TopologyLoadRequest) -> dict[str, Any]:
         )
 
     if not p.is_file():
-        raise HTTPException(status_code=404, detail=f"File not found: {req.path}")
+        raise HTTPException(status_code=404, detail=f"File not found: {path_str}")
+
+    return p
+
+
+@app.post("/api/topology/load")
+async def load_topology(req: TopologyLoadRequest) -> dict[str, Any]:
+    """Load a topology from a file path."""
+    engine = get_engine()
+
+    p = await _run_in_executor(_validate_and_check_path, req.path)
+
     try:
         topo = await _run_in_executor(engine.load_topology, p)
         return {
