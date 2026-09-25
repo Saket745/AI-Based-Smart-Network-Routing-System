@@ -59,7 +59,9 @@ def _secure_find_class(self: Any, module: str, name: str) -> Any:
     if module == "builtins":
         if name in _SAFE_BUILTINS:
             return _original_find_class(self, module, name)
-        raise ValueError(f"Unsafe deserialization attempt detected: module '{module}', class '{name}'")
+        raise ValueError(
+            f"Unsafe deserialization attempt detected: module '{module}', class '{name}'"
+        )
 
     if any(module == p or module.startswith(p + ".") for p in safe_prefixes):
         return _original_find_class(self, module, name)
