@@ -356,9 +356,7 @@ async def validate_change(req: ValidateRequest) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         logger.error("Unhandled error during change validation", exc_info=exc)
-        raise HTTPException(
-            status_code=500, detail="Internal validation error occurred."
-        ) from exc
+        raise HTTPException(status_code=500, detail="Internal validation error occurred.") from exc
 
 
 @app.post("/api/rca")
