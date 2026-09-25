@@ -17,6 +17,33 @@ from nroute.utils.validators import validate_file_path
 # Monkeypatch joblib to prevent Remote Code Execution via insecure deserialization
 _original_find_class = joblib.numpy_pickle.NumpyUnpickler.find_class
 
+_SAFE_BUILTINS = frozenset(
+    {
+        "int",
+        "float",
+        "str",
+        "bool",
+        "bytes",
+        "bytearray",
+        "list",
+        "tuple",
+        "dict",
+        "set",
+        "frozenset",
+        "slice",
+        "range",
+        "complex",
+        "type",
+        "object",
+        "Exception",
+        "ValueError",
+        "TypeError",
+        "KeyError",
+        "AttributeError",
+        "RuntimeError",
+    }
+)
+
 
 def _secure_find_class(self: Any, module: str, name: str) -> Any:
     safe_prefixes = (
@@ -29,10 +56,16 @@ def _secure_find_class(self: Any, module: str, name: str) -> Any:
         "scipy",
         "nroute",
     )
-    if module == "builtins" or any(
-        module == p or module.startswith(p + ".") for p in safe_prefixes
-    ):
+    if module == "builtins":
+        if name in _SAFE_BUILTINS:
+            return _original_find_class(self, module, name)
+        raise ValueError(
+            f"Unsafe deserialization attempt detected: module '{module}', class '{name}'"
+        )
+
+    if any(module == p or module.startswith(p + ".") for p in safe_prefixes):
         return _original_find_class(self, module, name)
+
     raise ValueError(f"Unsafe deserialization attempt detected: module '{module}', class '{name}'")
 
 
