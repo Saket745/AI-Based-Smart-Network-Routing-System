@@ -292,6 +292,30 @@ def test_get_active_api_token_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     assert is_fallback is True
 
 
+def test_validate_change_internal_error_does_not_leak_details(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Verify that unhandled internal errors during validation return 500 without leaking details."""
+    headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
+
+    def mock_validate_change(*args: Any, **kwargs: Any) -> Any:
+        raise Exception("Sensitive DB credentials leaked in exception: secret_pass_123")
+
+    engine = nroute.api.server.get_engine()
+    monkeypatch.setattr(engine, "validate_change", mock_validate_change)
+
+    response = client.post(
+        "/api/validate",
+        json={"change": {"description": "test change"}},
+        headers=headers,
+    )
+    assert response.status_code == 500
+    detail = response.json()["detail"]
+    assert detail == "Internal validation error occurred."
+    assert "secret_pass_123" not in detail
+    assert "Sensitive DB credentials" not in detail
+
+
 def test_api_start_cli_displays_fallback_token(monkeypatch: pytest.MonkeyPatch) -> None:
     """nroute api start prints generated session token when no token is configured."""
     from click.testing import CliRunner

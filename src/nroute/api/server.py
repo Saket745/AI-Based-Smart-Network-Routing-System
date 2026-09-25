@@ -33,7 +33,10 @@ from nroute.core.config import load_config
 from nroute.core.openconfig import ConfigChange
 from nroute.exceptions import ValidationError
 from nroute.simulation.digital_twin import DigitalTwinEngine
+from nroute.utils.logging import get_logger
 from nroute.utils.validators import validate_file_path
+
+logger = get_logger(__name__)
 
 # ── Security & Authentication ────────────────────────────────
 
@@ -352,7 +355,10 @@ async def validate_change(req: ValidateRequest) -> dict[str, Any]:
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Internal validation error: {exc}") from exc
+        logger.error("Unhandled error during change validation", exc_info=exc)
+        raise HTTPException(
+            status_code=500, detail="Internal validation error occurred."
+        ) from exc
 
 
 @app.post("/api/rca")
