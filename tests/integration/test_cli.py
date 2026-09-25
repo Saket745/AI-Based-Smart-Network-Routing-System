@@ -560,6 +560,27 @@ class TestNewCLIFeatures:
         )
         assert "Active Nodes" in result.output
 
+    def test_twin_health_restricted_encoding_safety(self, topo_file: str) -> None:
+        """nroute twin health should render safe ASCII status fallback on restricted encoding streams."""
+        from click.testing import CliRunner
+        from nroute.cli.twin_cmd import _safe_health_status
+
+        # Test helper directly with ASCII encoding
+        assert "[OK] HEALTHY" == _safe_health_status("healthy", encoding="ascii")
+        assert "[*] DEGRADED" == _safe_health_status("degraded", encoding="ascii")
+        assert "[!] UNHEALTHY" == _safe_health_status("unhealthy", encoding="ascii")
+
+        # Test helper directly with UTF-8 encoding
+        assert "🟢 HEALTHY" == _safe_health_status("healthy", encoding="utf-8")
+        assert "🟡 DEGRADED" == _safe_health_status("degraded", encoding="utf-8")
+        assert "🔴 UNHEALTHY" == _safe_health_status("unhealthy", encoding="utf-8")
+
+        # Test CLI invocation
+        runner = CliRunner()
+        result = runner.invoke(cli, ["twin", "health", "-t", topo_file], catch_exceptions=False)
+        assert result.exit_code == 0
+        assert "HEALTHY" in result.output
+
     def test_twin_health_json_format(self, runner: CliRunner, topo_file: str) -> None:
         """nroute twin health should output valid JSON when -f json is provided."""
         result = runner.invoke(
