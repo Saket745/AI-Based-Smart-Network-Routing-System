@@ -9,3 +9,7 @@
 ## 2026-08-18 - [Export CLI visual feedback consistency and summary metadata]
 **Learning:** Plain `click.echo` messages for CLI file export commands lack visual feedback and leave users uncertain about the volume of data exported until they inspect the file.
 **Action:** Use Rich console formatting (`Console().print`) with status indicators (`[green]+[/green]`) and append summary statistics (e.g., node/edge counts or record counts) to provide instant visual verification of output size and format.
+
+## 2026-08-25 - [Terminal stream encoding safety for visual status indicators]
+**Learning:** Hardcoded unicode emojis (such as `🔴`, `🟡`, `🟢`) in Rich terminal table status outputs can trigger `UnicodeEncodeError` or display corrupted characters on restricted terminal encodings (e.g., Windows legacy CMD, CP1252, or ASCII environments).
+**Action:** Always wrap visual status symbols in a stream encoding-aware helper function that checks `sys.stdout.encoding` or `console.file.encoding`, falling back to clean text badges (`[!]`, `[*]`, `[OK]`) when unicode isn't supported.
