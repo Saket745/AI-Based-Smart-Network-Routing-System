@@ -204,18 +204,28 @@ class TopologyGenerator:
             start_core_idx = j * stride
             for offset in range(stride):
                 core_id = core_nodes[start_core_idx + offset]
-                for u, v in [(agg_id, core_id), (core_id, agg_id)]:
-                    graph.add_edge(
-                        u,
-                        v,
-                        bandwidth=core_bw,
-                        latency=core_lat,
-                        jitter=0.1,
-                        packet_loss=0.001,
-                        utilization=0.0,
-                        status="up",
-                        weight=core_lat,
-                    )
+                graph.add_edge(
+                    agg_id,
+                    core_id,
+                    bandwidth=core_bw,
+                    latency=core_lat,
+                    jitter=0.1,
+                    packet_loss=0.001,
+                    utilization=0.0,
+                    status="up",
+                    weight=core_lat,
+                )
+                graph.add_edge(
+                    core_id,
+                    agg_id,
+                    bandwidth=core_bw,
+                    latency=core_lat,
+                    jitter=0.1,
+                    packet_loss=0.001,
+                    utilization=0.0,
+                    status="up",
+                    weight=core_lat,
+                )
 
     @staticmethod
     def _add_fat_tree_pod(
