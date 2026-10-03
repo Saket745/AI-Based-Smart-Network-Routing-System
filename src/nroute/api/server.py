@@ -170,6 +170,13 @@ async def _run_in_executor(func: Any, *args: Any, **kwargs: Any) -> Any:
     return await loop.run_in_executor(_executor, partial(func, *args, **kwargs))
 
 
+def _write_temp_file(data: bytes, suffix: str) -> str:
+    """Write bytes to a named temporary file and return its path."""
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=suffix, delete=False) as tmp:
+        tmp.write(data)
+        return tmp.name
+
+
 # ── Request / Response Models ────────────────────────────────
 
 
@@ -310,11 +317,9 @@ async def ingest_config(request: Request, file: UploadFile = File(...)) -> dict[
                 detail=f"File size exceeds maximum limit of {max_size} bytes.",
             )
 
-    # Write to a temp file for the parser
+    # Write to a temp file for the parser offloaded to executor
     suffix = Path(file.filename or "config.yaml").suffix
-    with tempfile.NamedTemporaryFile(mode="wb", suffix=suffix, delete=False) as tmp:
-        tmp.write(content)
-        tmp_path = tmp.name
+    tmp_path = await _run_in_executor(_write_temp_file, bytes(content), suffix)
 
     try:
         hostnames = await _run_in_executor(engine.ingest_config, tmp_path)
