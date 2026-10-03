@@ -316,3 +316,52 @@ def test_api_start_cli_displays_fallback_token(monkeypatch: pytest.MonkeyPatch) 
     assert "Bearer " in result.output
     assert called_with["host"] == "127.0.0.1"
     assert called_with["port"] == 8000
+
+
+def test_api_load_topology_executor_offloaded(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Verify that _validate_and_check_path is called via _run_in_executor in load_topology."""
+    from nroute.api.server import _FALLBACK_TOKEN, _validate_and_check_path
+
+    valid_file = tmp_path / "valid_topo.json"
+    topo = Topology()
+    topo.add_node("R1")
+    topo.save(valid_file)
+
+    executor_calls: list[tuple[Any, ...]] = []
+    original_run_in_executor = nroute.api.server._run_in_executor
+
+    async def mock_run_in_executor(func: Any, *args: Any, **kwargs: Any) -> Any:
+        executor_calls.append((func, args, kwargs))
+        return await original_run_in_executor(func, *args, **kwargs)
+
+    monkeypatch.setattr(nroute.api.server, "_run_in_executor", mock_run_in_executor)
+
+    headers = {"Authorization": f"Bearer {_FALLBACK_TOKEN}"}
+    response = client.post("/api/topology/load", json={"path": str(valid_file)}, headers=headers)
+    assert response.status_code == 200
+
+    # Ensure _validate_and_check_path was passed as the first argument to _run_in_executor
+    assert any(call[0] == _validate_and_check_path for call in executor_calls)
+
+
+def test_validate_and_check_path_direct(tmp_path: Path) -> None:
+    """Test _validate_and_check_path directly for valid, missing, and forbidden paths."""
+    from fastapi import HTTPException
+
+    from nroute.api.server import _validate_and_check_path
+
+    valid_file = tmp_path / "direct_check.json"
+    valid_file.write_text("{}")
+
+    resolved = _validate_and_check_path(str(valid_file))
+    assert resolved.is_file()
+
+    with pytest.raises(HTTPException) as exc_info_404:
+        _validate_and_check_path(str(tmp_path / "non_existent.json"))
+    assert exc_info_404.value.status_code == 404
+
+    with pytest.raises(HTTPException) as exc_info_403:
+        _validate_and_check_path("/etc/passwd")
+    assert exc_info_403.value.status_code == 403
